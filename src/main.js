@@ -1,4 +1,5 @@
 import { WebGPUEngine, Scene, Vector3, ArcRotateCamera, HavokPlugin, GlowLayer } from "@babylonjs/core";
+import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline";
 import HavokPhysics from "@babylonjs/havok";
 import { createSceneElements } from "./sceneSetup";
 import { Player } from "./player";
@@ -9,7 +10,7 @@ import { setupMinimap } from "./minimap";
 
 async function createEngine() {
     const canvas = document.getElementById("renderCanvas");
-    const engine = new WebGPUEngine(canvas);
+    const engine = new WebGPUEngine(canvas, { antialiasingEnabled: true });
     await engine.initAsync();
     return engine;
 }
@@ -38,6 +39,11 @@ async function createScene(engine) {
     camera.wheelPrecision = 20;
     camera.attachControl(engine.getRenderingCanvas(), true);
     scene.activeCameras = [camera];
+
+    // Antialiasing: FXAA + MSAA samples (if supported)
+    const pipeline = new DefaultRenderingPipeline("defaultPipeline", true, scene, [camera]);
+    pipeline.fxaaEnabled = true;
+    pipeline.samples = 4;
 
     // Player
     const player = new Player(scene, camera);

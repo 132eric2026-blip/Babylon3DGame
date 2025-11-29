@@ -14,7 +14,7 @@ export class Shield {
         // --- 护盾整体亮度控制 ---
         // 调整此值可同时改变护盾的视觉发光度和对周围环境的照明强度
         // 1.0 为基准值
-        this.brightness = 1.1;
+        this.brightness = 1;
 
         this.createShieldMesh();
         if (Config.shield && Config.shield.particlesEnabled) {
@@ -99,8 +99,8 @@ export class Shield {
         this.light = new PointLight("shieldLight", Vector3.Zero(), this.scene);
         this.light.parent = this.mesh;
         // 光照强度受亮度系数影响 (基准 2.0)
-        this.light.intensity = 8.0 * this.brightness;
-        this.light.diffuse = new Color3(1.0, 0.8, 0.4); // Warm Golden Light
+        this.light.intensity = 2.0 * this.brightness;
+        this.light.diffuse = new Color3(1.0, 0.8, 0.0);
         this.light.range = 15; // Illuminate nearby area
 
         // 2. Create Shadow Generator
