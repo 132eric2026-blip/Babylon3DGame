@@ -10,6 +10,7 @@ export class Shield {
         this.light = null;
         this.shadowGenerator = null;
         this.ambientLight = null;
+        this.active = true;
 
         // --- 护盾整体亮度控制 ---
         // 调整此值可同时改变护盾的视觉发光度和对周围环境的照明强度
@@ -22,6 +23,7 @@ export class Shield {
         }
 
         this.setupLightAndShadows();
+        this.setActive(true);
     }
 
     createShieldMesh() {
@@ -83,9 +85,32 @@ export class Shield {
         // 光照强度受亮度系数影响 (基准 2.0)
         this.light.intensity = 2.0 * this.brightness;
         this.light.diffuse = new Color3(1.0, 0.8, 0.0);
-        this.light.range = 15; // Illuminate nearby area
-
-        
+        this.light.range = 25;
+        this.shadowGenerator = new ShadowGenerator(512*1, this.light);
+        this.shadowGenerator.usePoissonSampling = true;
+        this.shadowGenerator.setDarkness(0.35);
+        const ground = this.scene.getMeshByName("ground");
+        if (ground) {
+            ground.receiveShadows = true;
+        }
+        if (this.parentMesh) {
+            this.parentMesh.getChildMeshes().forEach(m => {
+                this.shadowGenerator.addShadowCaster(m);
+                m.receiveShadows = true;
+            });
+            const center = this.parentMesh.getAbsolutePosition();
+            const r = 50;
+            this.scene.meshes.forEach(mesh => {
+                if (mesh.name.startsWith("stone") || mesh.name.startsWith("trunk") || mesh.name.startsWith("leaves")) {
+                    const p = mesh.getAbsolutePosition ? mesh.getAbsolutePosition() : mesh.position;
+                    if (p && Math.hypot(p.x - center.x, p.z - center.z) <= r) {
+                        this.shadowGenerator.addShadowCaster(mesh);
+                        mesh.receiveShadows = true;
+                    }
+                }
+            });
+        }
+        this.scene.meshes.forEach(m => { m.receiveShadows = true; });
 
         // 4. Ambient Light for Player
         // Since the PointLight is inside the player's body, the body faces pointing outwards are dark.
@@ -164,6 +189,17 @@ export class Shield {
         particleSystem.start();
 
         this.particleSystem = particleSystem;
+    }
+
+    setActive(active) {
+        this.active = active;
+        if (this.mesh) this.mesh.setEnabled(active);
+        if (this.light) this.light.setEnabled(active);
+        if (this.ambientLight) this.ambientLight.setEnabled(active);
+        if (this.particleSystem) {
+            if (active) this.particleSystem.start();
+            else this.particleSystem.stop();
+        }
     }
 
     dispose() {

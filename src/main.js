@@ -7,6 +7,7 @@ import { Config } from "./config";
 import { DecorationManager } from "./decorations";
 import { setupUI } from "./ui";
 import { setupMinimap } from "./minimap";
+import { setupSkillBar } from "./skills";
 
 async function createEngine() {
     const canvas = document.getElementById("renderCanvas");
@@ -33,6 +34,7 @@ async function createScene(engine) {
     // Decorations
     const decorationManager = new DecorationManager(scene);
     decorationManager.generateRandomDecorations();
+    decorationManager.generateStreetLamps(3);
 
     // Camera
     const camera = new ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 30, Vector3.Zero(), scene);
@@ -46,8 +48,8 @@ async function createScene(engine) {
     pipeline.samples = 1;
     pipeline.bloomEnabled = true;
     pipeline.bloomThreshold = 1.2;
-    pipeline.bloomWeight = 0.6;
-    pipeline.bloomKernel = 64;
+    pipeline.bloomWeight = 0.8;
+    pipeline.bloomKernel = 80;
     pipeline.bloomScale = 0.5;
 
     // Player
@@ -64,11 +66,21 @@ async function createScene(engine) {
         });
     }
 
+    // Raise max simultaneous lights across materials to support shield + 3 lamps + ambient
+    scene.materials.forEach(mat => {
+        if (typeof mat.maxSimultaneousLights === "number") {
+            mat.maxSimultaneousLights = 6;
+        }
+    });
+
     // UI
     setupUI(scene, player);
 
     // Minimap
     setupMinimap(scene, player);
+
+    // Skills
+    setupSkillBar(scene, player);
 
     return scene;
 }
