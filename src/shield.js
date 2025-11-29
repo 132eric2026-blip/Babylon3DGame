@@ -23,7 +23,7 @@ export class Shield {
         }
 
         this.setupLightAndShadows();
-        this.setActive(true);
+        this.setActive(false);
     }
 
     createShieldMesh() {

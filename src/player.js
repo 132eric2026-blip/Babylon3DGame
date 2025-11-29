@@ -1,4 +1,4 @@
-import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, Quaternion, Matrix, ActionManager } from "@babylonjs/core";
+import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, Quaternion, Matrix, ActionManager, ParticleSystem, Texture, Color4 } from "@babylonjs/core";
 import { Config } from "./config";
 import { Shield } from "./shield";
 
@@ -10,6 +10,9 @@ export class Player {
         this.aggregate = null;
         this.inputMap = {};
         this.walkTime = 0;
+        this.isSprinting = false;
+        this.booster = null;
+        this.boosterPS = null;
 
         this.createPlayerMesh();
 
@@ -111,6 +114,43 @@ export class Player {
         body.parent = this.modelRoot;
         body.position.y = 1.2;
 
+        const boosterMat = new StandardMaterial("boosterMat", this.scene);
+        boosterMat.diffuseColor = new Color3(0.6, 0.6, 0.6);
+        boosterMat.specularColor = new Color3(0, 0, 0);
+        this.booster = MeshBuilder.CreateCylinder("booster", { diameter: 0.22, height: 0.38 }, this.scene);
+        this.booster.material = boosterMat;
+        this.booster.parent = body;
+        this.booster.rotation.x = Math.PI / 2;
+        this.booster.position = new Vector3(0, 0.05, -0.25);
+
+        const flamePS = new ParticleSystem("boosterFlame", 400, this.scene);
+        const canvas = document.createElement("canvas");
+        canvas.width = 64; canvas.height = 64;
+        const ctx = canvas.getContext("2d");
+        const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+        grad.addColorStop(0, "rgba(255,220,120,1)");
+        grad.addColorStop(0.5, "rgba(255,140,40,0.8)");
+        grad.addColorStop(1, "rgba(255,80,0,0)");
+        ctx.fillStyle = grad; ctx.clearRect(0,0,64,64); ctx.fillRect(0,0,64,64);
+        const texUrl = canvas.toDataURL();
+        const flameTex = Texture.CreateFromBase64String(texUrl, "flame.png", this.scene);
+        flamePS.particleTexture = flameTex;
+        flamePS.emitter = this.booster;
+        flamePS.createConeEmitter(0.06, Math.PI / 10);
+        flamePS.color1 = new Color4(3.0, 2.2, 0.8, 1.0);
+        flamePS.color2 = new Color4(2.0, 1.0, 0.2, 1.0);
+        flamePS.colorDead = new Color4(0, 0, 0, 0);
+        flamePS.minSize = 0.05; flamePS.maxSize = 0.12;
+        flamePS.minLifeTime = 0.2; flamePS.maxLifeTime = 0.5;
+        flamePS.emitRate = 0;
+        flamePS.blendMode = ParticleSystem.BLENDMODE_ADD;
+        flamePS.gravity = new Vector3(0, 0, 0);
+        flamePS.direction1 = new Vector3(0, 0, -1);
+        flamePS.direction2 = new Vector3(0, 0, -1);
+        flamePS.minEmitPower = 1.8; flamePS.maxEmitPower = 2.5;
+        flamePS.updateSpeed = 0.02;
+        this.boosterPS = flamePS;
+
         // 手臂参数
         const armWidth = 0.15;
         const armHeight = 0.6;
@@ -206,11 +246,14 @@ export class Player {
     updateMovement() {
         if (!this.mesh || !this.aggregate) return;
 
-        const speed = Config.player.speed;
+        const baseSpeed = Config.player.speed;
+        const sprintMul = (Config.player.sprintMultiplier || 2);
+        const sprintSpeed = (Config.player.sprintSpeed || (baseSpeed * sprintMul));
         const velocity = this.aggregate.body.getLinearVelocity();
 
         let moveDirection = new Vector3(0, 0, 0);
         let isMoving = false;
+        this.isSprinting = !!this.inputMap["q"];
 
         // 获取相机的前方方向（忽略Y轴）
         const cameraForward = this.camera.getForwardRay().direction;
@@ -276,19 +319,25 @@ export class Player {
             moveDirection.normalize();
             // Apply velocity
             // We want to keep the vertical velocity (gravity)
+            const curSpeed = this.isSprinting ? sprintSpeed : baseSpeed;
             this.aggregate.body.setLinearVelocity(new Vector3(
-                moveDirection.x * speed,
+                moveDirection.x * curSpeed,
                 velocity.y,
-                moveDirection.z * speed
+                moveDirection.z * curSpeed
             ));
-
-            // Animation
-            this.walkTime += this.scene.getEngine().getDeltaTime() * 0.01 * (speed / 5);
+            const dtScale = this.isSprinting ? 0.018 : 0.01;
+            this.walkTime += this.scene.getEngine().getDeltaTime() * dtScale * (curSpeed / 5);
+            const amp = this.isSprinting ? 1.2 : 0.8;
             const angle = Math.sin(this.walkTime);
-            this.leftShoulder.rotation.x = angle * 0.8;
-            this.rightShoulder.rotation.x = -angle * 0.8;
-            this.leftHip.rotation.x = -angle * 0.8;
-            this.rightHip.rotation.x = angle * 0.8;
+            this.leftShoulder.rotation.x = angle * amp;
+            this.rightShoulder.rotation.x = -angle * amp;
+            this.leftHip.rotation.x = -angle * amp;
+            this.rightHip.rotation.x = angle * amp;
+
+            if (this.boosterPS) {
+                this.boosterPS.emitRate = this.isSprinting ? 220 : 0;
+                if (this.isSprinting) this.boosterPS.start(); else this.boosterPS.stop();
+            }
 
         } else {
             // Stop horizontal movement
@@ -299,6 +348,7 @@ export class Player {
             this.rightShoulder.rotation.x = 0;
             this.leftHip.rotation.x = 0;
             this.rightHip.rotation.x = 0;
+            if (this.boosterPS) { this.boosterPS.emitRate = 0; this.boosterPS.stop(); }
         }
     }
 }

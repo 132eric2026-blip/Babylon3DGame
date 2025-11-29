@@ -75,8 +75,31 @@ function createShieldIcon() {
     return canvas.toDataURL();
 }
 
+function createBoosterIcon() {
+    const c = document.createElement("canvas");
+    c.width = 64; c.height = 64;
+    const ctx = c.getContext("2d");
+    ctx.clearRect(0,0,64,64);
+    const g = ctx.createRadialGradient(32, 44, 6, 32, 44, 26);
+    g.addColorStop(0, "rgba(255,180,80,1)");
+    g.addColorStop(0.6, "rgba(255,110,40,0.9)");
+    g.addColorStop(1, "rgba(200,40,0,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(32, 40, 18, 24, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,80,40,0.95)";
+    ctx.beginPath();
+    ctx.moveTo(32, 18);
+    ctx.lineTo(26, 36);
+    ctx.lineTo(38, 36);
+    ctx.closePath();
+    ctx.fill();
+    return c.toDataURL();
+}
+
 export function setupSkillBar(scene, player) {
-    const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
+    const keys = ["1", "Q", "3", "4", "5", "6", "7", "8", "9", "0"];
     const advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("SkillsUI");
     advancedTexture.layer.layerMask = 0x20000000;
 
@@ -92,6 +115,7 @@ export function setupSkillBar(scene, player) {
     const slotSize = 64;
     const gap = 8;
     const totalWidth = 10 * slotSize + 9 * gap;
+    const slots = [];
     for (let i = 0; i < 10; i++) {
         const slot = new Rectangle("skillSlot_" + i);
         slot.width = slotSize + "px";
@@ -104,6 +128,7 @@ export function setupSkillBar(scene, player) {
         slot.left = ((-totalWidth / 2) + i * (slotSize + gap) + slotSize / 2) + "px";
         slot.top = "-10px";
         bar.addControl(slot);
+        slots.push(slot);
 
         const keyText = new TextBlock("keyText_" + i, i === 0 ? "E" : keys[i]);
         keyText.color = "white";
@@ -114,9 +139,9 @@ export function setupSkillBar(scene, player) {
         keyText.top = "6px";
         slot.addControl(keyText);
 
-        const icon = new Image("icon_" + i, i === 0 ? createShieldIcon() : "");
-        icon.width = (i === 0 ? (slotSize - 20) : (slotSize - 12)) + "px";
-        icon.height = (i === 0 ? (slotSize - 20) : (slotSize - 12)) + "px";
+        const icon = new Image("icon_" + i, i === 0 ? createShieldIcon() : i === 1 ? createBoosterIcon() : "");
+        icon.width = ((i === 0 || i === 1) ? (slotSize - 20) : (slotSize - 12)) + "px";
+        icon.height = ((i === 0 || i === 1) ? (slotSize - 20) : (slotSize - 12)) + "px";
         icon.stretch = Image.STRETCH_UNIFORM;
         icon.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
         icon.verticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
@@ -129,6 +154,18 @@ export function setupSkillBar(scene, player) {
             if (player && player.shield) {
                 player.shield.setActive(!player.shield.active);
             }
+        }
+        if (k === "q") {
+            const s = slots[1];
+            if (s) { s.color = "#FFD54A"; s.thickness = 3; }
+        }
+    });
+
+    window.addEventListener("keyup", (evt) => {
+        const k = (evt.key || "").toLowerCase();
+        if (k === "q") {
+            const s = slots[1];
+            if (s) { s.color = "#999999"; s.thickness = 2; }
         }
     });
 }
