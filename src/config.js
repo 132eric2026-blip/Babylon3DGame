@@ -28,5 +28,12 @@ export const Config = {
             treeTrunkColor: { r: 0.4, g: 0.2, b: 0.1 },
             treeLeavesColor: { r: 0.1, g: 0.6, b: 0.1 }
         }
+    },
+    minimap: {
+        showMask: false, // 是否显示圆形遮罩（黑色四角）
+        zoom: 20,
+        minZoom: 10,
+        maxZoom: 100,
+        zoomStep: 10
     }
 };

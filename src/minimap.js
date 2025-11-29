@@ -9,8 +9,12 @@ import {
 import { 
     AdvancedDynamicTexture, 
     Image, 
-    Control 
+    Control,
+    Rectangle,
+    Button,
+    TextBlock
 } from "@babylonjs/gui";
+import { Config } from "./config";
 
 export function setupMinimap(scene, player) {
     // --- Constants & Masks ---
@@ -77,19 +81,31 @@ export function setupMinimap(scene, player) {
         }
     });
 
-    // --- 2. Minimap Camera ---
+    // Zoom / Ortho Size
+    let currentZoom = Config.minimap.zoom;
+    let zoomTextControl = null;
+    
     const minimapCamera = new TargetCamera("minimapCamera", new Vector3(0, 100, 0), scene);
     minimapCamera.mode = TargetCamera.ORTHOGRAPHIC_CAMERA;
     minimapCamera.setTarget(Vector3.Zero());
     minimapCamera.rotation.x = Math.PI / 2; // Look Down
     minimapCamera.rotation.y = 0; // North Up
     
-    // Zoom / Ortho Size
-    const orthoSize = 30; // View range
-    minimapCamera.orthoLeft = -orthoSize;
-    minimapCamera.orthoRight = orthoSize;
-    minimapCamera.orthoTop = orthoSize;
-    minimapCamera.orthoBottom = -orthoSize;
+    // Function to update zoom
+    const updateCameraZoom = () => {
+        minimapCamera.orthoLeft = -currentZoom;
+        minimapCamera.orthoRight = currentZoom;
+        minimapCamera.orthoTop = currentZoom;
+        minimapCamera.orthoBottom = -currentZoom;
+        // Force projection matrix update
+        minimapCamera.getProjectionMatrix(true);
+        
+        if (zoomTextControl) {
+            zoomTextControl.text = "Zoom: " + currentZoom;
+        }
+    };
+    
+    updateCameraZoom(); // Initial Set
 
     // Minimap sees ONLY the markers (and maybe ground if we want context? User said "Circles for objects", implying abstract map).
     // Let's try showing ONLY markers first. If it's too empty, we can add ground.
@@ -107,69 +123,111 @@ export function setupMinimap(scene, player) {
     const mapSize = 200; // px
     const mapMargin = 20; // px
 
-    // 3.1 Create Circular Mask Texture using Canvas
-    const maskCanvas = document.createElement("canvas");
-    maskCanvas.width = mapSize;
-    maskCanvas.height = mapSize;
-    const ctx = maskCanvas.getContext("2d");
-    
-    // Draw Mask: Transparent Circle in the middle, Opaque color outside.
-    // Since we can't easily match the 3D canvas background if it changes, we usually use a "Frame".
-    // Or we can just make the viewport background specific?
-    // Minimap camera clear color?
-    minimapCamera.clearColor = new Color3(0, 0, 0.2); // Dark Blue background for map
-    
-    // Now the mask: We want to HIDE the corners of the viewport.
-    // So we draw a generic "border" image that has opaque corners and transparent center.
-    
-    // Clear
-    ctx.clearRect(0, 0, mapSize, mapSize);
-    
-    // Fill all with Black (or UI background color) - This covers the viewport corners
-    ctx.fillStyle = "rgba(0,0,0,0)"; // Transparent base? No.
-    // We want the CORNERS to be opaque (hiding the viewport).
-    // We want the CENTER to be transparent (showing the viewport).
-    
-    // Fill entire canvas with "Frame Color" (e.g. Transparent? No, if it's transparent we see the viewport corners!)
-    // We need the UI to BLOCK the viewport at the corners.
-    // So fill with 'Black' (or page background). Assuming black borders or transparent overlay?
-    // Actually, if the game is full screen, the "corners" of the minimap viewport will cover the game world.
-    // We want to hide those corners.
-    // But UI is drawn ON TOP of 3D.
-    // So if we draw Opaque Pixels in UI, they hide the 3D Viewport.
-    // So we fill the canvas with Opaque Color (e.g. Black or Dark Grey).
-    ctx.fillStyle = "#222222"; 
-    ctx.fillRect(0, 0, mapSize, mapSize);
-    
-    // Cut out the circle (Make center transparent)
-    ctx.globalCompositeOperation = "destination-out";
-    ctx.beginPath();
-    ctx.arc(mapSize/2, mapSize/2, mapSize/2 - 4, 0, Math.PI * 2); // -4 for border thickness
-    ctx.fill();
-    
-    // Reset composite
-    ctx.globalCompositeOperation = "source-over";
-    
-    // Draw a nice border ring
-    ctx.strokeStyle = "white";
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(mapSize/2, mapSize/2, mapSize/2 - 2, 0, Math.PI * 2);
-    ctx.stroke();
-
-    const maskDataUrl = maskCanvas.toDataURL();
-
-    // 3.2 Create GUI to hold the mask
+    // 3.1 Create GUI to hold the mask and buttons
     const advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("MinimapUI");
     
-    const maskImage = new Image("minimapMask", maskDataUrl);
-    maskImage.width = mapSize + "px";
-    maskImage.height = mapSize + "px";
-    maskImage.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    maskImage.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-    maskImage.left = mapMargin + "px";
-    maskImage.top = -mapMargin + "px";
-    advancedTexture.addControl(maskImage);
+    // Container for Minimap UI
+    const minimapContainer = new Rectangle("minimapContainer");
+    minimapContainer.width = mapSize + "px";
+    minimapContainer.height = mapSize + "px";
+    minimapContainer.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+    minimapContainer.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
+    minimapContainer.left = mapMargin + "px";
+    minimapContainer.top = -mapMargin + "px";
+    minimapContainer.thickness = 0; // Invisible container border
+    advancedTexture.addControl(minimapContainer);
+
+    // 3.2 Circular Mask (Optional Config)
+    if (Config.minimap.showMask) {
+        // Create Circular Mask Texture using Canvas
+        const maskCanvas = document.createElement("canvas");
+        maskCanvas.width = mapSize;
+        maskCanvas.height = mapSize;
+        const ctx = maskCanvas.getContext("2d");
+        
+        // Minimap camera clear color
+        minimapCamera.clearColor = new Color3(0, 0, 0.2); 
+        
+        // Fill all with Black (covers viewport corners)
+        ctx.fillStyle = "#222222"; 
+        ctx.fillRect(0, 0, mapSize, mapSize);
+        
+        // Cut out the circle
+        ctx.globalCompositeOperation = "destination-out";
+        ctx.beginPath();
+        ctx.arc(mapSize/2, mapSize/2, mapSize/2 - 4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Reset composite
+        ctx.globalCompositeOperation = "source-over";
+        
+        // Draw border ring
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(mapSize/2, mapSize/2, mapSize/2 - 2, 0, Math.PI * 2);
+        ctx.stroke();
+
+        const maskDataUrl = maskCanvas.toDataURL();
+        
+        const maskImage = new Image("minimapMask", maskDataUrl);
+        maskImage.stretch = Image.STRETCH_FILL;
+        minimapContainer.addControl(maskImage);
+    } else {
+        // Square Border if no mask
+        const border = new Rectangle("minimapBorder");
+        border.thickness = 2;
+        border.color = "white";
+        border.background = "transparent";
+        minimapContainer.addControl(border);
+        
+        // Set camera clear color to something opaque so it doesn't show game behind
+        // Or if we want it to be transparent? Usually Minimaps have background.
+        minimapCamera.clearColor = new Color3(0, 0, 0.2);
+    }
+
+    // Debug: Zoom Level Text
+    zoomTextControl = new TextBlock();
+    zoomTextControl.text = "Zoom: " + currentZoom;
+    zoomTextControl.color = "white";
+    zoomTextControl.fontSize = 12;
+    zoomTextControl.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+    zoomTextControl.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    zoomTextControl.left = "-5px";
+    zoomTextControl.top = "5px";
+    minimapContainer.addControl(zoomTextControl);
+
+    // 3.3 Zoom Buttons
+    const createZoomButton = (text, alignLeft) => {
+        const btn = Button.CreateSimpleButton("zoomBtn" + text, text);
+        btn.width = "30px";
+        btn.height = "30px";
+        btn.color = "white";
+        btn.background = "rgba(0, 0, 0, 0.5)";
+        btn.cornerRadius = 15;
+        btn.horizontalAlignment = alignLeft ? Control.HORIZONTAL_ALIGNMENT_LEFT : Control.HORIZONTAL_ALIGNMENT_RIGHT;
+        btn.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
+        // Position slightly outside or inside? User said "Lower two corners".
+        // If inside, they might block map. If outside, they expand footprint.
+        // Let's put them INSIDE the corners for compactness.
+        btn.left = alignLeft ? "5px" : "-5px";
+        btn.top = "-5px";
+        return btn;
+    };
+
+    const btnMinus = createZoomButton("-", true); // Left corner -> Zoom Out (Increase View)
+    btnMinus.onPointerUpObservable.add(() => {
+        currentZoom = Math.min(currentZoom + Config.minimap.zoomStep, Config.minimap.maxZoom);
+        updateCameraZoom();
+    });
+    minimapContainer.addControl(btnMinus);
+
+    const btnPlus = createZoomButton("+", false); // Right corner -> Zoom In (Decrease View)
+    btnPlus.onPointerUpObservable.add(() => {
+        currentZoom = Math.max(currentZoom - Config.minimap.zoomStep, Config.minimap.minZoom);
+        updateCameraZoom();
+    });
+    minimapContainer.addControl(btnPlus);
 
     // 4. Handle Viewport Logic
     const updateViewport = () => {
