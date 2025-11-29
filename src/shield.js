@@ -1,4 +1,5 @@
 import { MeshBuilder, StandardMaterial, Color3, Color4, ParticleSystem, Texture, Vector3, DefaultRenderingPipeline, FresnelParameters } from "@babylonjs/core";
+import { Config } from "./config";
 
 export class Shield {
     constructor(scene, parentMesh) {
@@ -8,7 +9,10 @@ export class Shield {
         this.pipeline = null;
 
         this.createShieldMesh();
-        this.setupBloom();
+        if (Config.shield && Config.shield.particlesEnabled) {
+            this.createParticles();
+            this.setupBloom();
+        }
     }
 
     createShieldMesh() {
@@ -69,13 +73,86 @@ export class Shield {
             pipeline.bloomWeight = 0.6;    // 适度辉光
             pipeline.bloomKernel = 64;     // 柔和扩散
             pipeline.bloomScale = 0.5;
+
+            // Anti-Aliasing
+            pipeline.fxaaEnabled = true; // 开启FXAA抗锯齿
+            pipeline.samples = 4;        // 开启MSAA 4x
         }
         this.pipeline = pipeline;
     }
 
+    createParticles() {
+        // Create a particle system
+        const particleSystem = new ParticleSystem("shieldParticles", 1000, this.scene);
+
+        // Texture of each particle
+        // Dynamic Texture for Circular Particle
+        const canvas = document.createElement("canvas");
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext("2d");
+        const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+        grad.addColorStop(0, "rgba(255, 255, 255, 1)"); // Core White
+        grad.addColorStop(0.5, "rgba(255, 255, 255, 0.5)"); // Mid Halo
+        grad.addColorStop(1, "rgba(255, 255, 255, 0)"); // Fade out
+        ctx.fillStyle = grad;
+        ctx.clearRect(0, 0, 64, 64); // Clear first
+        ctx.fillRect(0, 0, 64, 64);
+        const particleUrl = canvas.toDataURL();
+
+        const texture = Texture.CreateFromBase64String(particleUrl, "particleCircle.png", this.scene);
+        particleSystem.particleTexture = texture;
+
+        // Emitter
+        particleSystem.emitter = this.mesh;
+
+        // Sphere Emitter - Surface Only
+        // Radius 0.9 matches the mesh radius (Diameter 1.8 / 2)
+        particleSystem.createSphereEmitter(0.9, 0);
+
+        // Colors - Bright Gold for Bloom
+        particleSystem.color1 = new Color4(3.0, 2.5, 1.0, 1.0); // Very Bright Gold
+        particleSystem.color2 = new Color4(2.0, 1.5, 0.5, 1.0); // Gold
+        particleSystem.colorDead = new Color4(0, 0, 0, 0.0);
+
+        // Size - Small and subtle
+        particleSystem.minSize = 0.03;
+        particleSystem.maxSize = 0.06;
+
+        // Life time
+        particleSystem.minLifeTime = 0.5;
+        particleSystem.maxLifeTime = 1.2;
+
+        // Emission rate
+        particleSystem.emitRate = 150;
+
+        // Blend mode
+        particleSystem.blendMode = ParticleSystem.BLENDMODE_ADD;
+
+        // Gravity - float up slightly
+        particleSystem.gravity = new Vector3(0, 0.5, 0);
+
+        // Speed
+        particleSystem.minEmitPower = 0.2;
+        particleSystem.maxEmitPower = 0.6;
+        particleSystem.updateSpeed = 0.01;
+
+        // Start
+        particleSystem.start();
+
+        this.particleSystem = particleSystem;
+    }
+
     dispose() {
+        if (this.particleSystem) {
+            this.particleSystem.stop();
+            this.particleSystem.dispose();
+        }
         if (this.mesh) {
             this.mesh.dispose();
+        }
+        if (this.pipeline) {
+            this.pipeline.dispose();
         }
     }
 }

@@ -6,6 +6,9 @@ export const Config = {
         depth: 1,
         showCollider: false // 是否显示物理胶囊体
     },
+    shield: {
+        particlesEnabled: true // 是否开启护盾粒子效果
+    },
     scene: {
         gravity: -9.81,
         groundColor: { r: 0.2, g: 0.2, b: 0.2 },
@@ -18,7 +21,7 @@ export const Config = {
             useKernelBlur: true, // 使用高质量模糊
             darkness: 0.5 // 阴影暗度 (0-1)
         },
-        hemiLightIntensity: 0.8,
+        hemiLightIntensity: 0.1,
         dirLightIntensity: 0.7,
         dirLightPosition: { x: 20, y: 40, z: 20 },
         decorations: {
