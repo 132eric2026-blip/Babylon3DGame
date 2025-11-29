@@ -1,14 +1,14 @@
-import { 
-    TargetCamera, 
-    Vector3, 
-    Color3, 
-    StandardMaterial, 
-    MeshBuilder, 
-    Viewport 
+import {
+    TargetCamera,
+    Vector3,
+    Color3,
+    StandardMaterial,
+    MeshBuilder,
+    Viewport
 } from "@babylonjs/core";
-import { 
-    AdvancedDynamicTexture, 
-    Image, 
+import {
+    AdvancedDynamicTexture,
+    Image,
     Control,
     Rectangle,
     Button,
@@ -20,17 +20,18 @@ export function setupMinimap(scene, player) {
     // --- Constants & Masks ---
     // Bit 28: Minimap Objects (Visible to Minimap, Invisible to Main)
     const MASK_MINIMAP = 0x10000000;
-    // Main camera sees everything EXCEPT MASK_MINIMAP
-    // Note: We need to ensure Main Camera mask is set correctly.
-    // Default is 0xFFFFFFFF. We want (Default & ~MASK_MINIMAP).
+    // Bit 29: UI Objects (Visible to UI Camera, Invisible to Main)
+    const MASK_UI = 0x20000000;
+
+    // Main camera sees everything EXCEPT MASK_MINIMAP and MASK_UI
     const MASK_MAIN = 0xFFFFFFFF;
 
     if (scene.activeCamera) {
-        scene.activeCamera.layerMask = MASK_MAIN & ~MASK_MINIMAP;
+        scene.activeCamera.layerMask = MASK_MAIN & ~MASK_MINIMAP & ~MASK_UI;
     }
 
     // --- 1. Create Minimap Markers ---
-    
+
     // 1.1 Player Marker Root (Container)
     const playerMarker = MeshBuilder.CreateBox("playerMarkerRoot", { size: 0.1 }, scene);
     playerMarker.isVisible = false; // Invisible container
@@ -40,13 +41,13 @@ export function setupMinimap(scene, player) {
 
     // Arrow (Triangle)
     const arrow = MeshBuilder.CreateDisc("minimapArrow", { radius: 1.5, tessellation: 3 }, scene);
-    arrow.rotation.x = Math.PI / 2; 
+    arrow.rotation.x = Math.PI / 2;
     arrow.rotation.y = -Math.PI / 2; // Points Forward
-    
+
     const yellowMat = new StandardMaterial("yellowMat", scene);
     yellowMat.emissiveColor = Color3.Yellow();
     yellowMat.disableLighting = true;
-    
+
     arrow.material = yellowMat;
     arrow.parent = playerMarker;
     arrow.layerMask = MASK_MINIMAP;
@@ -69,7 +70,7 @@ export function setupMinimap(scene, player) {
 
             const marker = MeshBuilder.CreateDisc(mesh.name + "_marker", { radius: radius, tessellation: 16 }, scene);
             marker.rotation.x = Math.PI / 2;
-            
+
             const markerMat = new StandardMaterial("markerMat", scene);
             markerMat.emissiveColor = new Color3(0.8, 0.8, 0.8); // Light Gray
             markerMat.disableLighting = true;
@@ -84,13 +85,13 @@ export function setupMinimap(scene, player) {
     // Zoom / Ortho Size
     let currentZoom = Config.minimap.zoom;
     let zoomTextControl = null;
-    
+
     const minimapCamera = new TargetCamera("minimapCamera", new Vector3(0, 100, 0), scene);
     minimapCamera.mode = TargetCamera.ORTHOGRAPHIC_CAMERA;
     minimapCamera.setTarget(Vector3.Zero());
     minimapCamera.rotation.x = Math.PI / 2; // Look Down
     minimapCamera.rotation.y = 0; // North Up
-    
+
     // Function to update zoom
     const updateCameraZoom = () => {
         minimapCamera.orthoLeft = -currentZoom;
@@ -99,16 +100,21 @@ export function setupMinimap(scene, player) {
         minimapCamera.orthoBottom = -currentZoom;
         // Force projection matrix update
         minimapCamera.getProjectionMatrix(true);
-        
+
         if (zoomTextControl) {
             zoomTextControl.text = "Zoom: " + currentZoom;
         }
     };
-    
+
     updateCameraZoom(); // Initial Set
 
     // Minimap sees ONLY the markers
     minimapCamera.layerMask = MASK_MINIMAP;
+
+    // --- UI Camera Setup ---
+    // Create a dedicated camera for UI to avoid Bloom
+    const uiCamera = new TargetCamera("uiCamera", Vector3.Zero(), scene);
+    uiCamera.layerMask = MASK_UI;
 
     // Add to active cameras
     // Ensure Main Camera is still active and in 0 index (usually)
@@ -119,6 +125,9 @@ export function setupMinimap(scene, player) {
     if (!scene.activeCameras.includes(minimapCamera)) {
         scene.activeCameras.push(minimapCamera);
     }
+    if (!scene.activeCameras.includes(uiCamera)) {
+        scene.activeCameras.push(uiCamera);
+    }
 
     // --- 3. Viewport & UI Mask (Circular Effect) ---
     const mapSize = 200; // px
@@ -126,7 +135,9 @@ export function setupMinimap(scene, player) {
 
     // 3.1 Create GUI to hold the mask and buttons
     const advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("MinimapUI");
-    
+    // Important: Set layer mask so ONLY uiCamera sees this, preventing Bloom from Main Camera
+    advancedTexture.layer.layerMask = MASK_UI;
+
     // Container for Minimap UI
     const minimapContainer = new Rectangle("minimapContainer");
     minimapContainer.width = mapSize + "px";
@@ -145,32 +156,32 @@ export function setupMinimap(scene, player) {
         maskCanvas.width = mapSize;
         maskCanvas.height = mapSize;
         const ctx = maskCanvas.getContext("2d");
-        
+
         // Minimap camera clear color
-        minimapCamera.clearColor = new Color3(0, 0, 0.2); 
-        
+        minimapCamera.clearColor = new Color3(0, 0, 0.2);
+
         // Fill all with Black (covers viewport corners)
-        ctx.fillStyle = "#222222"; 
+        ctx.fillStyle = "#222222";
         ctx.fillRect(0, 0, mapSize, mapSize);
-        
+
         // Cut out the circle
         ctx.globalCompositeOperation = "destination-out";
         ctx.beginPath();
-        ctx.arc(mapSize/2, mapSize/2, mapSize/2 - 4, 0, Math.PI * 2);
+        ctx.arc(mapSize / 2, mapSize / 2, mapSize / 2 - 4, 0, Math.PI * 2);
         ctx.fill();
-        
+
         // Reset composite
         ctx.globalCompositeOperation = "source-over";
-        
+
         // Draw border ring
         ctx.strokeStyle = "white";
         ctx.lineWidth = 4;
         ctx.beginPath();
-        ctx.arc(mapSize/2, mapSize/2, mapSize/2 - 2, 0, Math.PI * 2);
+        ctx.arc(mapSize / 2, mapSize / 2, mapSize / 2 - 2, 0, Math.PI * 2);
         ctx.stroke();
 
         const maskDataUrl = maskCanvas.toDataURL();
-        
+
         const maskImage = new Image("minimapMask", maskDataUrl);
         maskImage.stretch = Image.STRETCH_FILL;
         minimapContainer.addControl(maskImage);
@@ -181,7 +192,7 @@ export function setupMinimap(scene, player) {
         border.color = "white";
         border.background = "transparent";
         minimapContainer.addControl(border);
-        
+
         // Set camera clear color to something opaque so it doesn't show game behind
         // Or if we want it to be transparent? Usually Minimaps have background.
         minimapCamera.clearColor = new Color3(0, 0, 0.2);
@@ -235,7 +246,7 @@ export function setupMinimap(scene, player) {
         const engine = scene.getEngine();
         const w = engine.getRenderWidth();
         const h = engine.getRenderHeight();
-        
+
         minimapCamera.viewport = new Viewport(
             mapMargin / w,
             mapMargin / h,
@@ -243,7 +254,7 @@ export function setupMinimap(scene, player) {
             mapSize / h
         );
     };
-    
+
     updateViewport();
     window.addEventListener("resize", updateViewport);
 
@@ -260,7 +271,7 @@ export function setupMinimap(scene, player) {
             // The prompt says: "Player uses yellow arrow... matches 3D world direction".
             // Usually means: Map is Fixed (North Up), Arrow Rotates.
             // Let's stick to North Up (Map fixed), Arrow Rotates.
-            
+
             // Sync marker rotation with player rotation
             // Player Mesh (Capsule) might not rotate? The modelRoot inside it rotates?
             // In `player.js`, `this.mesh.rotationQuaternion` or `rotation` is usually 0 for physics capsule?
@@ -277,11 +288,11 @@ export function setupMinimap(scene, player) {
                 // So `this.mesh` does NOT rotate.
                 // So `playerMarker` (child of mesh) will NOT rotate.
                 // We must update `playerMarker.rotation.y` to match `player.modelRoot.rotationQuaternion`.
-                
+
                 if (player.modelRoot.rotationQuaternion) {
-                     const euler = player.modelRoot.rotationQuaternion.toEulerAngles();
-                     // Marker Root Rotation matches Player Rotation
-                     playerMarker.rotation.y = euler.y;
+                    const euler = player.modelRoot.rotationQuaternion.toEulerAngles();
+                    // Marker Root Rotation matches Player Rotation
+                    playerMarker.rotation.y = euler.y;
                 } else {
                     playerMarker.rotation.y = player.modelRoot.rotation.y;
                 }

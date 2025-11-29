@@ -38,13 +38,13 @@ async function createScene(engine) {
     camera.wheelPrecision = 20;
     camera.attachControl(engine.getRenderingCanvas(), true);
     scene.activeCameras = [camera];
-    
+
     // Player
     const player = new Player(scene, camera);
-    
+
     // Camera follow player
     // Note: player.mesh is the physics capsule.
-    camera.lockedTarget = player.mesh; 
+    camera.lockedTarget = player.mesh;
 
     // Add player meshes to shadow generator
     if (scene.shadowGenerator) {
@@ -55,7 +55,7 @@ async function createScene(engine) {
 
     // UI
     setupUI(scene, player);
-    
+
     // Minimap
     setupMinimap(scene, player);
 

@@ -10,9 +10,9 @@ export class Player {
         this.aggregate = null;
         this.inputMap = {};
         this.walkTime = 0;
-        
+
         this.createPlayerMesh();
-        
+
         // Create Shield
         this.shield = new Shield(this.scene, this.modelRoot);
 
@@ -30,21 +30,27 @@ export class Player {
         // 材质
         const skinMat = new StandardMaterial("skinMat", this.scene);
         skinMat.diffuseColor = new Color3(1, 0.8, 0.6);
+        skinMat.specularColor = new Color3(0, 0, 0); // 去掉高光
 
         const hairMat = new StandardMaterial("hairMat", this.scene);
         hairMat.diffuseColor = new Color3(0.4, 0.2, 0.1); // Brown hair
+        hairMat.specularColor = new Color3(0, 0, 0); // 去掉高光
 
         const clothesMat = new StandardMaterial("clothesMat", this.scene);
         clothesMat.diffuseColor = new Color3(1, 0.4, 0.6); // Pink shirt
+        clothesMat.specularColor = new Color3(0, 0, 0); // 去掉高光
 
         const pantsMat = new StandardMaterial("pantsMat", this.scene);
         pantsMat.diffuseColor = new Color3(0.2, 0.2, 0.8); // Blue pants
+        pantsMat.specularColor = new Color3(0, 0, 0); // 去掉高光
 
         const eyeMat = new StandardMaterial("eyeMat", this.scene);
         eyeMat.diffuseColor = new Color3(0, 0, 0);
+        eyeMat.specularColor = new Color3(0, 0, 0); // 去掉高光
 
         const mouthMat = new StandardMaterial("mouthMat", this.scene);
         mouthMat.diffuseColor = new Color3(0.8, 0.2, 0.2);
+        mouthMat.specularColor = new Color3(0, 0, 0); // 去掉高光
 
         // 身体容器，用于旋转
         this.modelRoot = new MeshBuilder.CreateBox("modelRoot", { size: 0.1 }, this.scene);
@@ -172,7 +178,7 @@ export class Player {
         // 胶囊体物理聚合体
         // mass: 1, friction: 0.2, restitution: 0
         this.aggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.CAPSULE, { mass: 1, friction: 0.5, restitution: 0 }, this.scene);
-        
+
         // 锁定旋转，防止玩家摔倒
         this.aggregate.body.setMassProperties({
             inertia: new Vector3(0, 0, 0)
@@ -181,7 +187,7 @@ export class Player {
 
     setupInputs() {
         this.scene.actionManager = this.scene.actionManager || new ActionManager(this.scene);
-        
+
         window.addEventListener("keydown", (evt) => {
             this.inputMap[evt.key.toLowerCase()] = true;
         });
@@ -202,7 +208,7 @@ export class Player {
 
         const speed = Config.player.speed;
         const velocity = this.aggregate.body.getLinearVelocity();
-        
+
         let moveDirection = new Vector3(0, 0, 0);
         let isMoving = false;
 
@@ -216,12 +222,12 @@ export class Player {
         // Babylon: Left Handed system.
         // Up (0,1,0) x Forward (0,0,1) = (1,0,0) which is Right.
         // But wait, let's verify directions.
-        
+
         // W - Forward
         if (this.inputMap["w"]) {
             moveDirection.addInPlace(cameraForward);
             isMoving = true;
-            
+
             // 只有按住W时，玩家模型才转向相机前方
             // 计算目标旋转
             const targetRotation = Math.atan2(cameraForward.x, cameraForward.z);
@@ -230,7 +236,7 @@ export class Player {
             // 使用 Quaternion.Slerp 平滑旋转
             const currentRotation = this.modelRoot.rotationQuaternion ? this.modelRoot.rotationQuaternion.toEulerAngles().y : this.modelRoot.rotation.y;
             // 简单处理，直接设置rotation.y
-             this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0, targetRotation, 0);
+            this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0, targetRotation, 0);
         }
 
         // S - Backward
@@ -249,15 +255,15 @@ export class Player {
         // Forward = Z
         // Right = X
         // Up = Y
-        
+
         // Babylon Left Handed:
         // Cross(Up, Forward) -> Right ?
         // (0,1,0) x (0,0,1) = (1,0,0) -> Right. Correct.
-        
+
         if (this.inputMap["a"]) {
-             // Move Left -> -Right
-             moveDirection.subtractInPlace(cameraRight);
-             isMoving = true;
+            // Move Left -> -Right
+            moveDirection.subtractInPlace(cameraRight);
+            isMoving = true;
         }
 
         // D - Right
@@ -277,7 +283,7 @@ export class Player {
             ));
 
             // Animation
-            this.walkTime += this.scene.getEngine().getDeltaTime() * 0.005 * (speed / 5);
+            this.walkTime += this.scene.getEngine().getDeltaTime() * 0.01 * (speed / 5);
             const angle = Math.sin(this.walkTime);
             this.leftShoulder.rotation.x = angle * 0.8;
             this.rightShoulder.rotation.x = -angle * 0.8;
