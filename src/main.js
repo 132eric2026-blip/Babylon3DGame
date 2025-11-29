@@ -8,6 +8,7 @@ import { DecorationManager } from "./decorations";
 import { setupUI } from "./ui";
 import { setupMinimap } from "./minimap";
 import { setupSkillBar } from "./skills";
+import { Horse } from "./horse";
 
 async function createEngine() {
     const canvas = document.getElementById("renderCanvas");
@@ -81,6 +82,9 @@ async function createScene(engine) {
 
     // Skills
     setupSkillBar(scene, player);
+
+    // Create Horse
+    const horse = new Horse(scene, new Vector3(5, 0, 5));
 
     return scene;
 }

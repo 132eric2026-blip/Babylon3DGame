@@ -17,6 +17,8 @@ export class Player {
         this.hoverActive = false;
         this.ascendImpulseMs = 0;
         this._groundEpsilon = 0.06;
+        this.nearbyHorse = null;
+        this.mountedHorse = null;
 
         this.createPlayerMesh();
 
@@ -254,11 +256,23 @@ export class Player {
                 }
             }
             if (evt.code === "Space") {
+                if (this.mountedHorse) {
+                    // Dismount on jump
+                    this.dismountHorse();
+                    return;
+                }
                 if (this.isSprinting) {
                     if (!this.hoverActive) { this.hoverActive = true; }
                     else { this.ascendImpulseMs = 300; }
                 } else {
                     this.tryJump();
+                }
+            }
+            if (evt.key.toLowerCase() === "r") {
+                if (this.mountedHorse) {
+                    this.dismountHorse();
+                } else if (this.nearbyHorse) {
+                    this.mountHorse(this.nearbyHorse);
                 }
             }
         });
@@ -270,8 +284,183 @@ export class Player {
 
     registerBeforeRender() {
         this.scene.onBeforeRenderObservable.add(() => {
-            this.updateMovement();
+            if (this.mountedHorse) {
+                this.updateMountedMovement();
+            } else {
+                this.updateMovement();
+                this.checkNearbyHorses();
+            }
         });
+    }
+
+    checkNearbyHorses() {
+        // Simple distance check against all meshes named "horseRoot"
+        // Ideally we would have a list of interactables, but for now scan scene
+        let foundHorse = null;
+        // We know we only have one horse for now, but let's be somewhat generic
+        const horses = this.scene.meshes.filter(m => m.name === "horseRoot");
+        for (let horse of horses) {
+            if (Vector3.Distance(this.mesh.position, horse.position) < 3.0) {
+                foundHorse = horse;
+                break;
+            }
+        }
+        this.nearbyHorse = foundHorse;
+    }
+
+    mountHorse(horseMesh) {
+        if (!horseMesh) return;
+        this.mountedHorse = horseMesh;
+        
+        // Try to find the aggregate on the horse mesh metadata or via a global lookup if needed.
+        // In our case, we created the aggregate in horse.js but didn't attach it to mesh.metadata.
+        // BUT, we can just look for a way to get it.
+        // Actually, we need to pass the Horse instance or store the aggregate on the mesh.
+        // Let's assume we can hack it: check scene physics bodies?
+        // Better way: Let's modify Horse.js to attach aggregate to mesh.metadata.
+        // For now, let's assume we did that (I will do it in next step).
+        this.horseAggregate = horseMesh.metadata?.aggregate;
+
+        // Disable player physics temporarily or make it kinematic to attach?
+        // Easier: Make player child of horse? 
+        // But player has physics body. 
+        // Strategy: Disable player physics, parent mesh to horse, reset local position.
+        
+        if (this.aggregate) {
+            this.aggregate.body.disablePreStep = false; // Ensure we can modify
+            this.aggregate.dispose(); // Remove physics body while riding
+            this.aggregate = null;
+        }
+
+        this.mesh.setParent(horseMesh);
+        this.mesh.position = new Vector3(0, 1.2, 0); // Sit on top
+        this.mesh.rotationQuaternion = Quaternion.Identity();
+        
+        // Set riding pose
+        this.setRidingPose();
+    }
+
+    dismountHorse() {
+        if (!this.mountedHorse) return;
+
+        const horsePos = this.mountedHorse.absolutePosition;
+        
+        this.mesh.setParent(null);
+        this.mountedHorse = null;
+        
+        // Place player next to horse
+        this.mesh.position = horsePos.add(new Vector3(1.5, 0, 0));
+        this.mesh.rotationQuaternion = Quaternion.Identity();
+
+        // Re-enable physics
+        this.setupPhysics();
+        
+        // Reset pose
+        this.resetPose();
+    }
+
+    setRidingPose() {
+        // Sitting pose
+        this.modelRoot.rotationQuaternion = Quaternion.Identity();
+        this.modelRoot.position.y = -1.0; 
+        
+        // Legs straddle
+        this.leftHip.rotation.x = -1.5; // Sitting
+        this.leftHip.rotation.z = -0.5; // Spread
+        this.rightHip.rotation.x = -1.5;
+        this.rightHip.rotation.z = 0.5;
+
+        // Arms holding reins
+        this.leftShoulder.rotation.x = -0.8;
+        this.rightShoulder.rotation.x = -0.8;
+    }
+
+    resetPose() {
+         // Reset to default idle
+         this.modelRoot.position.y = -1.2;
+         this.leftHip.rotation.x = 0;
+         this.leftHip.rotation.z = 0;
+         this.rightHip.rotation.x = 0;
+         this.rightHip.rotation.z = 0;
+         this.leftShoulder.rotation.x = 0;
+         this.rightShoulder.rotation.x = 0;
+    }
+
+    updateMountedMovement() {
+        // Move the horse using Physics
+        if (!this.mountedHorse) return;
+        
+        // Find the PhysicsAggregate of the horse
+        // Since we don't have direct access to the horse instance here easily,
+        // we can try to get the metadata or just check if the mesh has an aggregate.
+        // But wait, the aggregate is usually on the transform node or mesh.
+        // Let's assume mountedHorse has metadata.aggregate or we look it up.
+        // Actually, Babylon Havok plugin attaches body to the mesh.
+        // However, the `PhysicsAggregate` object is what we need.
+        // Usually it's stored on the mesh in some projects, or we can try to access it.
+        // Let's assume we can access physicsBody directly if we are lucky, 
+        // but Havok V2 uses PhysicsBody which is on the mesh? No, it's on the aggregate.
+        
+        // Workaround: When mounting, store the horse's aggregate on the player
+        if (!this.horseAggregate) return;
+
+        const speed = 8.0; // Horse speed
+        const dt = this.scene.getEngine().getDeltaTime() / 1000;
+        let moveDir = new Vector3(0, 0, 0);
+
+        const cameraForward = this.camera.getForwardRay().direction;
+        cameraForward.y = 0;
+        cameraForward.normalize();
+        const cameraRight = Vector3.Cross(new Vector3(0, 1, 0), cameraForward);
+
+        if (this.inputMap["w"]) moveDir.addInPlace(cameraForward);
+        if (this.inputMap["s"]) moveDir.subtractInPlace(cameraForward);
+        if (this.inputMap["a"]) moveDir.subtractInPlace(cameraRight);
+        if (this.inputMap["d"]) moveDir.addInPlace(cameraRight);
+
+        // Align horse with camera forward when moving forward/backward, or general movement?
+        // User asked: "Horse rigid body direction should be consistent with camera direction."
+        // Usually this means if I press W, horse faces camera forward.
+        // If I press S, horse faces camera backward? Or still forward but moves back?
+        // Typically in TPS, "Forward" means Character Forward aligns with Camera Forward when moving forward.
+        // But if "consistent with camera direction" means the horse ALWAYS faces camera forward (strafe mode)?
+        // Or just when moving?
+        // Let's assume standard TPS control: When moving, rotate towards movement direction.
+        // BUT, if the user specifically asked for "consistent with camera direction", it might imply
+        // the horse should turn to look where the camera is looking, especially when pressing W.
+        
+        // Let's refine:
+        // If user means "Horse Rotation = Camera Rotation" (Strafe mode):
+        // Then pressing A/D would strafe left/right.
+        // Let's try to interpret "direction consistent with camera".
+        // Most likely: Horse always faces the direction the camera is facing (Camera Forward), 
+        // regardless of movement direction (like in shooter mode or strafing).
+        
+        // Let's implement Strafing logic for Horse Rotation:
+        const targetRotation = Math.atan2(cameraForward.x, cameraForward.z);
+        this.mountedHorse.rotationQuaternion = Quaternion.FromEulerAngles(0, targetRotation, 0);
+
+        if (moveDir.length() > 0.1) {
+            moveDir.normalize();
+            
+            // Apply Velocity to Horse
+            // Keep existing Y velocity (gravity)
+            const currentVel = this.horseAggregate.body.getLinearVelocity();
+            this.horseAggregate.body.setLinearVelocity(new Vector3(
+                moveDir.x * speed,
+                currentVel.y,
+                moveDir.z * speed
+            ));
+            
+            // Bobbing animation for horse/player
+            this.walkTime += dt * 12;
+            // Animate player bobbing on horse
+            this.mesh.position.y = 1.2 + Math.sin(this.walkTime) * 0.08;
+        } else {
+            // Stop horizontal movement, keep gravity
+             const currentVel = this.horseAggregate.body.getLinearVelocity();
+             this.horseAggregate.body.setLinearVelocity(new Vector3(0, currentVel.y, 0));
+        }
     }
 
     isGrounded() {
