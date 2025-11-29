@@ -5,6 +5,7 @@ import { Player } from "./player";
 import { Config } from "./config";
 import { DecorationManager } from "./decorations";
 import { setupUI } from "./ui";
+import { setupMinimap } from "./minimap";
 
 async function createEngine() {
     const canvas = document.getElementById("renderCanvas");
@@ -54,6 +55,9 @@ async function createScene(engine) {
 
     // UI
     setupUI(scene, player);
+    
+    // Minimap
+    setupMinimap(scene, player);
 
     return scene;
 }
