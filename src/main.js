@@ -37,7 +37,7 @@ async function createScene(engine) {
     decorationManager.generateStreetLamps(3);
 
     // Camera
-    const camera = new ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 30, Vector3.Zero(), scene);
+    const camera = new ArcRotateCamera("camera", -Math.PI / 2.5, Math.PI / 2.5, 10, Vector3.Zero(), scene);
     camera.wheelPrecision = 20;
     camera.attachControl(engine.getRenderingCanvas(), true);
     scene.activeCameras = [camera];

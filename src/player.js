@@ -1,4 +1,4 @@
-import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, Quaternion, Matrix, ActionManager, ParticleSystem, Texture, Color4, TransformNode } from "@babylonjs/core";
+import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, Quaternion, Matrix, ActionManager, ParticleSystem, Texture, Color4, TransformNode, Ray } from "@babylonjs/core";
 import { Config } from "./config";
 import { Shield } from "./shield";
 
@@ -13,6 +13,10 @@ export class Player {
         this.isSprinting = false;
         this.booster = null;
         this.boosterPS = null;
+        this.antiGravity = false;
+        this.hoverActive = false;
+        this.ascendImpulseMs = 0;
+        this._groundEpsilon = 0.06;
 
         this.createPlayerMesh();
 
@@ -121,11 +125,11 @@ export class Player {
         this.booster.material = boosterMat;
         this.booster.parent = body;
         this.booster.rotation.x = Math.PI / 2;
-        this.booster.position = new Vector3(0, 0.05, -0.27);
+        this.booster.position = new Vector3(0, 0.05, -0.29);
 
         const nozzle = new TransformNode("boosterNozzle", this.scene);
         nozzle.parent = this.booster;
-        nozzle.position = new Vector3(0, 0, -0.24);
+        nozzle.position = new Vector3(0, -.6, -0);
         this.boosterNozzle = nozzle;
 
         const flamePS = new ParticleSystem("boosterFlame", 400, this.scene);
@@ -141,18 +145,18 @@ export class Player {
         const flameTex = Texture.CreateFromBase64String(texUrl, "flame.png", this.scene);
         flamePS.particleTexture = flameTex;
         flamePS.emitter = this.boosterNozzle;
-        flamePS.createConeEmitter(0.06, Math.PI / 10);
+        flamePS.createConeEmitter(0.09, Math.PI / 6);
         flamePS.color1 = new Color4(3.0, 2.2, 0.8, 1.0);
         flamePS.color2 = new Color4(2.0, 1.0, 0.2, 1.0);
         flamePS.colorDead = new Color4(0, 0, 0, 0);
-        flamePS.minSize = 0.05; flamePS.maxSize = 0.12;
-        flamePS.minLifeTime = 0.2; flamePS.maxLifeTime = 0.5;
+        flamePS.minSize = 0.09; flamePS.maxSize = 0.20;
+        flamePS.minLifeTime = 0.35; flamePS.maxLifeTime = 0.7;
         flamePS.emitRate = 0;
         flamePS.blendMode = ParticleSystem.BLENDMODE_ADD;
         flamePS.gravity = new Vector3(0, 0, 0);
         flamePS.direction1 = new Vector3(0, 0, -1);
         flamePS.direction2 = new Vector3(0, 0, -1);
-        flamePS.minEmitPower = 1.8; flamePS.maxEmitPower = 2.5;
+        flamePS.minEmitPower = 2.6; flamePS.maxEmitPower = 4.0;
         flamePS.updateSpeed = 0.02;
         this.boosterPS = flamePS;
 
@@ -237,7 +241,25 @@ export class Player {
             this.inputMap[evt.key.toLowerCase()] = true;
             if (evt.key.toLowerCase() === "q") {
                 if (evt.repeat) return;
+                const wasSprinting = this.isSprinting;
                 this.isSprinting = !this.isSprinting;
+                if (!this.isSprinting) { this.antiGravity = false; this.hoverActive = false; this.ascendImpulseMs = 0; }
+                else {
+                    if (!this.isGrounded()) {
+                        this.hoverActive = true;
+                        const v = this.aggregate?.body?.getLinearVelocity();
+                        if (v) this.aggregate.body.setLinearVelocity(new Vector3(v.x, 0, v.z));
+                        this.ascendImpulseMs = (Config.player.boosterReenableImpulseMs || 200);
+                    }
+                }
+            }
+            if (evt.code === "Space") {
+                if (this.isSprinting) {
+                    if (!this.hoverActive) { this.hoverActive = true; }
+                    else { this.ascendImpulseMs = 300; }
+                } else {
+                    this.tryJump();
+                }
             }
         });
 
@@ -252,6 +274,31 @@ export class Player {
         });
     }
 
+    isGrounded() {
+        // Raycast down to find ANY surface (ground, book, platform)
+        // Player height is 2, so center to bottom is 1.
+        // We cast a ray of length 1.1 to allow for small floating errors (epsilon).
+        const rayLength = 1.1; 
+        const ray = new Ray(this.mesh.position, new Vector3(0, -1, 0), rayLength);
+        
+        const pickInfo = this.scene.pickWithRay(ray, (mesh) => {
+            // Filter out player itself and its parts
+            return mesh !== this.mesh && !mesh.isDescendantOf(this.mesh);
+        });
+
+        // Also keep the Y=0 check just in case the ground mesh is missing or non-pickable
+        const minY = this.mesh.getBoundingInfo().boundingBox.minimumWorld.y;
+        return pickInfo.hit || (minY <= this._groundEpsilon);
+    }
+
+    tryJump() {
+        if (!this.mesh || !this.aggregate) return;
+        if (!this.isGrounded()) return;
+        const v = this.aggregate.body.getLinearVelocity();
+        const j = Config.player.jumpSpeed || 6.5;
+        this.aggregate.body.setLinearVelocity(new Vector3(v.x, j, v.z));
+    }
+
     updateMovement() {
         if (!this.mesh || !this.aggregate) return;
 
@@ -259,6 +306,7 @@ export class Player {
         const sprintMul = (Config.player.sprintMultiplier || 2);
         const sprintSpeed = (Config.player.sprintSpeed || (baseSpeed * sprintMul));
         const velocity = this.aggregate.body.getLinearVelocity();
+        const dtMs = this.scene.getEngine().getDeltaTime();
 
         let moveDirection = new Vector3(0, 0, 0);
         let isMoving = false;
@@ -328,36 +376,98 @@ export class Player {
             // Apply velocity
             // We want to keep the vertical velocity (gravity)
             const curSpeed = this.isSprinting ? sprintSpeed : baseSpeed;
+            if (this.ascendImpulseMs > 0) { this.ascendImpulseMs = Math.max(0, this.ascendImpulseMs - dtMs); }
+            let vy = velocity.y;
+            if (this.isSprinting && this.hoverActive) {
+                vy = this.ascendImpulseMs > 0 ? (Config.player.antiGravityUpSpeed || 3.5) : 0;
+            }
             this.aggregate.body.setLinearVelocity(new Vector3(
                 moveDirection.x * curSpeed,
-                velocity.y,
+                vy,
                 moveDirection.z * curSpeed
             ));
             const dtScale = this.isSprinting ? 0.018 : 0.01;
             this.walkTime += this.scene.getEngine().getDeltaTime() * dtScale * (curSpeed / 5);
             const amp = this.isSprinting ? 1.2 : 0.8;
             const angle = Math.sin(this.walkTime);
-            this.leftShoulder.rotation.x = angle * amp;
-            this.rightShoulder.rotation.x = -angle * amp;
-            this.leftHip.rotation.x = -angle * amp;
-            this.rightHip.rotation.x = angle * amp;
+            if (!this.isGrounded()) {
+                // Align character facing with camera forward in air (Strafing flight)
+                const yaw = Math.atan2(cameraForward.x, cameraForward.z);
+                
+                // Air Move: Super Hero Flight (Right arm forward, body horizontal)
+                // User reported previous -1.4 was backward leaning, so we invert to positive.
+                this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(1.0, yaw, 0);
+                
+                // Right arm punches forward (Fully extended relative to body)
+                // Using ~PI to ensure it's straight up/forward relative to torso
+                this.rightShoulder.rotation.x = -3.1; 
+                this.rightShoulder.rotation.z = 0.0;
+                
+                // Left arm tucked near waist
+                this.leftShoulder.rotation.x = 0.5;
+                this.leftShoulder.rotation.z = 0.2;
+                
+                // Legs streamlined
+                this.leftHip.rotation.x = 0.1 + angle * 0.05;
+                this.rightHip.rotation.x = 0.1 - angle * 0.05;
+            } else {
+                this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0, this.modelRoot.rotationQuaternion ? this.modelRoot.rotationQuaternion.toEulerAngles().y : this.modelRoot.rotation.y, 0);
+                this.leftShoulder.rotation.x = angle * amp;
+                this.rightShoulder.rotation.x = -angle * amp;
+                this.leftHip.rotation.x = -angle * amp;
+                this.rightHip.rotation.x = angle * amp;
+                this.leftShoulder.rotation.z = 0;
+                this.rightShoulder.rotation.z = 0;
+            }
 
             if (this.boosterPS) {
-                this.boosterPS.emitRate = this.isSprinting ? 220 : 0;
+                let rate = 0;
+                if (this.isSprinting) {
+                    rate = this.hoverActive ? (this.ascendImpulseMs > 0 ? 280 : 140) : 80;
+                }
+                this.boosterPS.emitRate = rate;
                 if (this.isSprinting) this.boosterPS.start(); else this.boosterPS.stop();
             }
 
         } else {
             // Stop horizontal movement
-            this.aggregate.body.setLinearVelocity(new Vector3(0, velocity.y, 0));
+            if (this.ascendImpulseMs > 0) { this.ascendImpulseMs = Math.max(0, this.ascendImpulseMs - dtMs); }
+            let vyIdle = velocity.y;
+            if (this.isSprinting && this.hoverActive) {
+                vyIdle = this.ascendImpulseMs > 0 ? (Config.player.antiGravityUpSpeed || 3.5) : 0;
+            }
+            this.aggregate.body.setLinearVelocity(new Vector3(0, vyIdle, 0));
 
-            // Reset animation
-            this.leftShoulder.rotation.x = 0;
-            this.rightShoulder.rotation.x = 0;
-            this.leftHip.rotation.x = 0;
-            this.rightHip.rotation.x = 0;
+            if (!this.isGrounded()) {
+                const ds = 0.003; 
+                this.walkTime += this.scene.getEngine().getDeltaTime() * ds;
+                const ang = Math.sin(this.walkTime);
+                
+                // Air Hover: Zero-G Float (Upright, arms out)
+                const yaw = this.modelRoot.rotationQuaternion ? this.modelRoot.rotationQuaternion.toEulerAngles().y : this.modelRoot.rotation.y;
+                this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(-0.1, yaw, 0);
+                this.modelRoot.position.y = -1.2 + ang * 0.08;
+                
+                this.leftShoulder.rotation.x = 0.0 + ang * 0.05;
+                this.rightShoulder.rotation.x = 0.0 + ang * 0.05;
+                this.leftShoulder.rotation.z = 0.8 + ang * 0.05;
+                this.rightShoulder.rotation.z = -0.8 - ang * 0.05;
+                
+                this.leftHip.rotation.x = 0.1 + ang * 0.05;
+                this.rightHip.rotation.x = 0.05 - ang * 0.05;
+            } else {
+                // Grounded Idle - Reset posture to upright
+                this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0, this.modelRoot.rotationQuaternion ? this.modelRoot.rotationQuaternion.toEulerAngles().y : this.modelRoot.rotation.y, 0);
+                this.modelRoot.position.y = -1.2;
+                this.leftShoulder.rotation.x = 0;
+                this.rightShoulder.rotation.x = 0;
+                this.leftHip.rotation.x = 0;
+                this.rightHip.rotation.x = 0;
+                this.leftShoulder.rotation.z = 0;
+                this.rightShoulder.rotation.z = 0;
+            }
             if (this.boosterPS) {
-                if (this.isSprinting) { this.boosterPS.emitRate = 180; this.boosterPS.start(); }
+                if (this.isSprinting) { this.boosterPS.emitRate = this.hoverActive ? (this.ascendImpulseMs > 0 ? 240 : 120) : 80; this.boosterPS.start(); }
                 else { this.boosterPS.emitRate = 0; this.boosterPS.stop(); }
             }
         }

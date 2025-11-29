@@ -3,6 +3,9 @@ export const Config = {
         speed: 3,
         sprintMultiplier: 2,
         sprintSpeed: 8,
+        antiGravityUpSpeed: 3.5,
+        boosterReenableImpulseMs: 220,
+        jumpSpeed: 6.5,
         height: 2,
         width: 1,
         depth: 1,
@@ -24,8 +27,8 @@ export const Config = {
             darkness: 0.5
         },
         hemiLightIntensity: 0.2,
-        dirLightIntensity: 0.2,
-        dirLightPosition: { x: 20, y: 40, z: 20 },
+        dirLightIntensity: 0.3,
+        dirLightPosition: { x: 20, y: 40, z: -20 },
         decorations: {
             count: 50, // 装饰物总数
             areaSize: 80, // 分布范围（-40 到 40）

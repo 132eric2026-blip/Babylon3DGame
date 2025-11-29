@@ -140,7 +140,7 @@ export function setupSkillBar(scene, player) {
         slot.addControl(keyText);
 
         const icon = new Image("icon_" + i, i === 0 ? createShieldIcon() : i === 1 ? createBoosterIcon() : "");
-        const iconSize = (slotSize - 16);
+        const iconSize = (slotSize - 32);
         icon.width = iconSize + "px";
         icon.height = iconSize + "px";
         icon.stretch = Image.STRETCH_UNIFORM;
@@ -154,6 +154,11 @@ export function setupSkillBar(scene, player) {
         if (k === "e") {
             if (player && player.shield) {
                 player.shield.setActive(!player.shield.active);
+                const s0 = slots[0];
+                if (s0) {
+                    if (player.shield.active) { s0.color = "#FFD54A"; s0.thickness = 3; }
+                    else { s0.color = "#999999"; s0.thickness = 2; }
+                }
             }
         }
         if (k === "q") {
