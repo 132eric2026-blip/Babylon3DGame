@@ -19,7 +19,6 @@ export class Shield {
         this.createShieldMesh();
         if (Config.shield && Config.shield.particlesEnabled) {
             this.createParticles();
-            this.setupBloom();
         }
 
         this.setupLightAndShadows();
@@ -74,24 +73,7 @@ export class Shield {
         this.mesh.material = shieldMat;
     }
 
-    setupBloom() {
-        // 使用 DefaultRenderingPipeline 来实现 Bloom
-        let pipeline = this.scene.postProcessRenderPipelineManager.supportedPipelines.find(p => p.name === "shieldBloomPipeline");
-
-        if (!pipeline) {
-            pipeline = new DefaultRenderingPipeline("shieldBloomPipeline", true, this.scene, [this.scene.activeCamera]);
-            pipeline.bloomEnabled = true;
-            pipeline.bloomThreshold = 1.2; // 阈值1.2，配合Fresnel边缘的高亮(>1.2)产生辉光
-            pipeline.bloomWeight = 0.6;    // 适度辉光
-            pipeline.bloomKernel = 64;     // 柔和扩散
-            pipeline.bloomScale = 0.5;
-
-            // Anti-Aliasing
-            pipeline.fxaaEnabled = true; // 开启FXAA抗锯齿
-            pipeline.samples = 4;        // 开启MSAA 4x
-        }
-        this.pipeline = pipeline;
-    }
+    setupBloom() {}
 
     setupLightAndShadows() {
         // 1. Create Point Light
@@ -103,35 +85,7 @@ export class Shield {
         this.light.diffuse = new Color3(1.0, 0.8, 0.0);
         this.light.range = 15; // Illuminate nearby area
 
-        // 2. Create Shadow Generator
-        this.shadowGenerator = new ShadowGenerator(1024, this.light);
-        this.shadowGenerator.useBlurExponentialShadowMap = true;
-        this.shadowGenerator.blurKernel = 32; // Soft shadows
-        this.shadowGenerator.setDarkness(0.3); // Not too dark
-
-        // 3. Add Shadow Casters
-        // We want environment objects (stones, trees) AND the player to cast shadows.
-        this.scene.meshes.forEach(mesh => {
-            if (mesh.name.startsWith("stone") || mesh.name.startsWith("trunk") || mesh.name.startsWith("leaves")) {
-                this.shadowGenerator.addShadowCaster(mesh);
-                mesh.receiveShadows = true; // Objects also receive shadows
-            }
-        });
-
-        // Add Player meshes to shadow caster
-        // parentMesh is modelRoot. We want all its children (head, body, limbs)
-        if (this.parentMesh) {
-            this.parentMesh.getChildMeshes().forEach(m => {
-                this.shadowGenerator.addShadowCaster(m);
-                m.receiveShadows = true;
-            });
-        }
-
-        // Ensure ground receives shadows
-        const ground = this.scene.getMeshByName("ground");
-        if (ground) {
-            ground.receiveShadows = true;
-        }
+        
 
         // 4. Ambient Light for Player
         // Since the PointLight is inside the player's body, the body faces pointing outwards are dark.

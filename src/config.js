@@ -15,11 +15,11 @@ export const Config = {
         // 阴影配置
         shadows: {
             enabled: true,
-            size: 4096, // 阴影贴图分辨率 (1024, 2048, 4096)
-            useBlurExponentialShadowMap: true, // 是否使用模糊指数阴影贴图
-            blurKernel: 32, // 模糊核大小
-            useKernelBlur: true, // 使用高质量模糊
-            darkness: 0.5 // 阴影暗度 (0-1)
+            size: 2048,
+            useBlurExponentialShadowMap: false,
+            blurKernel: 16,
+            useKernelBlur: false,
+            darkness: 0.5
         },
         hemiLightIntensity: 0.05,
         dirLightIntensity: 0.1,

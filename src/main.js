@@ -35,7 +35,7 @@ async function createScene(engine) {
     decorationManager.generateRandomDecorations();
 
     // Camera
-    const camera = new ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 10, Vector3.Zero(), scene);
+    const camera = new ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 30, Vector3.Zero(), scene);
     camera.wheelPrecision = 20;
     camera.attachControl(engine.getRenderingCanvas(), true);
     scene.activeCameras = [camera];
@@ -43,7 +43,12 @@ async function createScene(engine) {
     // Antialiasing: FXAA + MSAA samples (if supported)
     const pipeline = new DefaultRenderingPipeline("defaultPipeline", true, scene, [camera]);
     pipeline.fxaaEnabled = true;
-    pipeline.samples = 4;
+    pipeline.samples = 1;
+    pipeline.bloomEnabled = true;
+    pipeline.bloomThreshold = 1.2;
+    pipeline.bloomWeight = 0.6;
+    pipeline.bloomKernel = 64;
+    pipeline.bloomScale = 0.5;
 
     // Player
     const player = new Player(scene, camera);
