@@ -80,19 +80,19 @@ function createBoosterIcon() {
     c.width = 64; c.height = 64;
     const ctx = c.getContext("2d");
     ctx.clearRect(0,0,64,64);
-    const g = ctx.createRadialGradient(32, 44, 6, 32, 44, 26);
+    const g = ctx.createRadialGradient(32, 24, 6, 32, 24, 26);
     g.addColorStop(0, "rgba(255,180,80,1)");
     g.addColorStop(0.6, "rgba(255,110,40,0.9)");
     g.addColorStop(1, "rgba(200,40,0,0)");
     ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.ellipse(32, 40, 18, 24, 0, 0, Math.PI*2);
+    ctx.ellipse(32, 24, 18, 24, 0, 0, Math.PI*2);
     ctx.fill();
     ctx.fillStyle = "rgba(255,80,40,0.95)";
     ctx.beginPath();
-    ctx.moveTo(32, 18);
-    ctx.lineTo(26, 36);
-    ctx.lineTo(38, 36);
+    ctx.moveTo(32, 46);
+    ctx.lineTo(26, 28);
+    ctx.lineTo(38, 28);
     ctx.closePath();
     ctx.fill();
     return c.toDataURL();
@@ -140,8 +140,9 @@ export function setupSkillBar(scene, player) {
         slot.addControl(keyText);
 
         const icon = new Image("icon_" + i, i === 0 ? createShieldIcon() : i === 1 ? createBoosterIcon() : "");
-        icon.width = ((i === 0 || i === 1) ? (slotSize - 20) : (slotSize - 12)) + "px";
-        icon.height = ((i === 0 || i === 1) ? (slotSize - 20) : (slotSize - 12)) + "px";
+        const iconSize = (slotSize - 16);
+        icon.width = iconSize + "px";
+        icon.height = iconSize + "px";
         icon.stretch = Image.STRETCH_UNIFORM;
         icon.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
         icon.verticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
@@ -157,15 +158,12 @@ export function setupSkillBar(scene, player) {
         }
         if (k === "q") {
             const s = slots[1];
-            if (s) { s.color = "#FFD54A"; s.thickness = 3; }
+            if (s) {
+                const highlighted = s.color === "#FFD54A" && s.thickness === 3;
+                if (highlighted) { s.color = "#999999"; s.thickness = 2; }
+                else { s.color = "#FFD54A"; s.thickness = 3; }
+            }
         }
     });
 
-    window.addEventListener("keyup", (evt) => {
-        const k = (evt.key || "").toLowerCase();
-        if (k === "q") {
-            const s = slots[1];
-            if (s) { s.color = "#999999"; s.thickness = 2; }
-        }
-    });
 }

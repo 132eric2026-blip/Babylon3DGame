@@ -1,4 +1,4 @@
-import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, Quaternion, Matrix, ActionManager, ParticleSystem, Texture, Color4 } from "@babylonjs/core";
+import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, Quaternion, Matrix, ActionManager, ParticleSystem, Texture, Color4, TransformNode } from "@babylonjs/core";
 import { Config } from "./config";
 import { Shield } from "./shield";
 
@@ -121,7 +121,12 @@ export class Player {
         this.booster.material = boosterMat;
         this.booster.parent = body;
         this.booster.rotation.x = Math.PI / 2;
-        this.booster.position = new Vector3(0, 0.05, -0.25);
+        this.booster.position = new Vector3(0, 0.05, -0.27);
+
+        const nozzle = new TransformNode("boosterNozzle", this.scene);
+        nozzle.parent = this.booster;
+        nozzle.position = new Vector3(0, 0, -0.24);
+        this.boosterNozzle = nozzle;
 
         const flamePS = new ParticleSystem("boosterFlame", 400, this.scene);
         const canvas = document.createElement("canvas");
@@ -135,7 +140,7 @@ export class Player {
         const texUrl = canvas.toDataURL();
         const flameTex = Texture.CreateFromBase64String(texUrl, "flame.png", this.scene);
         flamePS.particleTexture = flameTex;
-        flamePS.emitter = this.booster;
+        flamePS.emitter = this.boosterNozzle;
         flamePS.createConeEmitter(0.06, Math.PI / 10);
         flamePS.color1 = new Color4(3.0, 2.2, 0.8, 1.0);
         flamePS.color2 = new Color4(2.0, 1.0, 0.2, 1.0);
@@ -230,6 +235,10 @@ export class Player {
 
         window.addEventListener("keydown", (evt) => {
             this.inputMap[evt.key.toLowerCase()] = true;
+            if (evt.key.toLowerCase() === "q") {
+                if (evt.repeat) return;
+                this.isSprinting = !this.isSprinting;
+            }
         });
 
         window.addEventListener("keyup", (evt) => {
@@ -253,7 +262,6 @@ export class Player {
 
         let moveDirection = new Vector3(0, 0, 0);
         let isMoving = false;
-        this.isSprinting = !!this.inputMap["q"];
 
         // 获取相机的前方方向（忽略Y轴）
         const cameraForward = this.camera.getForwardRay().direction;
@@ -348,7 +356,10 @@ export class Player {
             this.rightShoulder.rotation.x = 0;
             this.leftHip.rotation.x = 0;
             this.rightHip.rotation.x = 0;
-            if (this.boosterPS) { this.boosterPS.emitRate = 0; this.boosterPS.stop(); }
+            if (this.boosterPS) {
+                if (this.isSprinting) { this.boosterPS.emitRate = 180; this.boosterPS.start(); }
+                else { this.boosterPS.emitRate = 0; this.boosterPS.stop(); }
+            }
         }
     }
 }
