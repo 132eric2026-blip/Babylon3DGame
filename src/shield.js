@@ -1,4 +1,4 @@
-import { MeshBuilder, StandardMaterial, Color3, Color4, ParticleSystem, Texture, Vector3, DefaultRenderingPipeline, FresnelParameters } from "@babylonjs/core";
+import { MeshBuilder, StandardMaterial, Color3, Color4, ParticleSystem, Texture, Vector3, DefaultRenderingPipeline, FresnelParameters, PointLight, ShadowGenerator, HemisphericLight } from "@babylonjs/core";
 import { Config } from "./config";
 
 export class Shield {
@@ -7,12 +7,22 @@ export class Shield {
         this.parentMesh = parentMesh;
         this.mesh = null;
         this.pipeline = null;
+        this.light = null;
+        this.shadowGenerator = null;
+        this.ambientLight = null;
+
+        // --- 护盾整体亮度控制 ---
+        // 调整此值可同时改变护盾的视觉发光度和对周围环境的照明强度
+        // 1.0 为基准值
+        this.brightness = 1.1;
 
         this.createShieldMesh();
         if (Config.shield && Config.shield.particlesEnabled) {
             this.createParticles();
             this.setupBloom();
         }
+
+        this.setupLightAndShadows();
     }
 
     createShieldMesh() {
@@ -34,16 +44,18 @@ export class Shield {
         // 1. Basic Colors
         shieldMat.diffuseColor = new Color3(0, 0, 0); // No diffuse
         shieldMat.specularColor = new Color3(0, 0, 0); // No specular
-        shieldMat.emissiveColor = new Color3(1, 0.8, 0); // Base Gold
+        // 基准颜色 * 亮度系数
+        shieldMat.emissiveColor = new Color3(1, 0.8, 0).scale(this.brightness);
 
         // 2. Fresnel for Emissive (Glowing Edges)
         // 边缘(Left)是高亮金色，中心(Right)是暗色
         const fresnel = new FresnelParameters();
         fresnel.isEnabled = true;
         fresnel.bias = 0.1;
-        fresnel.power = 2.0; // Controls how thin the rim is
-        fresnel.leftColor = new Color3(2.0, 1.8, 0.5); // Bright Gold Edge (Intensity > 1 for Bloom)
-        fresnel.rightColor = new Color3(0.2, 0.15, 0); // Dark Center
+        fresnel.power = 1.0; // Controls how thin the rim is
+        // 边缘高亮也受亮度系数影响
+        fresnel.leftColor = new Color3(2.0, 1.8, 0.5).scale(this.brightness);
+        fresnel.rightColor = new Color3(0.2, 0.15, 0).scale(this.brightness); // Dark Center
         shieldMat.emissiveFresnelParameters = fresnel;
 
         // 3. Fresnel for Opacity (Transparent Center)
@@ -79,6 +91,63 @@ export class Shield {
             pipeline.samples = 4;        // 开启MSAA 4x
         }
         this.pipeline = pipeline;
+    }
+
+    setupLightAndShadows() {
+        // 1. Create Point Light
+        // Positioned at the center of the shield
+        this.light = new PointLight("shieldLight", Vector3.Zero(), this.scene);
+        this.light.parent = this.mesh;
+        // 光照强度受亮度系数影响 (基准 2.0)
+        this.light.intensity = 8.0 * this.brightness;
+        this.light.diffuse = new Color3(1.0, 0.8, 0.4); // Warm Golden Light
+        this.light.range = 15; // Illuminate nearby area
+
+        // 2. Create Shadow Generator
+        this.shadowGenerator = new ShadowGenerator(1024, this.light);
+        this.shadowGenerator.useBlurExponentialShadowMap = true;
+        this.shadowGenerator.blurKernel = 32; // Soft shadows
+        this.shadowGenerator.setDarkness(0.3); // Not too dark
+
+        // 3. Add Shadow Casters
+        // We want environment objects (stones, trees) AND the player to cast shadows.
+        this.scene.meshes.forEach(mesh => {
+            if (mesh.name.startsWith("stone") || mesh.name.startsWith("trunk") || mesh.name.startsWith("leaves")) {
+                this.shadowGenerator.addShadowCaster(mesh);
+                mesh.receiveShadows = true; // Objects also receive shadows
+            }
+        });
+
+        // Add Player meshes to shadow caster
+        // parentMesh is modelRoot. We want all its children (head, body, limbs)
+        if (this.parentMesh) {
+            this.parentMesh.getChildMeshes().forEach(m => {
+                this.shadowGenerator.addShadowCaster(m);
+                m.receiveShadows = true;
+            });
+        }
+
+        // Ensure ground receives shadows
+        const ground = this.scene.getMeshByName("ground");
+        if (ground) {
+            ground.receiveShadows = true;
+        }
+
+        // 4. Ambient Light for Player
+        // Since the PointLight is inside the player's body, the body faces pointing outwards are dark.
+        // We add a HemisphericLight restricted to the player to simulate the shield's ambient glow on the player.
+        this.ambientLight = new HemisphericLight("shieldAmbientLight", new Vector3(0, 1, 0), this.scene);
+        // 环境光强度受亮度系数影响 (基准 0.5)
+        this.ambientLight.intensity = 0.5 * this.brightness;
+        this.ambientLight.diffuse = new Color3(1.0, 0.9, 0.6);
+        this.ambientLight.groundColor = new Color3(0.5, 0.4, 0.2); // Light from bottom too
+        this.ambientLight.includedOnlyMeshes = [];
+
+        if (this.parentMesh) {
+            this.parentMesh.getChildMeshes().forEach(m => {
+                this.ambientLight.includedOnlyMeshes.push(m);
+            });
+        }
     }
 
     createParticles() {
@@ -153,6 +222,15 @@ export class Shield {
         }
         if (this.pipeline) {
             this.pipeline.dispose();
+        }
+        if (this.light) {
+            this.light.dispose();
+        }
+        if (this.shadowGenerator) {
+            this.shadowGenerator.dispose();
+        }
+        if (this.ambientLight) {
+            this.ambientLight.dispose();
         }
     }
 }

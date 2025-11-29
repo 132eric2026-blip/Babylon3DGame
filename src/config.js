@@ -21,8 +21,8 @@ export const Config = {
             useKernelBlur: true, // 使用高质量模糊
             darkness: 0.5 // 阴影暗度 (0-1)
         },
-        hemiLightIntensity: 0.1,
-        dirLightIntensity: 0.7,
+        hemiLightIntensity: 0.0,
+        dirLightIntensity: 0.0,
         dirLightPosition: { x: 20, y: 40, z: 20 },
         decorations: {
             count: 50, // 装饰物总数
