@@ -16,6 +16,7 @@ export class DecorationManager {
             Config.scene.decorations.stoneColor.g,
             Config.scene.decorations.stoneColor.b
         );
+        stoneMat.specularColor = new Color3(0, 0, 0);
         this.materials.stone = stoneMat;
 
         // 树干材质
@@ -25,6 +26,7 @@ export class DecorationManager {
             Config.scene.decorations.treeTrunkColor.g,
             Config.scene.decorations.treeTrunkColor.b
         );
+        trunkMat.specularColor = new Color3(0, 0, 0);
         this.materials.trunk = trunkMat;
 
         // 树叶材质
@@ -34,6 +36,7 @@ export class DecorationManager {
             Config.scene.decorations.treeLeavesColor.g,
             Config.scene.decorations.treeLeavesColor.b
         );
+        leavesMat.specularColor = new Color3(0, 0, 0);
         this.materials.leaves = leavesMat;
     }
 
