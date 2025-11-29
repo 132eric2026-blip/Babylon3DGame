@@ -1,4 +1,4 @@
-import { WebGPUEngine, Scene, Vector3, ArcRotateCamera, HavokPlugin } from "@babylonjs/core";
+import { WebGPUEngine, Scene, Vector3, ArcRotateCamera, HavokPlugin, GlowLayer } from "@babylonjs/core";
 import HavokPhysics from "@babylonjs/havok";
 import { createSceneElements } from "./sceneSetup";
 import { Player } from "./player";

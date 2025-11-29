@@ -1,5 +1,6 @@
 import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, Quaternion, Matrix, ActionManager } from "@babylonjs/core";
 import { Config } from "./config";
+import { Shield } from "./shield";
 
 export class Player {
     constructor(scene, camera) {
@@ -11,6 +12,10 @@ export class Player {
         this.walkTime = 0;
         
         this.createPlayerMesh();
+        
+        // Create Shield
+        this.shield = new Shield(this.scene, this.modelRoot);
+
         this.setupPhysics();
         this.setupInputs();
         this.registerBeforeRender();

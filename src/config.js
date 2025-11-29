@@ -1,6 +1,6 @@
 export const Config = {
     player: {
-        speed: 5,
+        speed: 3,
         height: 2,
         width: 1,
         depth: 1,

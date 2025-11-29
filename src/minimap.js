@@ -107,9 +107,7 @@ export function setupMinimap(scene, player) {
     
     updateCameraZoom(); // Initial Set
 
-    // Minimap sees ONLY the markers (and maybe ground if we want context? User said "Circles for objects", implying abstract map).
-    // Let's try showing ONLY markers first. If it's too empty, we can add ground.
-    // But user said "Circles for other objects", so abstract is likely better.
+    // Minimap sees ONLY the markers
     minimapCamera.layerMask = MASK_MINIMAP;
 
     // Add to active cameras
@@ -117,7 +115,10 @@ export function setupMinimap(scene, player) {
     if (scene.activeCameras.length === 0 && scene.activeCamera) {
         scene.activeCameras.push(scene.activeCamera);
     }
-    scene.activeCameras.push(minimapCamera);
+    // Avoid duplicate addition
+    if (!scene.activeCameras.includes(minimapCamera)) {
+        scene.activeCameras.push(minimapCamera);
+    }
 
     // --- 3. Viewport & UI Mask (Circular Effect) ---
     const mapSize = 200; // px
