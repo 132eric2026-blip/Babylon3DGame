@@ -1,9 +1,10 @@
 import { WebGPUEngine, Scene, Vector3, ArcRotateCamera, HavokPlugin } from "@babylonjs/core";
 import HavokPhysics from "@babylonjs/havok";
 import { createSceneElements } from "./sceneSetup";
-import { Player } from "./payer";
+import { Player } from "./player";
 import { Config } from "./config";
 import { DecorationManager } from "./decorations";
+import { setupUI } from "./ui";
 
 async function createEngine() {
     const canvas = document.getElementById("renderCanvas");
@@ -33,7 +34,9 @@ async function createScene(engine) {
 
     // Camera
     const camera = new ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 10, Vector3.Zero(), scene);
+    camera.wheelPrecision = 20;
     camera.attachControl(engine.getRenderingCanvas(), true);
+    scene.activeCameras = [camera];
     
     // Player
     const player = new Player(scene, camera);
@@ -48,6 +51,9 @@ async function createScene(engine) {
             scene.shadowGenerator.addShadowCaster(m);
         });
     }
+
+    // UI
+    setupUI(scene, player);
 
     return scene;
 }

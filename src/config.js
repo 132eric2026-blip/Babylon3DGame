@@ -9,8 +9,16 @@ export const Config = {
     scene: {
         gravity: -9.81,
         groundColor: { r: 0.2, g: 0.2, b: 0.2 },
-        enableShadows: true,
-        hemiLightIntensity: 0.5,
+        // 阴影配置
+        shadows: {
+            enabled: true,
+            size: 4096, // 阴影贴图分辨率 (1024, 2048, 4096)
+            useBlurExponentialShadowMap: true, // 是否使用模糊指数阴影贴图
+            blurKernel: 32, // 模糊核大小
+            useKernelBlur: true, // 使用高质量模糊
+            darkness: 0.5 // 阴影暗度 (0-1)
+        },
+        hemiLightIntensity: 0.8,
         dirLightIntensity: 0.7,
         dirLightPosition: { x: 20, y: 40, z: 20 },
         decorations: {

@@ -16,10 +16,19 @@ export function createSceneElements(scene) {
     dirLight.intensity = Config.scene.dirLightIntensity;
 
     // 阴影
-    if (Config.scene.enableShadows) {
-        const shadowGenerator = new ShadowGenerator(1024, dirLight);
-        shadowGenerator.useBlurExponentialShadowMap = true;
-        shadowGenerator.blurKernel = 32;
+    if (Config.scene.shadows && Config.scene.shadows.enabled) {
+        const shadowConfig = Config.scene.shadows;
+        const shadowGenerator = new ShadowGenerator(shadowConfig.size, dirLight);
+        
+        // 应用配置
+        shadowGenerator.useBlurExponentialShadowMap = shadowConfig.useBlurExponentialShadowMap;
+        shadowGenerator.blurKernel = shadowConfig.blurKernel;
+        shadowGenerator.useKernelBlur = shadowConfig.useKernelBlur;
+        
+        if (shadowConfig.darkness !== undefined) {
+            shadowGenerator.setDarkness(shadowConfig.darkness);
+        }
+
         scene.shadowGenerator = shadowGenerator;
     }
 

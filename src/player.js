@@ -8,6 +8,7 @@ export class Player {
         this.mesh = null;
         this.aggregate = null;
         this.inputMap = {};
+        this.walkTime = 0;
         
         this.createPlayerMesh();
         this.setupPhysics();
@@ -99,31 +100,67 @@ export class Player {
         body.parent = this.modelRoot;
         body.position.y = 1.2;
 
-        // 手臂
-        const leftArm = MeshBuilder.CreateBox("leftArm", { width: 0.15, height: 0.6, depth: 0.15 }, this.scene);
+        // 手臂参数
+        const armWidth = 0.15;
+        const armHeight = 0.6;
+        const armDepth = 0.15;
+        const shoulderY = 1.5; // 肩膀高度 (body top is at 1.2 + 0.3 = 1.5)
+        const armOffsetX = 0.35;
+
+        // 左肩关节
+        this.leftShoulder = MeshBuilder.CreateBox("leftShoulder", { size: 0.01 }, this.scene);
+        this.leftShoulder.isVisible = false;
+        this.leftShoulder.parent = this.modelRoot;
+        this.leftShoulder.position = new Vector3(-armOffsetX, shoulderY, 0);
+
+        // 左臂 (挂在左肩下)
+        const leftArm = MeshBuilder.CreateBox("leftArm", { width: armWidth, height: armHeight, depth: armDepth }, this.scene);
         leftArm.material = skinMat;
-        leftArm.parent = this.modelRoot;
-        leftArm.position.y = 1.2;
-        leftArm.position.x = -0.35;
+        leftArm.parent = this.leftShoulder;
+        leftArm.position.y = -armHeight / 2; // 向下偏移一半高度
 
-        const rightArm = MeshBuilder.CreateBox("rightArm", { width: 0.15, height: 0.6, depth: 0.15 }, this.scene);
+        // 右肩关节
+        this.rightShoulder = MeshBuilder.CreateBox("rightShoulder", { size: 0.01 }, this.scene);
+        this.rightShoulder.isVisible = false;
+        this.rightShoulder.parent = this.modelRoot;
+        this.rightShoulder.position = new Vector3(armOffsetX, shoulderY, 0);
+
+        // 右臂
+        const rightArm = MeshBuilder.CreateBox("rightArm", { width: armWidth, height: armHeight, depth: armDepth }, this.scene);
         rightArm.material = skinMat;
-        rightArm.parent = this.modelRoot;
-        rightArm.position.y = 1.2;
-        rightArm.position.x = 0.35;
+        rightArm.parent = this.rightShoulder;
+        rightArm.position.y = -armHeight / 2;
 
-        // 腿
-        const leftLeg = MeshBuilder.CreateBox("leftLeg", { width: 0.2, height: 0.7, depth: 0.2 }, this.scene);
+        // 腿部参数
+        const legWidth = 0.2;
+        const legHeight = 0.7;
+        const legDepth = 0.2;
+        const hipY = 0.9; // 臀部高度 (body bottom is at 1.2 - 0.3 = 0.9)
+        const legOffsetX = 0.12;
+
+        // 左髋关节
+        this.leftHip = MeshBuilder.CreateBox("leftHip", { size: 0.01 }, this.scene);
+        this.leftHip.isVisible = false;
+        this.leftHip.parent = this.modelRoot;
+        this.leftHip.position = new Vector3(-legOffsetX, hipY, 0);
+
+        // 左腿
+        const leftLeg = MeshBuilder.CreateBox("leftLeg", { width: legWidth, height: legHeight, depth: legDepth }, this.scene);
         leftLeg.material = pantsMat;
-        leftLeg.parent = this.modelRoot;
-        leftLeg.position.y = 0.55;
-        leftLeg.position.x = -0.12;
+        leftLeg.parent = this.leftHip;
+        leftLeg.position.y = -legHeight / 2;
 
-        const rightLeg = MeshBuilder.CreateBox("rightLeg", { width: 0.2, height: 0.7, depth: 0.2 }, this.scene);
+        // 右髋关节
+        this.rightHip = MeshBuilder.CreateBox("rightHip", { size: 0.01 }, this.scene);
+        this.rightHip.isVisible = false;
+        this.rightHip.parent = this.modelRoot;
+        this.rightHip.position = new Vector3(legOffsetX, hipY, 0);
+
+        // 右腿
+        const rightLeg = MeshBuilder.CreateBox("rightLeg", { width: legWidth, height: legHeight, depth: legDepth }, this.scene);
         rightLeg.material = pantsMat;
-        rightLeg.parent = this.modelRoot;
-        rightLeg.position.y = 0.55;
-        rightLeg.position.x = 0.12;
+        rightLeg.parent = this.rightHip;
+        rightLeg.position.y = -legHeight / 2;
     }
 
     setupPhysics() {
@@ -233,9 +270,24 @@ export class Player {
                 velocity.y,
                 moveDirection.z * speed
             ));
+
+            // Animation
+            this.walkTime += this.scene.getEngine().getDeltaTime() * 0.005 * (speed / 5);
+            const angle = Math.sin(this.walkTime);
+            this.leftShoulder.rotation.x = angle * 0.8;
+            this.rightShoulder.rotation.x = -angle * 0.8;
+            this.leftHip.rotation.x = -angle * 0.8;
+            this.rightHip.rotation.x = angle * 0.8;
+
         } else {
             // Stop horizontal movement
             this.aggregate.body.setLinearVelocity(new Vector3(0, velocity.y, 0));
+
+            // Reset animation
+            this.leftShoulder.rotation.x = 0;
+            this.rightShoulder.rotation.x = 0;
+            this.leftHip.rotation.x = 0;
+            this.rightHip.rotation.x = 0;
         }
     }
 }
