@@ -1,4 +1,4 @@
-import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, Quaternion, Matrix, ActionManager, ParticleSystem, Texture, Color4, TransformNode, Ray, Engine, Scalar } from "@babylonjs/core";
+import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, Quaternion, Matrix, ActionManager, ParticleSystem, Texture, Color4, TransformNode, Ray, Engine, Scalar, TrailMesh, PointLight, PointerEventTypes } from "@babylonjs/core";
 import { Config } from "./config";
 import { Shield } from "./shield";
 
@@ -25,6 +25,8 @@ export class Player {
         this.mountedHorse = null;
 
         this.createPlayerMesh();
+        this.setupAttackEffect();
+        this.setupGun();
 
         // 创建护盾
         this.shield = new Shield(this.scene, this.modelRoot);
@@ -309,6 +311,313 @@ export class Player {
         rightLeg.position.y = -legHeight / 2;
     }
 
+    setupAttackEffect() {
+        // 攻击状态
+        this.isAttacking = false;
+        this.attackTime = 0;
+        this.attackDuration = 0.4; // 攻击持续时间 0.4秒
+
+        // 攻击特效挂点 (手部)
+        this.attackRef = new TransformNode("attackRef", this.scene);
+        this.attackRef.parent = this.rightArm;
+        this.attackRef.position = new Vector3(0, -0.3, 0); // 手部末端位置
+
+        // 拖尾特效 - 增加直径和长度，使其更明显
+        this.attackTrail = new TrailMesh("attackTrail", this.attackRef, this.scene, 0.2, 30, true);
+        
+        // 拖尾材质 - 酷炫的光效
+        const trailMat = new StandardMaterial("trailMat", this.scene);
+        trailMat.emissiveColor = new Color3(0.2, 0.8, 1); // 青蓝色光效，更有科技感
+        trailMat.diffuseColor = new Color3(0, 0, 0);
+        trailMat.specularColor = new Color3(0, 0, 0);
+        trailMat.alpha = 0.8;
+        trailMat.disableLighting = true;
+        
+        this.attackTrail.material = trailMat;
+        this.attackTrail.isVisible = false; // 初始隐藏
+    }
+
+    attack() {
+        if (this.isAttacking) return;
+        this.isAttacking = true;
+        this.attackTime = 0;
+        this.attackTrail.isVisible = true;
+        this.attackTrail.start();
+    }
+
+    updateAttack(dt) {
+        if (!this.isAttacking) return;
+
+        this.attackTime += dt;
+        const progress = Math.min(this.attackTime / this.attackDuration, 1.0);
+
+        // 简单的挥砍动画曲线 (EaseOut)
+        const t = 1 - Math.pow(1 - progress, 3); 
+
+        // 挥动动作: 右臂横向挥动
+        // 初始: 向后蓄力 (Rotation Y 约 -0.5)
+        // 结束: 向前挥过 (Rotation Y 约 2.8)
+        const startAngle = -0.8;
+        const endAngle = 2.8;
+        const currentAngle = startAngle + (endAngle - startAngle) * t;
+
+        // 覆盖右肩旋转
+        // x轴微调保持手臂水平或略斜
+        this.rightShoulder.rotation.x = -Math.PI / 2; // 手臂平举
+        this.rightShoulder.rotation.y = currentAngle;
+        this.rightShoulder.rotation.z = 0;
+
+        // 结束判定
+        if (progress >= 1.0) {
+            this.isAttacking = false;
+            this.attackTrail.isVisible = false;
+        }
+    }
+
+    setupGun() {
+        this.isHoldingGun = false;
+        this.bullets = [];
+
+        // Gun Root attached to Right Arm
+        this.gunRoot = new TransformNode("gunRoot", this.scene);
+        // Fix: Find rightArm from rightShoulder as it wasn't saved to 'this'
+        this.rightArm = this.rightShoulder.getChildMeshes()[0]; 
+        this.gunRoot.parent = this.rightArm;
+        
+        // Adjust position to be in hand (Right arm is 0.6 height, 0.15 width)
+        // Hand is at bottom of arm. Arm center is 0,0,0 relative to shoulder? 
+        // Wait, rightArm.position.y = -armHeight/2 (-0.3). So center of arm is at -0.3 relative to shoulder.
+        // We want gun at the bottom of the arm (the hand).
+        // Arm height is 0.6. Box center is 0.
+        // Bottom of arm box is at -0.3 (local to arm box).
+        // So we position gun at y = -0.3
+        this.gunRoot.position = new Vector3(0, -0.3, 0.1); 
+        this.gunRoot.rotation.x = Math.PI / 2; // Point forward
+        this.gunRoot.isVisible = false;
+
+        // --- Create Gun Mesh ---
+        // Main Body
+        const gunBody = MeshBuilder.CreateBox("gunBody", { width: 0.1, height: 0.15, depth: 0.4 }, this.scene);
+        const gunMat = new StandardMaterial("gunMat", this.scene);
+        gunMat.diffuseColor = new Color3(0.2, 0.2, 0.2);
+        gunBody.material = gunMat;
+        gunBody.parent = this.gunRoot;
+        gunBody.position.z = 0.2;
+
+        // Barrel (Particle Cannon Style)
+        const barrel = MeshBuilder.CreateCylinder("gunBarrel", { height: 0.5, diameter: 0.08 }, this.scene);
+        barrel.rotation.x = Math.PI / 2;
+        barrel.parent = this.gunRoot;
+        barrel.position.z = 0.5;
+        barrel.material = gunMat;
+
+        // Energy Core (Glowing)
+        const core = MeshBuilder.CreateCylinder("gunCore", { height: 0.3, diameter: 0.12 }, this.scene);
+        core.rotation.x = Math.PI / 2;
+        core.parent = this.gunRoot;
+        core.position.z = 0.3;
+        
+        const coreMat = new StandardMaterial("coreMat", this.scene);
+        coreMat.emissiveColor = new Color3(0, 1, 1); // Cyan Glow
+        coreMat.disableLighting = true;
+        core.material = coreMat;
+
+        // Muzzle Point
+        this.gunMuzzle = new TransformNode("gunMuzzle", this.scene);
+        this.gunMuzzle.parent = this.gunRoot;
+        this.gunMuzzle.position.z = 0.8;
+
+        // Initially hide gun meshes
+        this.gunRoot.scaling = new Vector3(0, 0, 0); // Hide by scaling or just logic
+        // Note: Setting parent isVisible=false doesn't always hide children in some versions unless inherit visibility is on.
+        // But for TransformNode it works if we check it? No, TransformNode doesn't have visual.
+        // I should toggle meshes visibility or scaling.
+        // Let's use a container mesh or just scale.
+        this.gunMeshes = [gunBody, barrel, core];
+        this.setGunVisibility(false);
+
+        // Setup Particle Texture for Muzzle Flash
+        this.particleTexture = this.createParticleTexture();
+        
+        // Setup Persistent Muzzle Flash System
+        this.setupMuzzleFlash();
+    }
+
+    createParticleTexture() {
+        const canvas = document.createElement("canvas");
+        canvas.width = 64; canvas.height = 64;
+        const ctx = canvas.getContext("2d");
+        
+        // Star/Spark shape
+        ctx.beginPath();
+        const cx = 32, cy = 32, spikes = 8, outerRadius = 30, innerRadius = 10;
+        let rot = Math.PI / 2 * 3;
+        let x = cx, y = cy;
+        const step = Math.PI / spikes;
+
+        ctx.moveTo(cx, cy - outerRadius);
+        for (let i = 0; i < spikes; i++) {
+            x = cx + Math.cos(rot) * outerRadius;
+            y = cy + Math.sin(rot) * outerRadius;
+            ctx.lineTo(x, y);
+            rot += step;
+
+            x = cx + Math.cos(rot) * innerRadius;
+            y = cy + Math.sin(rot) * innerRadius;
+            ctx.lineTo(x, y);
+            rot += step;
+        }
+        ctx.lineTo(cx, cy - outerRadius);
+        ctx.closePath();
+        
+        const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+        grad.addColorStop(0, "rgba(255, 255, 255, 1)");
+        grad.addColorStop(0.5, "rgba(0, 255, 255, 0.8)");
+        grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        return Texture.CreateFromBase64String(canvas.toDataURL(), "particleStar", this.scene);
+    }
+
+    setupMuzzleFlash() {
+        if (this.muzzleFlashPS) {
+            this.muzzleFlashPS.dispose();
+        }
+        // Create persistent particle system
+        const ps = new ParticleSystem("muzzleFlash", 50, this.scene);
+        ps.particleTexture = this.particleTexture;
+        ps.emitter = this.gunMuzzle;
+        
+        ps.minEmitBox = new Vector3(0, 0, 0);
+        ps.maxEmitBox = new Vector3(0, 0, 0);
+        
+        ps.color1 = new Color4(1, 1, 1, 1.0);
+        ps.color2 = new Color4(0, 1, 1, 1.0);
+        ps.colorDead = new Color4(0, 0, 0, 0.0);
+        
+        ps.minSize = 0.1;
+        ps.maxSize = 0.4;
+        ps.minLifeTime = 0.1;
+        ps.maxLifeTime = 0.2;
+        
+        ps.emitRate = 0; // Manual emit only
+        ps.targetStopDuration = 0; // Continuous
+        ps.disposeOnStop = false; // Keep alive
+        
+        ps.isLocal = true; 
+        ps.direction1 = new Vector3(0, 0, 1);
+        ps.direction2 = new Vector3(0, 0, 5);
+        
+        // Start immediately (but emitRate is 0, so no particles yet)
+        ps.start();
+        
+        this.muzzleFlashPS = ps;
+    }
+
+    setGunVisibility(visible) {
+        const scale = visible ? 1 : 0;
+        this.gunRoot.scaling = new Vector3(scale, scale, scale);
+    }
+
+    toggleGun() {
+        this.isHoldingGun = !this.isHoldingGun;
+        this.setGunVisibility(this.isHoldingGun);
+    }
+
+    shoot() {
+        if (!this.isHoldingGun) return;
+
+        // 1. Muzzle Flash
+        this.muzzleFlashPS.manualEmitCount = 20;
+        this.muzzleFlashPS.start(); // Ensure it's running (manual emit needs it running)
+
+        // 2. Bullet Mesh (High Energy Bolt)
+        // Use a small sphere but scale it to look like a bolt
+        const bullet = MeshBuilder.CreateSphere("bullet", { diameter: 0.2, segments: 8 }, this.scene);
+        
+        // Position
+        bullet.position = this.gunMuzzle.absolutePosition.clone();
+        
+        // Orientation
+        // We need to point the bullet in the direction of fire.
+        const forward = this.gunMuzzle.getDirection(new Vector3(0, 0, 1)).normalize();
+        
+        // Align Z axis of bullet to forward
+        // Sphere has no direction, but we will scale it.
+        // We want scaling Z to align with velocity.
+        // LookAt aligns +Z to target.
+        bullet.lookAt(bullet.position.add(forward));
+        
+        // Elongate
+        bullet.scaling = new Vector3(0.6, 0.6, 3.0);
+
+        // Force update world matrix immediately so TrailMesh knows the starting position
+        bullet.computeWorldMatrix(true);
+
+        // Material: Core High Emissive
+        const bulletMat = new StandardMaterial("bulletMat", this.scene);
+        bulletMat.emissiveColor = new Color3(3, 8, 3); // Ultra Bright Green/Cyan
+        bulletMat.diffuseColor = new Color3(0, 0, 0);
+        bulletMat.specularColor = new Color3(0, 0, 0);
+        bulletMat.disableLighting = true;
+        bullet.material = bulletMat;
+
+        // 3. Trail Effect (Tron Style)
+        // Attach trail to bullet
+        // Reduced diameter from 0.15 to 0.05 for a finer trail
+        // Reduced length from 30 to 10 for a shorter trail
+        const trail = new TrailMesh("bulletTrail", bullet, this.scene, 0.05, 10, true);
+        const trailMat = new StandardMaterial("trailMat", this.scene);
+        trailMat.emissiveColor = new Color3(0.5, 1.0, 0.8); 
+        trailMat.disableLighting = true;
+        trailMat.alpha = 0.6;
+        trail.material = trailMat;
+
+        this.bullets.push({
+            mesh: bullet,
+            trail: trail,
+            velocity: forward.scale(40), // High Speed
+            life: 2.0 
+        });
+    }
+
+    updateBullets(dt) {
+        for (let i = this.bullets.length - 1; i >= 0; i--) {
+            const b = this.bullets[i];
+            b.life -= dt;
+            
+            // Move
+            b.mesh.position.addInPlace(b.velocity.scale(dt));
+
+            // Collision/Life Check
+            if (b.mesh.position.y < 0 || b.life <= 0) {
+                b.mesh.dispose();
+                if (b.trail) b.trail.dispose();
+                this.bullets.splice(i, 1);
+            }
+        }
+    }
+
+    updateGunPose() {
+        if (!this.isHoldingGun) return;
+        if (this.isAttacking) return;
+
+        // Override arm rotations
+        // Right arm aims forward
+        this.rightShoulder.rotation.x = -Math.PI / 2; 
+        this.rightShoulder.rotation.y = 0;
+        this.rightShoulder.rotation.z = 0;
+
+        // Left arm holds the gun body
+        this.leftShoulder.rotation.x = -Math.PI / 2;
+        this.leftShoulder.rotation.y = 0.5; // Inward
+        this.leftShoulder.rotation.z = 0;
+        
+        // Adjust left arm length/position if needed to match gun?
+        // Visual approximation is usually enough.
+    }
+
     setupPhysics() {
         // 胶囊体物理聚合体
         // mass: 1, friction: 0.2, restitution: 0
@@ -363,6 +672,21 @@ export class Player {
                     this.mountHorse(this.nearbyHorse);
                 }
             }
+            if (evt.key === "1") {
+                this.attack();
+            }
+            if (evt.key.toLowerCase() === "c") {
+                this.toggleGun();
+            }
+        });
+
+        // Use Scene Pointer Observable for better compatibility with Pointer Lock
+        this.scene.onPointerObservable.add((pointerInfo) => {
+            if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
+                if (pointerInfo.event.button === 1) { // Middle Mouse Button
+                    this.shoot();
+                }
+            }
         });
 
         window.addEventListener("keyup", (evt) => {
@@ -384,12 +708,16 @@ export class Player {
 
     registerBeforeRender() {
         this.scene.onBeforeRenderObservable.add(() => {
+            const dt = this.scene.getEngine().getDeltaTime() / 1000;
             if (this.mountedHorse) {
                 this.updateMountedMovement();
             } else {
                 this.updateMovement();
                 this.checkNearbyHorses();
             }
+            this.updateAttack(dt);
+            this.updateBullets(dt);
+            this.updateGunPose();
         });
     }
 

@@ -46,12 +46,16 @@ async function createScene(engine) {
     // Antialiasing: FXAA + MSAA samples (if supported)
     const pipeline = new DefaultRenderingPipeline("defaultPipeline", true, scene, [camera]);
     pipeline.fxaaEnabled = true;
-    pipeline.samples = 1;
+    pipeline.samples = 4;
     pipeline.bloomEnabled = true;
-    pipeline.bloomThreshold = 1.2;
+    pipeline.bloomThreshold = 1.0;
     pipeline.bloomWeight = 0.8;
-    pipeline.bloomKernel = 80;
+    pipeline.bloomKernel = 64;
     pipeline.bloomScale = 0.5;
+
+    // Glow Layer for extra bloom control on specific meshes if needed
+    // const glowLayer = new GlowLayer("glowLayer", scene);
+    // glowLayer.intensity = 1.0;
 
     // Player
     const player = new Player(scene, camera);
