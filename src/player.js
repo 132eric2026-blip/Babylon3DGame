@@ -223,8 +223,8 @@ export class Player {
 
             // 创建倒圆锥体/圆柱体
             const mesh = MeshBuilder.CreateCylinder("flameMesh", {
-                height: 0.8, 
-                diameterTop: 0.16, 
+                height: 0.6, 
+                diameterTop: 0.1, 
                 diameterBottom: 0.02,
                 tessellation: 16
             }, this.scene);
@@ -232,7 +232,7 @@ export class Player {
             mesh.material = flameMat;
             mesh.parent = root;
             // 向下偏移一半高度，使顶部对齐 root (即对齐喷嘴)
-            mesh.position.y = -0.4; 
+            mesh.position.y = -0.3; 
             
             // 初始缩放为0 (隐藏)
             root.scaling = new Vector3(0, 0, 0);
