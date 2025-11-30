@@ -26,8 +26,8 @@ export const Config = {
             useKernelBlur: false,
             darkness: 0.5
         },
-        hemiLightIntensity: 0.1,
-        dirLightIntensity: 0.1,
+        hemiLightIntensity: 0.3,
+        dirLightIntensity: 0.2,
         dirLightPosition: { x: 20, y: 40, z: -20 },
         decorations: {
             count: 50, // 装饰物总数

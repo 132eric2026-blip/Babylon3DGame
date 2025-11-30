@@ -1,6 +1,7 @@
 import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, Quaternion, Matrix, ActionManager, ParticleSystem, Texture, Color4, TransformNode, Ray, Engine, Scalar, TrailMesh, PointLight, PointerEventTypes } from "@babylonjs/core";
 import { Config } from "./config";
 import { Shield } from "./shield";
+import { spawnAlphaParticleCannon } from "./armory/AlphaParticleCannon";
 
 export class Player {
     constructor(scene, camera) {
@@ -375,6 +376,7 @@ export class Player {
     }
 
     setupGun() {
+        this.currentWeapon = null;
         this.isHoldingGun = false;
         this.bullets = [];
 
@@ -521,8 +523,34 @@ export class Player {
     }
 
     toggleGun() {
-        this.isHoldingGun = !this.isHoldingGun;
-        this.setGunVisibility(this.isHoldingGun);
+        if (this.currentWeapon) {
+            this.dropWeapon();
+        }
+    }
+
+    pickupWeapon(weaponName) {
+        if (this.currentWeapon) return;
+        this.currentWeapon = weaponName || "AlphaParticleCannon";
+        this.isHoldingGun = true;
+        this.setGunVisibility(true);
+    }
+
+    dropWeapon() {
+        if (!this.currentWeapon) return;
+        
+        // Drop slightly forward to avoid immediate re-pickup
+        const forward = this.mesh.getDirection(new Vector3(0, 0, 1));
+        const dropPos = this.mesh.position.add(forward.scale(2.5));
+        // Keep Y close to ground or current player Y
+        dropPos.y = Math.max(0.5, this.mesh.position.y);
+        
+        if (this.currentWeapon === "AlphaParticleCannon") {
+            spawnAlphaParticleCannon(this.scene, dropPos, this);
+        }
+        
+        this.currentWeapon = null;
+        this.isHoldingGun = false;
+        this.setGunVisibility(false);
     }
 
     shoot() {

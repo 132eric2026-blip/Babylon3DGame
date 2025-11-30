@@ -9,6 +9,7 @@ import { setupUI } from "./ui";
 import { setupMinimap } from "./minimap";
 import { setupSkillBar } from "./skills";
 import { Horse } from "./horse";
+import { spawnAlphaParticleCannon } from "./armory/AlphaParticleCannon";
 
 async function createEngine() {
     const canvas = document.getElementById("renderCanvas");
@@ -89,6 +90,12 @@ async function createScene(engine) {
 
     // Create Horse
     const horse = new Horse(scene, new Vector3(5, 0, 5));
+
+    // Spawn Random Weapon (Alpha Particle Cannon)
+    // Random position within -20 to 20 range
+    const rx = (Math.random() - 0.5) * 40;
+    const rz = (Math.random() - 0.5) * 40;
+    spawnAlphaParticleCannon(scene, new Vector3(rx, 0.5, rz), player);
 
     return scene;
 }
