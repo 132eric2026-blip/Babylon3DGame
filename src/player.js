@@ -2,6 +2,7 @@ import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, Physi
 import { Config } from "./config";
 import { Shield } from "./shield";
 import { spawnAlphaParticleCannon } from "./armory/AlphaParticleCannon";
+import { spawnPegasusParticleCannon, createPegasusGunMesh } from "./armory/PegasusParticleCannon";
 
 export class Player {
     constructor(scene, camera) {
@@ -379,6 +380,7 @@ export class Player {
         this.currentWeapon = null;
         this.isHoldingGun = false;
         this.bullets = [];
+        this.currentGunModel = null;
 
         // Gun Root attached to Right Arm
         this.gunRoot = new TransformNode("gunRoot", this.scene);
@@ -386,63 +388,86 @@ export class Player {
         this.rightArm = this.rightShoulder.getChildMeshes()[0]; 
         this.gunRoot.parent = this.rightArm;
         
-        // Adjust position to be in hand (Right arm is 0.6 height, 0.15 width)
-        // Hand is at bottom of arm. Arm center is 0,0,0 relative to shoulder? 
-        // Wait, rightArm.position.y = -armHeight/2 (-0.3). So center of arm is at -0.3 relative to shoulder.
-        // We want gun at the bottom of the arm (the hand).
-        // Arm height is 0.6. Box center is 0.
-        // Bottom of arm box is at -0.3 (local to arm box).
-        // So we position gun at y = -0.3
+        // Adjust position to be in hand
         this.gunRoot.position = new Vector3(0, -0.3, 0.1); 
         this.gunRoot.rotation.x = Math.PI / 2; // Point forward
         this.gunRoot.isVisible = false;
 
-        // --- Create Gun Mesh ---
-        // Main Body
-        const gunBody = MeshBuilder.CreateBox("gunBody", { width: 0.1, height: 0.15, depth: 0.4 }, this.scene);
-        const gunMat = new StandardMaterial("gunMat", this.scene);
-        gunMat.diffuseColor = new Color3(0.2, 0.2, 0.2);
-        gunBody.material = gunMat;
-        gunBody.parent = this.gunRoot;
-        gunBody.position.z = 0.2;
-
-        // Barrel (Particle Cannon Style)
-        const barrel = MeshBuilder.CreateCylinder("gunBarrel", { height: 0.5, diameter: 0.08 }, this.scene);
-        barrel.rotation.x = Math.PI / 2;
-        barrel.parent = this.gunRoot;
-        barrel.position.z = 0.5;
-        barrel.material = gunMat;
-
-        // Energy Core (Glowing)
-        const core = MeshBuilder.CreateCylinder("gunCore", { height: 0.3, diameter: 0.12 }, this.scene);
-        core.rotation.x = Math.PI / 2;
-        core.parent = this.gunRoot;
-        core.position.z = 0.3;
-        
-        const coreMat = new StandardMaterial("coreMat", this.scene);
-        coreMat.emissiveColor = new Color3(0, 1, 1); // Cyan Glow
-        coreMat.disableLighting = true;
-        core.material = coreMat;
-
-        // Muzzle Point
+        // Muzzle Point (Placeholder, updated in equipWeaponVisuals)
         this.gunMuzzle = new TransformNode("gunMuzzle", this.scene);
         this.gunMuzzle.parent = this.gunRoot;
         this.gunMuzzle.position.z = 0.8;
-
-        // Initially hide gun meshes
-        this.gunRoot.scaling = new Vector3(0, 0, 0); // Hide by scaling or just logic
-        // Note: Setting parent isVisible=false doesn't always hide children in some versions unless inherit visibility is on.
-        // But for TransformNode it works if we check it? No, TransformNode doesn't have visual.
-        // I should toggle meshes visibility or scaling.
-        // Let's use a container mesh or just scale.
-        this.gunMeshes = [gunBody, barrel, core];
-        this.setGunVisibility(false);
 
         // Setup Particle Texture for Muzzle Flash
         this.particleTexture = this.createParticleTexture();
         
         // Setup Persistent Muzzle Flash System
         this.setupMuzzleFlash();
+        
+        // Initialize with default visuals (hidden)
+        this.equipWeaponVisuals(null);
+        this.setGunVisibility(false);
+    }
+
+    equipWeaponVisuals(weaponName) {
+        // Dispose old model
+        if (this.currentGunModel) {
+            this.currentGunModel.dispose();
+            this.currentGunModel = null;
+        }
+        
+        // Create new model based on weapon
+        if (weaponName === "PegasusParticleCannon") {
+            this.currentGunModel = createPegasusGunMesh(this.scene);
+            this.currentGunModel.parent = this.gunRoot;
+            // Adjust Pegasus Model to fit in hand
+            // The model was designed with Z forward.
+            // gunRoot is rotated X=90.
+            // Pegasus model usually needs to just sit there.
+            // Check createPegasusGunMesh: body.position.z = 0.2
+            this.currentGunModel.rotation = Vector3.Zero(); 
+            
+            // Update Muzzle Position
+            this.gunMuzzle.position = new Vector3(0, 0, 1.2); // Tip of barrel (1.2 length)
+            
+        } else {
+            // Default / Alpha Particle Cannon (Grey Boxy Gun)
+            const group = new TransformNode("defaultGunGroup", this.scene);
+            
+            const gunBody = MeshBuilder.CreateBox("gunBody", { width: 0.1, height: 0.15, depth: 0.4 }, this.scene);
+            const gunMat = new StandardMaterial("gunMat", this.scene);
+            gunMat.diffuseColor = new Color3(0.2, 0.2, 0.2);
+            gunBody.material = gunMat;
+            gunBody.parent = group;
+            gunBody.position.z = 0.2;
+
+            const barrel = MeshBuilder.CreateCylinder("gunBarrel", { height: 0.5, diameter: 0.08 }, this.scene);
+            barrel.rotation.x = Math.PI / 2;
+            barrel.parent = group;
+            barrel.position.z = 0.5;
+            barrel.material = gunMat;
+
+            const core = MeshBuilder.CreateCylinder("gunCore", { height: 0.3, diameter: 0.12 }, this.scene);
+            core.rotation.x = Math.PI / 2;
+            core.parent = group;
+            core.position.z = 0.3;
+            
+            const coreMat = new StandardMaterial("coreMat", this.scene);
+            coreMat.emissiveColor = new Color3(0, 1, 1); // Cyan Glow
+            coreMat.disableLighting = true;
+            core.material = coreMat;
+            
+            this.currentGunModel = group;
+            this.currentGunModel.parent = this.gunRoot;
+            
+            // Update Muzzle Position
+            this.gunMuzzle.position = new Vector3(0, 0, 0.8);
+        }
+        
+        // Re-attach muzzle flash to new muzzle position (it follows transform node)
+        if (this.muzzleFlashPS) {
+            this.muzzleFlashPS.emitter = this.gunMuzzle;
+        }
     }
 
     createParticleTexture() {
@@ -532,6 +557,10 @@ export class Player {
         if (this.currentWeapon) return;
         this.currentWeapon = weaponName || "AlphaParticleCannon";
         this.isHoldingGun = true;
+        
+        // Update Visuals (Mesh and Position)
+        this.equipWeaponVisuals(this.currentWeapon);
+        
         this.setGunVisibility(true);
     }
 
@@ -546,6 +575,8 @@ export class Player {
         
         if (this.currentWeapon === "AlphaParticleCannon") {
             spawnAlphaParticleCannon(this.scene, dropPos, this);
+        } else if (this.currentWeapon === "PegasusParticleCannon") {
+            spawnPegasusParticleCannon(this.scene, dropPos, this);
         }
         
         this.currentWeapon = null;
@@ -558,56 +589,183 @@ export class Player {
 
         // 1. Muzzle Flash
         this.muzzleFlashPS.manualEmitCount = 20;
-        this.muzzleFlashPS.start(); // Ensure it's running (manual emit needs it running)
+        
+        // Update Flash Color based on weapon
+        if (this.currentWeapon === "PegasusParticleCannon") {
+            this.muzzleFlashPS.color1 = new Color4(1, 0.8, 0, 1); // Gold/Red
+            this.muzzleFlashPS.color2 = new Color4(1, 0, 0, 1);
+        } else {
+            this.muzzleFlashPS.color1 = new Color4(0, 1, 1, 1);
+            this.muzzleFlashPS.color2 = new Color4(0, 0.5, 1, 1);
+        }
+        this.muzzleFlashPS.start(); 
 
-        // 2. Bullet Mesh (High Energy Bolt)
-        // Use a small sphere but scale it to look like a bolt
-        const bullet = MeshBuilder.CreateSphere("bullet", { diameter: 0.2, segments: 8 }, this.scene);
-        
-        // Position
-        bullet.position = this.gunMuzzle.absolutePosition.clone();
-        
-        // Orientation
-        // We need to point the bullet in the direction of fire.
+        // 2. Bullet Creation
+        const startPos = this.gunMuzzle.absolutePosition.clone();
         const forward = this.gunMuzzle.getDirection(new Vector3(0, 0, 1)).normalize();
         
-        // Align Z axis of bullet to forward
-        // Sphere has no direction, but we will scale it.
-        // We want scaling Z to align with velocity.
-        // LookAt aligns +Z to target.
-        bullet.lookAt(bullet.position.add(forward));
+        let bulletMesh;
+        let bulletData = {
+            life: 2.0,
+            velocity: forward.scale(40)
+        };
+
+        if (this.currentWeapon === "PegasusParticleCannon") {
+            // --- PEGASUS METEOR (ENHANCED) ---
+            // 1. Core Projectile (The "Star")
+            bulletMesh = MeshBuilder.CreateSphere("pegasusBolt", { diameter: 0.3, segments: 16 }, this.scene);
+            bulletMesh.position = startPos;
+            
+            const mat = new StandardMaterial("pegasusBoltMat", this.scene);
+            mat.emissiveColor = new Color3(1, 0.8, 0.4); // Bright Gold/White Core
+            mat.diffuseColor = new Color3(1, 1, 1);
+            mat.disableLighting = true;
+            bulletMesh.material = mat;
+
+            // 2. Particle Systems Container
+            bulletData.particleSystems = [];
+
+            // Helper to create systems
+            const createSystem = (name, textureUrl, options) => {
+                const ps = new ParticleSystem(name, options.capacity || 100, this.scene);
+                ps.particleTexture = new Texture(textureUrl, this.scene);
+                ps.emitter = bulletMesh;
+                
+                // Emitter shape
+                if (options.sphereEmitter) {
+                    ps.createSphereEmitter(options.sphereEmitter.radius || 0.1);
+                } else {
+                    ps.minEmitBox = options.minEmitBox || new Vector3(0, 0, 0);
+                    ps.maxEmitBox = options.maxEmitBox || new Vector3(0, 0, 0);
+                }
+
+                // Life
+                ps.minLifeTime = options.minLife || 0.5;
+                ps.maxLifeTime = options.maxLife || 1.0;
+
+                // Size
+                ps.minSize = options.minSize || 0.1;
+                ps.maxSize = options.maxSize || 0.3;
+
+                // Color
+                ps.color1 = options.color1 || new Color4(1, 1, 1, 1);
+                ps.color2 = options.color2 || new Color4(1, 1, 1, 1);
+                ps.colorDead = options.colorDead || new Color4(0, 0, 0, 0);
+
+                // Speed/Force
+                ps.emitRate = options.emitRate || 50;
+                ps.minEmitPower = options.minPower || 1;
+                ps.maxEmitPower = options.maxPower || 3;
+                ps.updateSpeed = options.updateSpeed || 0.01;
+                
+                // Blending
+                ps.blendMode = ParticleSystem.BLENDMODE_ADD;
+
+                ps.start();
+                return ps;
+            };
+
+            // A. The "Comet Tail" (Dense, Gold/Red Stream)
+            // Uses the star texture we already generated in createParticleTexture, but we need to access it.
+            // Let's just use a standard flare texture URL for robustness or reuse this.particleTexture if possible.
+            // Reusing `this.particleTexture` is efficient.
+            const psTail = new ParticleSystem("pegasusTail", 400, this.scene);
+            psTail.particleTexture = this.particleTexture; 
+            psTail.emitter = bulletMesh;
+            psTail.minEmitBox = new Vector3(-0.05, -0.05, -0.05);
+            psTail.maxEmitBox = new Vector3(0.05, 0.05, 0.05);
+            
+            psTail.color1 = new Color4(1.0, 0.8, 0.2, 1.0); // Gold
+            psTail.color2 = new Color4(1.0, 0.2, 0.1, 1.0); // Red
+            psTail.colorDead = new Color4(0.5, 0.0, 0.0, 0.0); // Dark Red fade
+            
+            psTail.minSize = 0.3;
+            psTail.maxSize = 0.7;
+            psTail.minLifeTime = 0.4;
+            psTail.maxLifeTime = 0.8;
+            psTail.emitRate = 300; // High density
+            psTail.blendMode = ParticleSystem.BLENDMODE_ADD;
+            psTail.start();
+            bulletData.particleSystems.push(psTail);
+
+            // B. The "Wings/Feathers" (Wide spread, slower, floating)
+            const psWings = new ParticleSystem("pegasusWings", 200, this.scene);
+            psWings.particleTexture = new Texture("https://www.babylonjs-playground.com/textures/flare.png", this.scene);
+            psWings.emitter = bulletMesh;
+            // Emit from a slightly larger sphere
+            psWings.createSphereEmitter(0.2);
+            
+            psWings.color1 = new Color4(1.0, 1.0, 1.0, 0.8); // White
+            psWings.color2 = new Color4(1.0, 0.9, 0.5, 0.6); // Pale Gold
+            psWings.colorDead = new Color4(1.0, 0.5, 0.5, 0.0);
+            
+            psWings.minSize = 0.4;
+            psWings.maxSize = 0.9;
+            psWings.minLifeTime = 0.5;
+            psWings.maxLifeTime = 1.2;
+            psWings.emitRate = 80;
+            
+            // Drag/Gravity to make them "drift" behind
+            psWings.gravity = new Vector3(0, 0.5, 0); // Slight rise
+            psWings.minEmitPower = 0;
+            psWings.maxEmitPower = 1;
+            psWings.blendMode = ParticleSystem.BLENDMODE_ADD;
+            psWings.start();
+            bulletData.particleSystems.push(psWings);
+
+            // C. The "Sparkles" (High frequency, tiny, chaotic)
+            const psSparks = new ParticleSystem("pegasusSparks", 150, this.scene);
+            psSparks.particleTexture = this.particleTexture;
+            psSparks.emitter = bulletMesh;
+            psSparks.createSphereEmitter(0.15);
+            
+            psSparks.color1 = new Color4(1.0, 1.0, 0.0, 1.0); // Bright Yellow
+            psSparks.color2 = new Color4(1.0, 0.5, 0.0, 1.0); // Orange
+            psSparks.colorDead = new Color4(1.0, 0.0, 0.0, 0.0);
+            
+            psSparks.minSize = 0.05;
+            psSparks.maxSize = 0.15;
+            psSparks.minLifeTime = 0.2;
+            psSparks.maxLifeTime = 0.5;
+            psSparks.emitRate = 200;
+            
+            psSparks.minAngularSpeed = -Math.PI;
+            psSparks.maxAngularSpeed = Math.PI;
+            psSparks.minEmitPower = 2;
+            psSparks.maxEmitPower = 5;
+            
+            psSparks.blendMode = ParticleSystem.BLENDMODE_ADD;
+            psSparks.start();
+            bulletData.particleSystems.push(psSparks);
+            
+        } else {
+            // --- ALPHA PARTICLE CANNON ---
+            // Bolt
+            bulletMesh = MeshBuilder.CreateSphere("bullet", { diameter: 0.2, segments: 8 }, this.scene);
+            bulletMesh.position = startPos;
+            bulletMesh.lookAt(bulletMesh.position.add(forward));
+            bulletMesh.scaling = new Vector3(0.6, 0.6, 3.0);
+            
+            bulletMesh.computeWorldMatrix(true);
+
+            const bulletMat = new StandardMaterial("bulletMat", this.scene);
+            bulletMat.emissiveColor = new Color3(0, 1, 1); // Cyan
+            bulletMat.disableLighting = true;
+            bulletMesh.material = bulletMat;
+
+            // Trail
+            const trail = new TrailMesh("bulletTrail", bulletMesh, this.scene, 0.05, 10, true);
+            const trailMat = new StandardMaterial("trailMat", this.scene);
+            trailMat.emissiveColor = new Color3(0.5, 1.0, 0.8); 
+            trailMat.disableLighting = true;
+            trailMat.alpha = 0.6;
+            trail.material = trailMat;
+            
+            bulletData.trail = trail;
+        }
         
-        // Elongate
-        bullet.scaling = new Vector3(0.6, 0.6, 3.0);
-
-        // Force update world matrix immediately so TrailMesh knows the starting position
-        bullet.computeWorldMatrix(true);
-
-        // Material: Core High Emissive
-        const bulletMat = new StandardMaterial("bulletMat", this.scene);
-        bulletMat.emissiveColor = new Color3(3, 8, 3); // Ultra Bright Green/Cyan
-        bulletMat.diffuseColor = new Color3(0, 0, 0);
-        bulletMat.specularColor = new Color3(0, 0, 0);
-        bulletMat.disableLighting = true;
-        bullet.material = bulletMat;
-
-        // 3. Trail Effect (Tron Style)
-        // Attach trail to bullet
-        // Reduced diameter from 0.15 to 0.05 for a finer trail
-        // Reduced length from 30 to 10 for a shorter trail
-        const trail = new TrailMesh("bulletTrail", bullet, this.scene, 0.05, 10, true);
-        const trailMat = new StandardMaterial("trailMat", this.scene);
-        trailMat.emissiveColor = new Color3(0.5, 1.0, 0.8); 
-        trailMat.disableLighting = true;
-        trailMat.alpha = 0.6;
-        trail.material = trailMat;
-
-        this.bullets.push({
-            mesh: bullet,
-            trail: trail,
-            velocity: forward.scale(40), // High Speed
-            life: 2.0 
-        });
+        bulletData.mesh = bulletMesh;
+        this.bullets.push(bulletData);
     }
 
     updateBullets(dt) {
@@ -622,6 +780,20 @@ export class Player {
             if (b.mesh.position.y < 0 || b.life <= 0) {
                 b.mesh.dispose();
                 if (b.trail) b.trail.dispose();
+                
+                // Handle single particle system (legacy or alpha cannon if used)
+                if (b.particleSystem) {
+                    b.particleSystem.stop();
+                    b.particleSystem.dispose(); 
+                }
+                // Handle multiple particle systems (Pegasus)
+                if (b.particleSystems) {
+                    b.particleSystems.forEach(ps => {
+                        ps.stop();
+                        ps.dispose();
+                    });
+                }
+                
                 this.bullets.splice(i, 1);
             }
         }

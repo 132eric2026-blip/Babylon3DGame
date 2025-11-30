@@ -1,4 +1,5 @@
-import { MeshBuilder, Vector3, StandardMaterial, Color3, TransformNode, Animation, Scalar, ParticleSystem, Texture, Color4, Engine, PointLight, DynamicTexture } from "@babylonjs/core";
+import { MeshBuilder, Vector3, StandardMaterial, Color3, TransformNode, Animation, Scalar, ParticleSystem, Texture, Color4, Engine, PointLight, DynamicTexture, Mesh } from "@babylonjs/core";
+import { AdvancedDynamicTexture, TextBlock } from "@babylonjs/gui";
 
 export function spawnAlphaParticleCannon(scene, position, player) {
     const root = new TransformNode("worldWeaponRoot", scene);
@@ -178,6 +179,26 @@ export function spawnAlphaParticleCannon(scene, position, player) {
     particleSystem.start();
 
 
+    // --- Name Label (GUI for Fixed Size) ---
+    const ui = AdvancedDynamicTexture.CreateFullscreenUI("alphaUI", true, scene);
+    
+    // Create a specific anchor point for the label in 3D space
+    const labelAnchor = new TransformNode("alphaLabelAnchor", scene);
+    labelAnchor.parent = root;
+    labelAnchor.position.y = 1.5; // Fixed height above the weapon in 3D world units
+
+    const label = new TextBlock();
+    label.text = "alpha粒子炮";
+    label.color = "#00FFFF"; // Cyan
+    label.fontSize = 24; 
+    label.fontWeight = "bold";
+    label.outlineColor = "black";
+    label.outlineWidth = 2;
+    
+    ui.addControl(label);
+    label.linkWithMesh(labelAnchor); // Link to the 3D anchor
+    label.linkOffsetY = 0; // No pixel offset needed anymore
+
     // Animation: Floating and Rotating (Gun)
     const frameRate = 10;
     const animRot = new Animation("animRot", "rotation.y", frameRate, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CYCLE);
@@ -204,6 +225,7 @@ export function spawnAlphaParticleCannon(scene, position, player) {
             scene.onBeforeRenderObservable.remove(observer);
             particleSystem.stop();
             particleSystem.dispose();
+            ui.dispose();
             root.dispose();
         }
     });
