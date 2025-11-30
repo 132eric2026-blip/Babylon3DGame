@@ -1,11 +1,11 @@
-import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, Quaternion, Matrix, ActionManager, ParticleSystem, Texture, Color4, TransformNode, Ray, Engine, Scalar, TrailMesh, PointLight, PointerEventTypes, GlowLayer, Space } from "@babylonjs/core";
+import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, Quaternion, Matrix, ActionManager, ParticleSystem, Texture, Color4, TransformNode, Ray, Engine, Scalar, TrailMesh, PointLight, PointerEventTypes, GlowLayer, Space, DynamicTexture, ShaderMaterial, Effect } from "@babylonjs/core";
 import { Config } from "./config";
 import { Shield } from "./shield";
 import { spawnAlphaParticleCannon } from "./armory/AlphaParticleCannon";
 import { spawnPegasusParticleCannon, createPegasusGunMesh } from "./armory/PegasusParticleCannon";
 import { createLightSpearMesh, spawnLightSpear } from "./armory/LightSpear";
 import { createSolarPlasmaCannonMesh, spawnSolarPlasmaCannon } from "./armory/SolarPlasmaCannon";
-import { createSagittariusRayGunMesh, spawnSagittariusRayGun } from "./armory/SagittariusRayGun";
+import { createScorpioPulsarGunMesh, spawnScorpioPulsarGun } from "./armory/ScorpioPulsarGun";
 
 export class Player {
     constructor(scene, camera) {
@@ -28,15 +28,6 @@ export class Player {
         this.altHoldEnabled = false;
         this.altHoldMinY = 0;
         this.mountedHorse = null;
-
-        // Beam-related (Sagittarius Ray Gun)
-        this.isBeamActive = false;
-        this.beamRoot = null;
-        this.beamCore = null;
-        this.beamGlow = null;
-        this.beamHitPS = null;
-        this.beamScale = 0;
-        this.beamMaxLen = 5;
 
         this.createPlayerMesh();
         this.setupAttackEffect();
@@ -393,6 +384,11 @@ export class Player {
         this.isHoldingGun = false;
         this.bullets = [];
         this.currentGunModel = null;
+        
+        // Beam Weapon State
+        this.isBeamActive = false;
+        this.beamMesh = null;
+        this.fireInputPressed = false;
 
         // Gun Root attached to Right Arm
         this.gunRoot = new TransformNode("gunRoot", this.scene);
@@ -467,12 +463,13 @@ export class Player {
             // Gun is stout.
             this.gunMuzzle.position = new Vector3(0, 0, 0.8);
 
-        } else if (weaponName === "SagittariusRayGun") {
-            this.currentGunModel = createSagittariusRayGunMesh(this.scene);
+        } else if (weaponName === "ScorpioPulsarGun") {
+            this.currentGunModel = createScorpioPulsarGunMesh(this.scene);
             this.currentGunModel.parent = this.gunRoot;
             this.currentGunModel.rotation = Vector3.Zero();
-            // Red gun
-            this.gunMuzzle.position = new Vector3(0, 0, 0.35); // Match the emitter position exactly
+
+            // Adjust position
+            this.gunMuzzle.position = new Vector3(0, 0, 0.8);
 
         } else {
             // Default / Alpha Particle Cannon (Grey Boxy Gun)
@@ -577,8 +574,11 @@ export class Player {
         ps.disposeOnStop = false; // Keep alive
 
         ps.isLocal = true;
-        ps.direction1 = new Vector3(0, 0, 1);
-        ps.direction2 = new Vector3(0, 0, 5);
+        ps.minEmitPower = 2;
+        ps.maxEmitPower = 6;
+        ps.updateSpeed = 0.02;
+        ps.direction1 = new Vector3(-0.5, -0.5, 1);
+        ps.direction2 = new Vector3(0.5, 0.5, 5);
 
         // Start immediately (but emitRate is 0, so no particles yet)
         ps.start();
@@ -627,8 +627,8 @@ export class Player {
             spawnLightSpear(this.scene, dropPos, this);
         } else if (this.currentWeapon === "SolarPlasmaCannon") {
             spawnSolarPlasmaCannon(this.scene, dropPos, this);
-        } else if (this.currentWeapon === "SagittariusRayGun") {
-            spawnSagittariusRayGun(this.scene, dropPos, this);
+        } else if (this.currentWeapon === "ScorpioPulsarGun") {
+            spawnScorpioPulsarGun(this.scene, dropPos, this);
         }
 
         this.currentWeapon = null;
@@ -1040,6 +1040,275 @@ export class Player {
         }
     }
 
+    startBeam() {
+        if (this.isBeamActive) return;
+        this.isBeamActive = true;
+
+        if (this.beamGlow) { this.beamGlow.dispose(); this.beamGlow = null; }
+
+        const isScorpio = (this.currentWeapon === "ScorpioPulsarGun");
+        if (!isScorpio) return; // Safety check
+
+        const beamType = "Scorpio";
+
+        // Check if we need to switch beam type
+        if (this.beamMesh && this.beamMesh.metadata?.type !== beamType) {
+             this.beamMesh.dispose();
+             this.beamMesh = null;
+             this.beamCore = null;
+             this.beamShell = null;
+             // Glow layer might need reset or update meshes
+             if (this.beamGlow) {
+                 this.beamGlow.dispose();
+                 this.beamGlow = null;
+             }
+        }
+
+        // 1. Create Beam Texture if needed
+        let targetTexture;
+        if (!this.scorpioBeamTexture) {
+            const width = 256; const height = 256;
+            const canvas = document.createElement("canvas");
+            canvas.width = width; canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            ctx.clearRect(0, 0, width, height);
+            
+            // Purple Theme
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = "#A020F0"; // Purple
+            ctx.lineCap = "round"; ctx.lineJoin = "round";
+
+            // Draw horizontal wavy bands (flow around circumference, uniform along length)
+            const drawHorizontalStrand = (color, thickness, opacity, waveFreq, waveAmp) => {
+                ctx.strokeStyle = color; ctx.lineWidth = thickness; ctx.globalAlpha = opacity;
+                const yCenter = Math.random() * height;
+                ctx.beginPath();
+                for (let x = 0; x <= width; x += 4) {
+                    const angle = (x / width) * Math.PI * 2 * waveFreq;
+                    const y = yCenter + Math.sin(angle) * waveAmp;
+                    if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            };
+
+            for(let i=0; i<24; i++) {
+                drawHorizontalStrand("white", 2, 0.7, 2 + Math.random(), 4);
+                drawHorizontalStrand("#A020F0", 3, 0.35, 3 + Math.random(), 6);
+                drawHorizontalStrand("#FF00FF", 4, 0.2, 1 + Math.random(), 8);
+            }
+
+            this.scorpioBeamTexture = new Texture("scorpioBeamTex", this.scene, false, false, Texture.TRILINEAR_SAMPLINGMODE, null, null, canvas.toDataURL());
+            this.scorpioBeamTexture.wrapU = Texture.WRAP_ADDRESSMODE;
+            this.scorpioBeamTexture.wrapV = Texture.WRAP_ADDRESSMODE;
+            this.scorpioBeamTexture.hasAlpha = true;
+        }
+        targetTexture = this.scorpioBeamTexture;
+
+        // Opacity texture (soft radial falloff across circumference)
+        if (!this.beamOpacityTexture) {
+            const size = 256;
+            this.beamOpacityTexture = new DynamicTexture("beamOpacityTex", size, this.scene, true);
+            const octx = this.beamOpacityTexture.getContext();
+            octx.clearRect(0, 0, size, size);
+            for (let x = 0; x < size; x++) {
+                const u = x / size;
+                const center = 0.5;
+                const d = Math.abs(u - center);
+                const alpha = Math.max(0, 1 - Scalar.Clamp(d / 0.5, 0, 1) ** 1.5);
+                octx.fillStyle = `rgba(255,255,255,${alpha})`;
+                octx.fillRect(x, 0, 1, size);
+            }
+            this.beamOpacityTexture.update();
+            this.beamOpacityTexture.wrapU = Texture.WRAP_ADDRESSMODE;
+            this.beamOpacityTexture.wrapV = Texture.CLAMP_ADDRESSMODE;
+        }
+
+        // 2. Create Beam Mesh
+        if (!this.beamMesh) {
+            this.beamMesh = new TransformNode("beamRoot", this.scene);
+            this.beamMesh.metadata = { type: beamType };
+
+            // A. Core
+            this.beamCore = MeshBuilder.CreateCylinder("beamCore", { height: 1, diameter: 0.02, tessellation: 16 }, this.scene);
+            this.beamCore.setPivotPoint(new Vector3(0, -0.5, 0));
+            this.beamCore.parent = this.beamMesh;
+            
+            const coreMat = new StandardMaterial("beamCoreMat", this.scene);
+            coreMat.emissiveColor = new Color3(1, 1, 1);
+            coreMat.diffuseColor = new Color3(0, 0, 0);
+            coreMat.disableLighting = true;
+            this.beamCore.material = coreMat;
+
+            // B. Shell
+            this.beamShell = MeshBuilder.CreateCylinder("beamShell", { height: 1, diameter: 0.12, tessellation: 32 }, this.scene);
+            this.beamShell.setPivotPoint(new Vector3(0, -0.5, 0));
+            this.beamShell.parent = this.beamMesh;
+
+            if (!Effect.ShadersStore["beamShellVertexShader"]) {
+                Effect.ShadersStore["beamShellVertexShader"] = "precision highp float;attribute vec3 position;attribute vec3 normal;attribute vec2 uv;uniform mat4 world;uniform mat4 worldViewProjection;varying vec2 vUV;varying vec3 vNormalW;varying vec3 vPosW;void main(){vUV=uv;vec4 worldPos=world*vec4(position,1.0);vPosW=worldPos.xyz;vNormalW=normalize(mat3(world)*normal);gl_Position=worldViewProjection*vec4(position,1.0);}";
+            }
+            if (!Effect.ShadersStore["beamShellFragmentShader"]) {
+                Effect.ShadersStore["beamShellFragmentShader"] = "precision highp float;varying vec2 vUV;varying vec3 vNormalW;varying vec3 vPosW;uniform vec3 cameraPosition;uniform float time;uniform vec3 baseColor;uniform float alpha;uniform float flowSpeed;uniform float rimPower;uniform float rimIntensity;uniform float noiseAmp;uniform float glowBoost;float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}float noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);float a=hash(i);float b=hash(i+vec2(1.0,0.0));float c=hash(i+vec2(0.0,1.0));float d=hash(i+vec2(1.0,1.0));vec2 u=f*f*(3.0-2.0*f);return mix(a,b,u.x)+(c-a)*u.y*(1.0-u.x)+(d-b)*u.x*u.y;}void main(){vec3 V=normalize(cameraPosition-vPosW);float NdotV=dot(normalize(vNormalW),V);float fres=pow(1.0-max(0.0,abs(NdotV)),rimPower);float v=vUV.y;float spiral1=sin((vUV.x*12.0+v*30.0)-time*flowSpeed*3.0);float spiral2=sin((vUV.x*8.0-v*25.0)+time*flowSpeed*2.0);float spirals=smoothstep(0.2,0.9,max(0.0,spiral1*0.5+spiral2*0.5));float n1=noise(vec2(vUV.x*10.0+time,v*12.0-time*flowSpeed));float n2=noise(vec2(vUV.x*20.0-time*0.5,v*20.0-time*flowSpeed*1.5));float pulse=1.0+0.15*sin(time*20.0);float coreFlow=0.5+0.5*sin(v*40.0-time*flowSpeed*4.0);float bright=coreFlow*0.4+spirals*0.6+(n1+n2)*0.3*noiseAmp+fres*rimIntensity;vec3 col=baseColor*bright*pulse*glowBoost;col+=vec3(1.0,1.0,1.0)*fres*0.6*rimIntensity;float a=alpha*clamp(bright,0.0,1.0);gl_FragColor=vec4(col,a);}";
+            }
+            if (!this.beamShellMat) {
+                this.beamShellMat = new ShaderMaterial("beamShellMat", this.scene, { vertex: "beamShell", fragment: "beamShell" }, { attributes: ["position","normal","uv"], uniforms: ["world","worldViewProjection","cameraPosition","time","baseColor","alpha","flowSpeed","rimPower","rimIntensity","noiseAmp","glowBoost"] });
+                this.beamShellMat.disableLighting = true;
+                this.beamShellMat.alphaMode = Engine.ALPHA_ADD;
+                this.beamShellMat.backFaceCulling = false;
+            }
+            this.beamShell.material = this.beamShellMat;
+
+            // C. Light
+            if (!this.beamLight) {
+                this.beamLight = new PointLight("beamLight", Vector3.Zero(), this.scene);
+                this.beamLight.intensity = 0;
+                this.beamLight.range = 8;
+                this.beamLight.parent = null; // 独立于层级
+            }
+        }
+
+        this.beamMesh.parent = this.gunMuzzle;
+        this.beamMesh.position = Vector3.Zero();
+        this.beamMesh.rotation = new Vector3(Math.PI / 2, 0, 0);
+        this.beamMesh.isVisible = true;
+        this.beamCore.isVisible = true;
+        this.beamShell.isVisible = true;
+
+        // 3. Particles
+        if (!this.beamImpactPS) {
+            this.beamImpactPS = new ParticleSystem("beamImpact", 200, this.scene);
+            this.beamImpactPS.particleTexture = this.particleTexture;
+            this.beamImpactPS.emitter = new Vector3(0, 0, 0);
+            this.beamImpactPS.createSphereEmitter(0.1);
+            this.beamImpactPS.minSize = 0.1;
+            this.beamImpactPS.maxSize = 0.3;
+            this.beamImpactPS.minLifeTime = 0.1;
+            this.beamImpactPS.maxLifeTime = 0.4;
+            this.beamImpactPS.blendMode = ParticleSystem.BLENDMODE_ADD;
+            this.beamImpactPS.minEmitPower = 2;
+            this.beamImpactPS.maxEmitPower = 5;
+        }
+        
+        // Update Particle Colors
+        if (isScorpio) {
+            this.beamImpactPS.color1 = new Color4(0.8, 0, 1, 1); // Purple
+            this.beamImpactPS.color2 = new Color4(1, 0, 1, 1); // Magenta
+            this.beamImpactPS.colorDead = new Color4(0.2, 0, 0.5, 0);
+        } else {
+            this.beamImpactPS.color1 = new Color4(0.5, 1, 1, 1); // Cyan
+            this.beamImpactPS.color2 = new Color4(1, 1, 1, 1); // White
+            this.beamImpactPS.colorDead = new Color4(0, 0, 1, 0);
+        }
+
+        this.beamImpactPS.emitRate = 300;
+        this.beamImpactPS.start();
+
+        // 4. Muzzle Flash
+        if (this.muzzleFlashPS) {
+             if (isScorpio) {
+                 this.muzzleFlashPS.color1 = new Color4(0.8, 0, 1, 1);
+                 this.muzzleFlashPS.color2 = new Color4(0.5, 0, 0.8, 1);
+             } else {
+                 this.muzzleFlashPS.color1 = new Color4(0.2, 1, 1, 1); 
+                 this.muzzleFlashPS.color2 = new Color4(0, 0.5, 1, 1);
+             }
+             this.muzzleFlashPS.emitRate = 100; 
+             this.muzzleFlashPS.start();
+        }
+    }
+
+    stopBeam() {
+        if (!this.isBeamActive) return;
+        this.isBeamActive = false;
+
+        if (this.beamMesh) {
+            this.beamMesh.isVisible = false;
+            if(this.beamCore) this.beamCore.isVisible = false;
+            if(this.beamShell) this.beamShell.isVisible = false;
+        }
+        if (this.beamLight) {
+            this.beamLight.setEnabled(false);
+        }
+        if (this.beamImpactPS) {
+            this.beamImpactPS.stop();
+        }
+        if (this.muzzleFlashPS) {
+            this.muzzleFlashPS.emitRate = 0;
+            this.muzzleFlashPS.stop();
+        }
+        if (this.beamGlow) { this.beamGlow.dispose(); this.beamGlow = null; }
+    }
+
+    updateBeam(dt) {
+        if (!this.isBeamActive) return;
+        if (!this.beamMesh) return;
+
+        // Raycast
+        const origin = this.gunMuzzle.absolutePosition;
+        const direction = this.gunMuzzle.getDirection(new Vector3(0, 0, 1));
+        const maxDist = 50;
+
+        const ray = new Ray(origin, direction, maxDist);
+        const hit = this.scene.pickWithRay(ray, (mesh) => {
+            return mesh !== this.mesh && !mesh.isDescendantOf(this.mesh) && mesh.isVisible && mesh.name !== "beamCore" && mesh.name !== "beamShell";
+        });
+
+        let dist = maxDist;
+        if (hit.hit) {
+            dist = hit.distance;
+            this.beamImpactPS.emitter = hit.pickedPoint;
+            this.beamImpactPS.emitRate = 300;
+        } else {
+             this.beamImpactPS.emitRate = 0;
+             this.beamImpactPS.emitter = origin.add(direction.scale(maxDist));
+        }
+
+        // Update Light
+        if (this.beamLight) {
+            this.beamLight.setEnabled(true);
+            if (hit.hit) {
+                // 稍微拉回一点，避免穿模
+                this.beamLight.position = hit.pickedPoint.add(hit.getNormal(true).scale(0.2));
+            } else {
+                this.beamLight.position = origin.add(direction.scale(5.0));
+            }
+            const isScorpio = (this.currentWeapon === "ScorpioPulsarGun");
+            const bc = isScorpio ? new Color3(0.8, 0.0, 1.0) : new Color3(0.2, 0.8, 1.0);
+            this.beamLight.diffuse = bc;
+            // 随时间高频闪烁
+            this.beamLight.intensity = 2.0 + Math.random() * 1.5;
+        }
+
+        // Scale Length
+        this.beamCore.scaling.y = dist;
+        this.beamShell.scaling.y = dist;
+        
+        // Animation: Scroll Texture (around circumference)
+        this.beamTime = (this.beamTime || 0) + dt;
+        if (this.beamShellMat) {
+            const isScorpio = (this.currentWeapon === "ScorpioPulsarGun");
+            const bc = isScorpio ? new Color3(0.8, 0.0, 1.0) : new Color3(0.2, 0.8, 1.0);
+            this.beamShellMat.setFloat("time", this.beamTime);
+            this.beamShellMat.setVector3("baseColor", new Vector3(bc.r, bc.g, bc.b));
+            this.beamShellMat.setFloat("alpha", 0.7);
+            this.beamShellMat.setFloat("flowSpeed", 1.2);
+            this.beamShellMat.setFloat("rimPower", 3.0);
+            this.beamShellMat.setFloat("rimIntensity", 1.5);
+            this.beamShellMat.setFloat("noiseAmp", 0.25);
+            this.beamShellMat.setFloat("glowBoost", isScorpio ? 1.5 : 1.3);
+            this.beamShellMat.setVector3("cameraPosition", new Vector3(this.camera.position.x, this.camera.position.y, this.camera.position.z));
+        }
+
+        // Keep shell thickness stable to avoid bead-like bulges
+        this.beamShell.scaling.x = 1;
+        this.beamShell.scaling.z = 1;
+        
+        // Core flickers slightly
+        const flicker = 1 + Math.random() * 0.03;
+        this.beamCore.scaling.x = flicker;
+        this.beamCore.scaling.z = flicker;
+    }
+
 
     updateGunPose() {
         if (!this.isHoldingGun) return;
@@ -1128,24 +1397,21 @@ export class Player {
         // Use Scene Pointer Observable for better compatibility with Pointer Lock
         this.scene.onPointerObservable.add((pointerInfo) => {
             if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
-                // Left Click (0) -> Shoot (Standard Weapons)
+                // Left Click (0)
                 if (pointerInfo.event.button === 0) {
-                    if (this.currentWeapon !== "SagittariusRayGun") {
+                    this.fireInputPressed = true;
+                    if (this.currentWeapon === "ScorpioPulsarGun") {
+                        this.startBeam();
+                    } else {
                         this.shoot();
                     }
                 }
-                // Middle Click (1) -> Beam (Sagittarius Ray Gun)
-                else if (pointerInfo.event.button === 1) {
-                    if (this.currentWeapon === "SagittariusRayGun") {
-                        this.startBeam();
-                    }
-                }
             } else if (pointerInfo.type === PointerEventTypes.POINTERUP) {
-                // Middle Click Release -> Stop Beam
-                if (pointerInfo.event.button === 1) {
-                     if (this.currentWeapon === "SagittariusRayGun") {
-                         this.stopBeam();
-                     }
+                if (pointerInfo.event.button === 0) {
+                    this.fireInputPressed = false;
+                    if (this.currentWeapon === "ScorpioPulsarGun") {
+                        this.stopBeam();
+                    }
                 }
             }
         });
@@ -1201,7 +1467,7 @@ export class Player {
             }
             this.updateAttack(dt);
             this.updateBullets(dt);
-            this.updateBeam();
+            this.updateBeam(dt);
             this.autoPickupNearby();
             this.updateGunPose();
         });
@@ -1817,114 +2083,6 @@ export class Player {
         }
         // 更新火焰动画
         this.updateJetFlames(dtMs);
-    }
-
-    // --- Beam Logic for Sagittarius Ray Gun ---
-    startBeam() {
-        console.log("startBeam called. Active:", this.isBeamActive);
-        if (this.isBeamActive) return;
-        this.isBeamActive = true;
-        this.beamScale = 0;
-
-        // Create Beam Root
-        if (!this.beamRoot) {
-            this.beamRoot = new TransformNode("beamRoot", this.scene);
-            this.beamRoot.parent = this.gunMuzzle;
-            // Ensure local transform is zero so it aligns perfectly with muzzle
-            this.beamRoot.position = Vector3.Zero();
-            this.beamRoot.rotation = Vector3.Zero();
-        }
-        // Start with a small visible scale to debug
-        this.beamRoot.scaling = new Vector3(1, 1, 0.1);
-
-        // Core Beam (Bright Red/White)
-        if (!this.beamCore) {
-            console.log("Creating beamCore");
-            this.beamCore = MeshBuilder.CreateCylinder("beamCore", { height: 1, diameter: 0.1 }, this.scene);
-            this.beamCore.parent = this.beamRoot;
-            this.beamCore.rotation.x = Math.PI / 2;
-            // Position at 0.5 so it extends from 0 to 1 in Z
-            this.beamCore.position = new Vector3(0, 0, 0.5);
-            // NO BAKING - keep standard transform hierarchy
-            
-            const mat = new StandardMaterial("beamCoreMat", this.scene);
-            mat.emissiveColor = new Color3(1, 0.95, 0.6);
-            mat.diffuseColor = new Color3(0, 0, 0);
-            mat.disableLighting = true;
-            mat.alphaMode = Engine.ALPHA_ADD;
-            this.beamCore.material = mat;
-            this.beamCore.isPickable = false;
-        }
-        this.beamCore.isVisible = true;
-
-        // Outer Glow (Red)
-        if (!this.beamGlow) {
-            console.log("Creating beamGlow");
-            this.beamGlow = MeshBuilder.CreateCylinder("beamGlow", { height: 1, diameter: 0.3 }, this.scene);
-            this.beamGlow.parent = this.beamRoot;
-            this.beamGlow.rotation.x = Math.PI / 2;
-            // Position at 0.5 so it extends from 0 to 1 in Z
-            this.beamGlow.position = new Vector3(0, 0, 0.5);
-            // NO BAKING
-
-            const mat = new StandardMaterial("beamGlowMat", this.scene);
-            mat.emissiveColor = new Color3(1, 0.35, 0);
-            mat.diffuseColor = new Color3(0, 0, 0);
-            mat.disableLighting = true;
-            mat.alpha = 0.4;
-            mat.alphaMode = Engine.ALPHA_ADD;
-            this.beamGlow.material = mat;
-            this.beamGlow.isPickable = false;
-        }
-        this.beamGlow.isVisible = true;
-
-        // Force immediate update
-        
-        this.updateBeam();
-    }
-
-    stopBeam() {
-        console.log("stopBeam called");
-        this.isBeamActive = false;
-        if (this.beamCore) this.beamCore.isVisible = false;
-        if (this.beamGlow) this.beamGlow.isVisible = false;
-        if (this.beamHitPS) this.beamHitPS.stop();
-        if (this.beamFlamePS) this.beamFlamePS.stop();
-        if (this.beamVortexPS) this.beamVortexPS.forEach(ps => ps.stop());
-        if (this.beamSparksPS) this.beamSparksPS.stop();
-        if (this.beamRoot) this.beamRoot.scaling.z = 0;
-    }
-
-    updateBeam() {
-        if (!this.isBeamActive || !this.beamRoot) return;
-
-        // Ensure transforms are up to date for accurate raycasting
-        this.gunMuzzle.computeWorldMatrix(true);
-
-        // Raycast to find hit point
-        const rayOrigin = this.gunMuzzle.absolutePosition;
-        const rayDir = this.gunMuzzle.getDirection(new Vector3(0, 0, 1));
-        // Debug ray direction occasionally if needed, or verify gunMuzzle orientation
-        
-        const ray = new Ray(rayOrigin, rayDir, this.beamMaxLen);
-
-        const hit = this.scene.pickWithRay(ray, (mesh) => {
-            return mesh !== this.mesh && !mesh.isDescendantOf(this.mesh) && mesh.isVisible && mesh.name !== "beamCore" && mesh.name !== "beamGlow";
-        });
-
-        const dist = this.beamMaxLen;
-
-        // Update Beam Length (Scaling Z)
-        // Lerp for smooth extension
-        const currentLen = this.beamRoot.scaling.z;
-        const newLen = dist;
-        this.beamRoot.scaling.z = newLen;
-        const f = 1 + 0.15 * Math.sin(Date.now() * 0.02);
-        this.beamRoot.scaling.x = f;
-        this.beamRoot.scaling.y = f;
-        
-        // Ensure beam root transform is updated
-        this.beamRoot.computeWorldMatrix(true);
     }
 
     updateJetFlames(dtMs) {

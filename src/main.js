@@ -12,7 +12,7 @@ import { Horse } from "./horse";
 import { spawnAlphaParticleCannon } from "./armory/AlphaParticleCannon";
 import { spawnPegasusParticleCannon } from "./armory/PegasusParticleCannon";
 import { spawnSolarPlasmaCannon } from "./armory/SolarPlasmaCannon";
-import { spawnSagittariusRayGun } from "./armory/SagittariusRayGun";
+import { spawnScorpioPulsarGun } from "./armory/ScorpioPulsarGun";
 
 async function createEngine() {
     const canvas = document.getElementById("renderCanvas");
@@ -52,9 +52,9 @@ async function createScene(engine) {
     pipeline.fxaaEnabled = true;
     pipeline.samples = 4;
     pipeline.bloomEnabled = true;
-    pipeline.bloomThreshold = 1.0;
-    pipeline.bloomWeight = 0.8;
-    pipeline.bloomKernel = 64;
+    pipeline.bloomThreshold = 0.65;
+    pipeline.bloomWeight = 1.1;
+    pipeline.bloomKernel = 96;
     pipeline.bloomScale = 0.5;
 
     // Glow Layer for extra bloom control on specific meshes if needed
@@ -108,8 +108,8 @@ async function createScene(engine) {
     // Spawn Solar Plasma Cannon
     spawnSolarPlasmaCannon(scene, new Vector3(-2, 0.5, 2), player);
 
-    // Spawn Sagittarius Ray Gun (Closer to player for easy pickup)
-    spawnSagittariusRayGun(scene, new Vector3(1, 0.5, 0), player);
+    // Spawn Scorpio Pulsar Gun
+    spawnScorpioPulsarGun(scene, new Vector3(4, 0.5, 2), player);
 
     return scene;
 }
