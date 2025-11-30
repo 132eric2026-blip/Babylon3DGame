@@ -142,7 +142,7 @@ export class Player {
         grad.addColorStop(0, "rgba(255,220,120,1)");
         grad.addColorStop(0.5, "rgba(255,140,40,0.8)");
         grad.addColorStop(1, "rgba(255,80,0,0)");
-        ctx.fillStyle = grad; ctx.clearRect(0,0,64,64); ctx.fillRect(0,0,64,64);
+        ctx.fillStyle = grad; ctx.clearRect(0, 0, 64, 64); ctx.fillRect(0, 0, 64, 64);
         const texUrl = canvas.toDataURL();
         const flameTex = Texture.CreateFromBase64String(texUrl, "flame.png", this.scene);
         flamePS.particleTexture = flameTex;
@@ -311,7 +311,7 @@ export class Player {
     mountHorse(horseMesh) {
         if (!horseMesh) return;
         this.mountedHorse = horseMesh;
-        
+
         // Try to find the aggregate on the horse mesh metadata or via a global lookup if needed.
         // In our case, we created the aggregate in horse.js but didn't attach it to mesh.metadata.
         // BUT, we can just look for a way to get it.
@@ -325,7 +325,7 @@ export class Player {
         // Easier: Make player child of horse? 
         // But player has physics body. 
         // Strategy: Disable player physics, parent mesh to horse, reset local position.
-        
+
         if (this.aggregate) {
             this.aggregate.body.disablePreStep = false; // Ensure we can modify
             this.aggregate.dispose(); // Remove physics body while riding
@@ -335,7 +335,7 @@ export class Player {
         this.mesh.setParent(horseMesh);
         this.mesh.position = new Vector3(0, 1.2, 0); // Sit on top
         this.mesh.rotationQuaternion = Quaternion.Identity();
-        
+
         // Set riding pose
         this.setRidingPose();
     }
@@ -344,17 +344,17 @@ export class Player {
         if (!this.mountedHorse) return;
 
         const horsePos = this.mountedHorse.absolutePosition;
-        
+
         this.mesh.setParent(null);
         this.mountedHorse = null;
-        
+
         // Place player next to horse
         this.mesh.position = horsePos.add(new Vector3(1.5, 0, 0));
         this.mesh.rotationQuaternion = Quaternion.Identity();
 
         // Re-enable physics
         this.setupPhysics();
-        
+
         // Reset pose
         this.resetPose();
     }
@@ -362,8 +362,8 @@ export class Player {
     setRidingPose() {
         // Sitting pose
         this.modelRoot.rotationQuaternion = Quaternion.Identity();
-        this.modelRoot.position.y = -1.0; 
-        
+        this.modelRoot.position.y = -1.0;
+
         // Legs straddle
         this.leftHip.rotation.x = -1.5; // Sitting
         this.leftHip.rotation.z = -0.5; // Spread
@@ -376,20 +376,20 @@ export class Player {
     }
 
     resetPose() {
-         // Reset to default idle
-         this.modelRoot.position.y = -1.2;
-         this.leftHip.rotation.x = 0;
-         this.leftHip.rotation.z = 0;
-         this.rightHip.rotation.x = 0;
-         this.rightHip.rotation.z = 0;
-         this.leftShoulder.rotation.x = 0;
-         this.rightShoulder.rotation.x = 0;
+        // Reset to default idle
+        this.modelRoot.position.y = -1.2;
+        this.leftHip.rotation.x = 0;
+        this.leftHip.rotation.z = 0;
+        this.rightHip.rotation.x = 0;
+        this.rightHip.rotation.z = 0;
+        this.leftShoulder.rotation.x = 0;
+        this.rightShoulder.rotation.x = 0;
     }
 
     updateMountedMovement() {
         // Move the horse using Physics
         if (!this.mountedHorse) return;
-        
+
         // Find the PhysicsAggregate of the horse
         // Since we don't have direct access to the horse instance here easily,
         // we can try to get the metadata or just check if the mesh has an aggregate.
@@ -400,7 +400,7 @@ export class Player {
         // Usually it's stored on the mesh in some projects, or we can try to access it.
         // Let's assume we can access physicsBody directly if we are lucky, 
         // but Havok V2 uses PhysicsBody which is on the mesh? No, it's on the aggregate.
-        
+
         // Workaround: When mounting, store the horse's aggregate on the player
         if (!this.horseAggregate) return;
 
@@ -428,21 +428,21 @@ export class Player {
         // Let's assume standard TPS control: When moving, rotate towards movement direction.
         // BUT, if the user specifically asked for "consistent with camera direction", it might imply
         // the horse should turn to look where the camera is looking, especially when pressing W.
-        
+
         // Let's refine:
         // If user means "Horse Rotation = Camera Rotation" (Strafe mode):
         // Then pressing A/D would strafe left/right.
         // Let's try to interpret "direction consistent with camera".
         // Most likely: Horse always faces the direction the camera is facing (Camera Forward), 
         // regardless of movement direction (like in shooter mode or strafing).
-        
+
         // Let's implement Strafing logic for Horse Rotation:
         const targetRotation = Math.atan2(cameraForward.x, cameraForward.z);
         this.mountedHorse.rotationQuaternion = Quaternion.FromEulerAngles(0, targetRotation, 0);
 
         if (moveDir.length() > 0.1) {
             moveDir.normalize();
-            
+
             // Apply Velocity to Horse
             // Keep existing Y velocity (gravity)
             const currentVel = this.horseAggregate.body.getLinearVelocity();
@@ -451,15 +451,15 @@ export class Player {
                 currentVel.y,
                 moveDir.z * speed
             ));
-            
+
             // Bobbing animation for horse/player
             this.walkTime += dt * 12;
             // Animate player bobbing on horse
             this.mesh.position.y = 1.2 + Math.sin(this.walkTime) * 0.08;
         } else {
             // Stop horizontal movement, keep gravity
-             const currentVel = this.horseAggregate.body.getLinearVelocity();
-             this.horseAggregate.body.setLinearVelocity(new Vector3(0, currentVel.y, 0));
+            const currentVel = this.horseAggregate.body.getLinearVelocity();
+            this.horseAggregate.body.setLinearVelocity(new Vector3(0, currentVel.y, 0));
         }
     }
 
@@ -467,9 +467,9 @@ export class Player {
         // Raycast down to find ANY surface (ground, book, platform)
         // Player height is 2, so center to bottom is 1.
         // We cast a ray of length 1.1 to allow for small floating errors (epsilon).
-        const rayLength = 1.1; 
+        const rayLength = 1.1;
         const ray = new Ray(this.mesh.position, new Vector3(0, -1, 0), rayLength);
-        
+
         const pickInfo = this.scene.pickWithRay(ray, (mesh) => {
             // Filter out player itself and its parts
             return mesh !== this.mesh && !mesh.isDescendantOf(this.mesh);
@@ -501,29 +501,212 @@ export class Player {
         let isMoving = false;
 
         // 获取相机的前方方向（忽略Y轴）
+    }
+
+    mountHorse(horseMesh) {
+        if (!horseMesh) return;
+        this.mountedHorse = horseMesh;
+
+        // Try to find the aggregate on the horse mesh metadata or via a global lookup if needed.
+        // In our case, we created the aggregate in horse.js but didn't attach it to mesh.metadata.
+        // BUT, we can just look for a way to get it.
+        // Actually, we need to pass the Horse instance or store the aggregate on the mesh.
+        // Let's assume we can hack it: check scene physics bodies?
+        // Better way: Let's modify Horse.js to attach aggregate to mesh.metadata.
+        // For now, let's assume we did that (I will do it in next step).
+        this.horseAggregate = horseMesh.metadata?.aggregate;
+
+        // Disable player physics temporarily or make it kinematic to attach?
+        // Easier: Make player child of horse? 
+        // But player has physics body. 
+        // Strategy: Disable player physics, parent mesh to horse, reset local position.
+
+        if (this.aggregate) {
+            this.aggregate.body.disablePreStep = false; // Ensure we can modify
+            this.aggregate.dispose(); // Remove physics body while riding
+            this.aggregate = null;
+        }
+
+        this.mesh.setParent(horseMesh);
+        this.mesh.position = new Vector3(0, 1.2, 0); // Sit on top
+        this.mesh.rotationQuaternion = Quaternion.Identity();
+
+        // Set riding pose
+        this.setRidingPose();
+    }
+
+    dismountHorse() {
+        if (!this.mountedHorse) return;
+
+        const horsePos = this.mountedHorse.absolutePosition;
+
+        this.mesh.setParent(null);
+        this.mountedHorse = null;
+
+        // Place player next to horse
+        this.mesh.position = horsePos.add(new Vector3(1.5, 0, 0));
+        this.mesh.rotationQuaternion = Quaternion.Identity();
+
+        // Re-enable physics
+        this.setupPhysics();
+
+        // Reset pose
+        this.resetPose();
+    }
+
+    setRidingPose() {
+        // Sitting pose
+        this.modelRoot.rotationQuaternion = Quaternion.Identity();
+        this.modelRoot.position.y = -1.0;
+
+        // Legs straddle
+        this.leftHip.rotation.x = -1.5; // Sitting
+        this.leftHip.rotation.z = -0.5; // Spread
+        this.rightHip.rotation.x = -1.5;
+        this.rightHip.rotation.z = 0.5;
+
+        // Arms holding reins
+        this.leftShoulder.rotation.x = -0.8;
+        this.rightShoulder.rotation.x = -0.8;
+    }
+
+    resetPose() {
+        // Reset to default idle
+        this.modelRoot.position.y = -1.2;
+        this.leftHip.rotation.x = 0;
+        this.leftHip.rotation.z = 0;
+        this.rightHip.rotation.x = 0;
+        this.rightHip.rotation.z = 0;
+        this.leftShoulder.rotation.x = 0;
+        this.rightShoulder.rotation.x = 0;
+    }
+
+    updateMountedMovement() {
+        // Move the horse using Physics
+        if (!this.mountedHorse) return;
+
+        // Find the PhysicsAggregate of the horse
+        // Since we don't have direct access to the horse instance here easily,
+        // we can try to get the metadata or just check if the mesh has an aggregate.
+        // But wait, the aggregate is usually on the transform node or mesh.
+        // Let's assume mountedHorse has metadata.aggregate or we look it up.
+        // Actually, Babylon Havok plugin attaches body to the mesh.
+        // However, the `PhysicsAggregate` object is what we need.
+        // Usually it's stored on the mesh in some projects, or we can try to access it.
+        // Let's assume we can access physicsBody directly if we are lucky, 
+        // but Havok V2 uses PhysicsBody which is on the mesh? No, it's on the aggregate.
+
+        // Workaround: When mounting, store the horse's aggregate on the player
+        if (!this.horseAggregate) return;
+
+        const speed = 8.0; // Horse speed
+        const dt = this.scene.getEngine().getDeltaTime() / 1000;
+        let moveDir = new Vector3(0, 0, 0);
+
+        const cameraForward = this.camera.getForwardRay().direction;
+        cameraForward.y = 0;
+        cameraForward.normalize();
+        const cameraRight = Vector3.Cross(new Vector3(0, 1, 0), cameraForward);
+
+        if (this.inputMap["w"]) moveDir.addInPlace(cameraForward);
+        if (this.inputMap["s"]) moveDir.subtractInPlace(cameraForward);
+        if (this.inputMap["a"]) moveDir.subtractInPlace(cameraRight);
+        if (this.inputMap["d"]) moveDir.addInPlace(cameraRight);
+
+        // Align horse with camera forward when moving forward/backward, or general movement?
+        // User asked: "Horse rigid body direction should be consistent with camera direction."
+        // Usually this means if I press W, horse faces camera forward.
+        // If I press S, horse faces camera backward? Or still forward but moves back?
+        // Typically in TPS, "Forward" means Character Forward aligns with Camera Forward when moving forward.
+        // But if "consistent with camera direction" means the horse ALWAYS faces camera forward (strafe mode)?
+        // Or just when moving?
+        // Let's assume standard TPS control: When moving, rotate towards movement direction.
+        // BUT, if the user specifically asked for "consistent with camera direction", it might imply
+        // the horse should turn to look where the camera is looking, especially when pressing W.
+
+        // Let's refine:
+        // If user means "Horse Rotation = Camera Rotation" (Strafe mode):
+        // Then pressing A/D would strafe left/right.
+        // Let's try to interpret "direction consistent with camera".
+        // Most likely: Horse always faces the direction the camera is facing (Camera Forward), 
+        // regardless of movement direction (like in shooter mode or strafing).
+
+        // Let's implement Strafing logic for Horse Rotation:
+        const targetRotation = Math.atan2(cameraForward.x, cameraForward.z);
+        this.mountedHorse.rotationQuaternion = Quaternion.FromEulerAngles(0, targetRotation, 0);
+
+        if (moveDir.length() > 0.1) {
+            moveDir.normalize();
+
+            // Apply Velocity to Horse
+            // Keep existing Y velocity (gravity)
+            const currentVel = this.horseAggregate.body.getLinearVelocity();
+            this.horseAggregate.body.setLinearVelocity(new Vector3(
+                moveDir.x * speed,
+                currentVel.y,
+                moveDir.z * speed
+            ));
+
+            // Bobbing animation for horse/player
+            this.walkTime += dt * 12;
+            // Animate player bobbing on horse
+            this.mesh.position.y = 1.2 + Math.sin(this.walkTime) * 0.08;
+        } else {
+            // Stop horizontal movement, keep gravity
+            const currentVel = this.horseAggregate.body.getLinearVelocity();
+            this.horseAggregate.body.setLinearVelocity(new Vector3(0, currentVel.y, 0));
+        }
+    }
+
+    isGrounded() {
+        // Raycast down to find ANY surface (ground, book, platform)
+        // Player height is 2, so center to bottom is 1.
+        // We cast a ray of length 1.1 to allow for small floating errors (epsilon).
+        const rayLength = 1.1;
+        const ray = new Ray(this.mesh.position, new Vector3(0, -1, 0), rayLength);
+
+        const pickInfo = this.scene.pickWithRay(ray, (mesh) => {
+            // Filter out player itself and its parts
+            return mesh !== this.mesh && !mesh.isDescendantOf(this.mesh);
+        });
+
+        // Also keep the Y=0 check just in case the ground mesh is missing or non-pickable
+        const minY = this.mesh.getBoundingInfo().boundingBox.minimumWorld.y;
+        return pickInfo.hit || (minY <= this._groundEpsilon);
+    }
+
+    tryJump() {
+        if (!this.mesh || !this.aggregate) return;
+        if (!this.isGrounded()) return;
+        const v = this.aggregate.body.getLinearVelocity();
+        const j = Config.player.jumpSpeed || 6.5;
+        this.aggregate.body.setLinearVelocity(new Vector3(v.x, j, v.z));
+    }
+
+    updateMovement() {
+        if (!this.mesh || !this.aggregate) return;
+
+        const baseSpeed = Config.player.speed;
+        const sprintMul = (Config.player.sprintMultiplier || 2);
+        const sprintSpeed = (Config.player.sprintSpeed || (baseSpeed * sprintMul));
+        const velocity = this.aggregate.body.getLinearVelocity();
+        const dtMs = this.scene.getEngine().getDeltaTime();
+
+        let moveDirection = new Vector3(0, 0, 0);
+        let isMoving = false;
+
         const cameraForward = this.camera.getForwardRay().direction;
         cameraForward.y = 0;
         cameraForward.normalize();
 
         const cameraRight = Vector3.Cross(this.scene.yAxis || new Vector3(0, 1, 0), cameraForward);
-        cameraRight.normalize(); // Actually this is Left if Cross(Up, Fwd) ? No, Up x Fwd = Right (Right Hand Rule? Babylon is Left Handed)
-        // Babylon: Left Handed system.
-        // Up (0,1,0) x Forward (0,0,1) = (1,0,0) which is Right.
-        // But wait, let's verify directions.
+        cameraRight.normalize();
 
         // W - Forward
         if (this.inputMap["w"]) {
             moveDirection.addInPlace(cameraForward);
             isMoving = true;
-
-            // 只有按住W时，玩家模型才转向相机前方
-            // 计算目标旋转
             const targetRotation = Math.atan2(cameraForward.x, cameraForward.z);
-            // 旋转模型（不是物理体，物理体锁住了旋转）
-            // 我们旋转modelRoot
-            // 使用 Quaternion.Slerp 平滑旋转
-            const currentRotation = this.modelRoot.rotationQuaternion ? this.modelRoot.rotationQuaternion.toEulerAngles().y : this.modelRoot.rotation.y;
-            // 简单处理，直接设置rotation.y
             this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0, targetRotation, 0);
         }
 
@@ -534,22 +717,7 @@ export class Player {
         }
 
         // A - Left
-        // If cameraRight points Right, then Left is -cameraRight.
-        // Let's assume we want to move Left.
-        // We need a vector pointing Left.
-        // If Up x Forward = Right, then Left = -Right = Right x Up = (Up x Forward) * -1
-        // Actually simpler: Vector3.Cross(cameraForward, Up) = Right (in Left Handed?)
-        // Let's stick to standard logic:
-        // Forward = Z
-        // Right = X
-        // Up = Y
-
-        // Babylon Left Handed:
-        // Cross(Up, Forward) -> Right ?
-        // (0,1,0) x (0,0,1) = (1,0,0) -> Right. Correct.
-
         if (this.inputMap["a"]) {
-            // Move Left -> -Right
             moveDirection.subtractInPlace(cameraRight);
             isMoving = true;
         }
@@ -562,8 +730,6 @@ export class Player {
 
         if (isMoving) {
             moveDirection.normalize();
-            // Apply velocity
-            // We want to keep the vertical velocity (gravity)
             const curSpeed = this.isSprinting ? sprintSpeed : baseSpeed;
             if (this.ascendImpulseMs > 0) { this.ascendImpulseMs = Math.max(0, this.ascendImpulseMs - dtMs); }
             let vy = velocity.y;
@@ -579,26 +745,53 @@ export class Player {
             this.walkTime += this.scene.getEngine().getDeltaTime() * dtScale * (curSpeed / 5);
             const amp = this.isSprinting ? 1.2 : 0.8;
             const angle = Math.sin(this.walkTime);
+
             if (!this.isGrounded()) {
                 // Align character facing with camera forward in air (Strafing flight)
                 const yaw = Math.atan2(cameraForward.x, cameraForward.z);
-                
-                // Air Move: Super Hero Flight (Right arm forward, body horizontal)
-                // User reported previous -1.4 was backward leaning, so we invert to positive.
-                this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(1.0, yaw, 0);
-                
-                // Right arm punches forward (Fully extended relative to body)
-                // Using ~PI to ensure it's straight up/forward relative to torso
-                this.rightShoulder.rotation.x = -3.1; 
-                this.rightShoulder.rotation.z = 0.0;
-                
-                // Left arm tucked near waist
-                this.leftShoulder.rotation.x = 0.5;
-                this.leftShoulder.rotation.z = 0.2;
-                
-                // Legs streamlined
-                this.leftHip.rotation.x = 0.1 + angle * 0.05;
-                this.rightHip.rotation.x = 0.1 - angle * 0.05;
+
+                if (this.isSprinting) {
+                    // Air Move: Super Hero Flight
+                    this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(1.0, yaw, 0);
+                    this.rightShoulder.rotation.x = -3.1;
+                    this.rightShoulder.rotation.z = 0.0;
+                    this.leftShoulder.rotation.x = 0.5;
+                    this.leftShoulder.rotation.z = 0.2;
+                    this.leftHip.rotation.x = 0.1 + angle * 0.05;
+                    this.rightHip.rotation.x = 0.1 - angle * 0.05;
+                } else {
+                    // Normal Jump (Moving) - Velocity Dependent
+                    const vy = velocity.y;
+
+                    if (vy > 0.5) {
+                        // Rising (Launch Pose)
+                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.2, yaw, 0);
+                        this.leftShoulder.rotation.x = -2.8;
+                        this.rightShoulder.rotation.x = -2.8;
+                        this.leftShoulder.rotation.z = -0.2;
+                        this.rightShoulder.rotation.z = 0.2;
+                        this.leftHip.rotation.x = -1.2;
+                        this.rightHip.rotation.x = 0.2;
+                    } else if (vy < -0.5) {
+                        // Falling
+                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.0, yaw, 0);
+                        this.leftShoulder.rotation.x = -1.5;
+                        this.rightShoulder.rotation.x = -1.5;
+                        this.leftShoulder.rotation.z = -0.8;
+                        this.rightShoulder.rotation.z = 0.8;
+                        this.leftHip.rotation.x = -0.4;
+                        this.rightHip.rotation.x = -0.4;
+                    } else {
+                        // Apex / Transition
+                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.1, yaw, 0);
+                        this.leftShoulder.rotation.x = -2.0;
+                        this.rightShoulder.rotation.x = -2.0;
+                        this.leftShoulder.rotation.z = -0.4;
+                        this.rightShoulder.rotation.z = 0.4;
+                        this.leftHip.rotation.x = -0.8;
+                        this.rightHip.rotation.x = -0.8;
+                    }
+                }
             } else {
                 this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0, this.modelRoot.rotationQuaternion ? this.modelRoot.rotationQuaternion.toEulerAngles().y : this.modelRoot.rotation.y, 0);
                 this.leftShoulder.rotation.x = angle * amp;
@@ -628,24 +821,56 @@ export class Player {
             this.aggregate.body.setLinearVelocity(new Vector3(0, vyIdle, 0));
 
             if (!this.isGrounded()) {
-                const ds = 0.003; 
+                const ds = 0.003;
                 this.walkTime += this.scene.getEngine().getDeltaTime() * ds;
                 const ang = Math.sin(this.walkTime);
-                
-                // Air Hover: Zero-G Float (Upright, arms out)
+
                 const yaw = this.modelRoot.rotationQuaternion ? this.modelRoot.rotationQuaternion.toEulerAngles().y : this.modelRoot.rotation.y;
-                this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(-0.1, yaw, 0);
-                this.modelRoot.position.y = -1.2 + ang * 0.08;
-                
-                this.leftShoulder.rotation.x = 0.0 + ang * 0.05;
-                this.rightShoulder.rotation.x = 0.0 + ang * 0.05;
-                this.leftShoulder.rotation.z = 0.8 + ang * 0.05;
-                this.rightShoulder.rotation.z = -0.8 - ang * 0.05;
-                
-                this.leftHip.rotation.x = 0.1 + ang * 0.05;
-                this.rightHip.rotation.x = 0.05 - ang * 0.05;
+
+                if (this.isSprinting) {
+                    // Air Hover: Zero-G Float
+                    this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(-0.1, yaw, 0);
+                    this.modelRoot.position.y = -1.2 + ang * 0.08;
+                    this.leftShoulder.rotation.x = 0.0 + ang * 0.05;
+                    this.rightShoulder.rotation.x = 0.0 + ang * 0.05;
+                    this.leftShoulder.rotation.z = 0.8 + ang * 0.05;
+                    this.rightShoulder.rotation.z = -0.8 - ang * 0.05;
+                    this.leftHip.rotation.x = 0.1 + ang * 0.05;
+                    this.rightHip.rotation.x = 0.05 - ang * 0.05;
+                } else {
+                    // Normal Jump (Idle/Vertical) - Velocity Dependent
+                    const vy = velocity.y;
+                    this.modelRoot.position.y = -1.2;
+
+                    if (vy > 0.5) {
+                        // Rising
+                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.0, yaw, 0);
+                        this.leftShoulder.rotation.x = -2.8;
+                        this.rightShoulder.rotation.x = -2.8;
+                        this.leftShoulder.rotation.z = -0.1;
+                        this.rightShoulder.rotation.z = 0.1;
+                        this.leftHip.rotation.x = -1.0;
+                        this.rightHip.rotation.x = -1.0;
+                    } else if (vy < -0.5) {
+                        // Falling
+                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.0, yaw, 0);
+                        this.leftShoulder.rotation.x = -1.8 + ang * 0.1;
+                        this.rightShoulder.rotation.x = -1.8 - ang * 0.1;
+                        this.leftShoulder.rotation.z = -0.5;
+                        this.rightShoulder.rotation.z = 0.5;
+                        this.leftHip.rotation.x = -0.2;
+                        this.rightHip.rotation.x = -0.2;
+                    } else {
+                        // Apex
+                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.0, yaw, 0);
+                        this.leftShoulder.rotation.x = -2.2;
+                        this.rightShoulder.rotation.x = -2.2;
+                        this.leftHip.rotation.x = -0.8;
+                        this.rightHip.rotation.x = -0.8;
+                    }
+                }
             } else {
-                // Grounded Idle - Reset posture to upright
+                // Grounded Idle
                 this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0, this.modelRoot.rotationQuaternion ? this.modelRoot.rotationQuaternion.toEulerAngles().y : this.modelRoot.rotation.y, 0);
                 this.modelRoot.position.y = -1.2;
                 this.leftShoulder.rotation.x = 0;
