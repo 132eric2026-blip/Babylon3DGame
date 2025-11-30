@@ -33,7 +33,7 @@ export class Player {
     createPlayerMesh() {
         // 玩家容器
         this.mesh = MeshBuilder.CreateCapsule("player", { height: 2, radius: 0.5 }, this.scene);
-        this.mesh.position.y = 2; // 初始位置
+        this.mesh.position.y = 1;
         this.mesh.visibility = Config.player.showCollider ? 0.5 : 0; // 根据配置显示或隐藏胶囊体
 
         // 材质
@@ -799,7 +799,8 @@ export class Player {
 
             // Stop horizontal movement
             if (this.ascendImpulseMs > 0) { this.ascendImpulseMs = Math.max(0, this.ascendImpulseMs - dtMs); }
-            let vyIdle = velocity.y;
+            const currentVel = this.aggregate.body.getLinearVelocity();
+            let vyIdle = currentVel.y;
             if (this.isSprinting && this.hoverActive) {
                 vyIdle = this.ascendImpulseMs > 0 ? (Config.player.antiGravityUpSpeed || 3.5) : 0;
             }
