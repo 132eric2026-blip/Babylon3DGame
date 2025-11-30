@@ -22,7 +22,7 @@ export class Player {
 
         this.createPlayerMesh();
 
-        // Create Shield
+        // 创建护盾
         this.shield = new Shield(this.scene, this.modelRoot);
 
         this.setupPhysics();
@@ -42,15 +42,15 @@ export class Player {
         skinMat.specularColor = new Color3(0, 0, 0); // 去掉高光
 
         const hairMat = new StandardMaterial("hairMat", this.scene);
-        hairMat.diffuseColor = new Color3(0.4, 0.2, 0.1); // Brown hair
+        hairMat.diffuseColor = new Color3(0.4, 0.2, 0.1); // 棕色头发
         hairMat.specularColor = new Color3(0, 0, 0); // 去掉高光
 
         const clothesMat = new StandardMaterial("clothesMat", this.scene);
-        clothesMat.diffuseColor = new Color3(1, 0.4, 0.6); // Pink shirt
+        clothesMat.diffuseColor = new Color3(1, 0.4, 0.6); // 粉色衬衫
         clothesMat.specularColor = new Color3(0, 0, 0); // 去掉高光
 
         const pantsMat = new StandardMaterial("pantsMat", this.scene);
-        pantsMat.diffuseColor = new Color3(0.2, 0.2, 0.8); // Blue pants
+        pantsMat.diffuseColor = new Color3(0.2, 0.2, 0.8); // 蓝色裤子
         pantsMat.specularColor = new Color3(0, 0, 0); // 去掉高光
 
         const eyeMat = new StandardMaterial("eyeMat", this.scene);
@@ -102,7 +102,7 @@ export class Player {
 
         // 鼻子
         const nose = MeshBuilder.CreateBox("nose", { width: 0.06, height: 0.06, depth: 0.02 }, this.scene);
-        nose.material = skinMat; // Same as skin but sticks out
+        nose.material = skinMat; // 与皮肤相同但突出
         nose.parent = head;
         nose.position.z = 0.26;
         nose.position.y = -0.08;
@@ -166,7 +166,7 @@ export class Player {
         const armWidth = 0.15;
         const armHeight = 0.6;
         const armDepth = 0.15;
-        const shoulderY = 1.5; // 肩膀高度 (body top is at 1.2 + 0.3 = 1.5)
+        const shoulderY = 1.5; // 肩膀高度 (身体顶部在 1.2 + 0.3 = 1.5)
         const armOffsetX = 0.35;
 
         // 左肩关节
@@ -197,7 +197,7 @@ export class Player {
         const legWidth = 0.2;
         const legHeight = 0.7;
         const legDepth = 0.2;
-        const hipY = 0.9; // 臀部高度 (body bottom is at 1.2 - 0.3 = 0.9)
+        const hipY = 0.9; // 臀部高度 (身体底部在 1.2 - 0.3 = 0.9)
         const legOffsetX = 0.12;
 
         // 左髋关节
@@ -257,7 +257,7 @@ export class Player {
             }
             if (evt.code === "Space") {
                 if (this.mountedHorse) {
-                    // Dismount on jump
+                    // 跳跃时下马
                     this.dismountHorse();
                     return;
                 }
@@ -265,6 +265,7 @@ export class Player {
                     if (!this.hoverActive) { this.hoverActive = true; }
                     else { this.ascendImpulseMs = 300; }
                 } else {
+
                     this.tryJump();
                 }
             }
@@ -294,8 +295,8 @@ export class Player {
     }
 
     checkNearbyHorses() {
-        // Simple distance check against all meshes named "horseRoot"
-        // Ideally we would have a list of interactables, but for now scan scene
+        // 简单的距离检查，对所有名为 "horseRoot" 的网格进行检测
+        // 理想情况下我们应该有一个可交互对象列表，但现在先扫描场景
         let foundHorse = null;
         // We know we only have one horse for now, but let's be somewhat generic
         const horses = this.scene.meshes.filter(m => m.name === "horseRoot");
@@ -596,10 +597,10 @@ export class Player {
         // Let's assume we can access physicsBody directly if we are lucky, 
         // but Havok V2 uses PhysicsBody which is on the mesh? No, it's on the aggregate.
 
-        // Workaround: When mounting, store the horse's aggregate on the player
+        // 解决方案：上马时，将马的聚合体存储在玩家上
         if (!this.horseAggregate) return;
 
-        const speed = 8.0; // Horse speed
+        const speed = 8.0; // 马的速度
         const dt = this.scene.getEngine().getDeltaTime() / 1000;
         let moveDir = new Vector3(0, 0, 0);
 
@@ -613,33 +614,15 @@ export class Player {
         if (this.inputMap["a"]) moveDir.subtractInPlace(cameraRight);
         if (this.inputMap["d"]) moveDir.addInPlace(cameraRight);
 
-        // Align horse with camera forward when moving forward/backward, or general movement?
-        // User asked: "Horse rigid body direction should be consistent with camera direction."
-        // Usually this means if I press W, horse faces camera forward.
-        // If I press S, horse faces camera backward? Or still forward but moves back?
-        // Typically in TPS, "Forward" means Character Forward aligns with Camera Forward when moving forward.
-        // But if "consistent with camera direction" means the horse ALWAYS faces camera forward (strafe mode)?
-        // Or just when moving?
-        // Let's assume standard TPS control: When moving, rotate towards movement direction.
-        // BUT, if the user specifically asked for "consistent with camera direction", it might imply
-        // the horse should turn to look where the camera is looking, especially when pressing W.
-
-        // Let's refine:
-        // If user means "Horse Rotation = Camera Rotation" (Strafe mode):
-        // Then pressing A/D would strafe left/right.
-        // Let's try to interpret "direction consistent with camera".
-        // Most likely: Horse always faces the direction the camera is facing (Camera Forward), 
-        // regardless of movement direction (like in shooter mode or strafing).
-
-        // Let's implement Strafing logic for Horse Rotation:
+        // 实现骑马的横向移动逻辑：
         const targetRotation = Math.atan2(cameraForward.x, cameraForward.z);
         this.mountedHorse.rotationQuaternion = Quaternion.FromEulerAngles(0, targetRotation, 0);
 
         if (moveDir.length() > 0.1) {
             moveDir.normalize();
 
-            // Apply Velocity to Horse
-            // Keep existing Y velocity (gravity)
+            // 应用速度到马
+            // 保持现有的 Y 速度（重力）
             const currentVel = this.horseAggregate.body.getLinearVelocity();
             this.horseAggregate.body.setLinearVelocity(new Vector3(
                 moveDir.x * speed,
@@ -647,30 +630,30 @@ export class Player {
                 moveDir.z * speed
             ));
 
-            // Bobbing animation for horse/player
+            // 马/玩家的摇晃动画
             this.walkTime += dt * 12;
-            // Animate player bobbing on horse
+            // 动画玩家在马上的摇晃
             this.mesh.position.y = 1.2 + Math.sin(this.walkTime) * 0.08;
         } else {
-            // Stop horizontal movement, keep gravity
+            // 停止水平移动，保持重力
             const currentVel = this.horseAggregate.body.getLinearVelocity();
             this.horseAggregate.body.setLinearVelocity(new Vector3(0, currentVel.y, 0));
         }
     }
 
     isGrounded() {
-        // Raycast down to find ANY surface (ground, book, platform)
-        // Player height is 2, so center to bottom is 1.
-        // We cast a ray of length 1.1 to allow for small floating errors (epsilon).
+        // 向下射线检测任何表面（地面、书本、平台）
+        // 玩家高度为 2，所以中心到底部是 1
+        // 我们投射一条长度为 1.1 的射线，以允许小的浮点误差（epsilon）
         const rayLength = 1.1;
         const ray = new Ray(this.mesh.position, new Vector3(0, -1, 0), rayLength);
 
         const pickInfo = this.scene.pickWithRay(ray, (mesh) => {
-            // Filter out player itself and its parts
+            // 过滤掉玩家自身及其部件
             return mesh !== this.mesh && !mesh.isDescendantOf(this.mesh);
         });
 
-        // Also keep the Y=0 check just in case the ground mesh is missing or non-pickable
+        // 也保留 Y=0 检查，以防地面网格缺失或不可拾取
         const minY = this.mesh.getBoundingInfo().boundingBox.minimumWorld.y;
         return pickInfo.hit || (minY <= this._groundEpsilon);
     }
@@ -684,6 +667,7 @@ export class Player {
     }
 
     updateMovement() {
+
         if (!this.mesh || !this.aggregate) return;
 
         const baseSpeed = Config.player.speed;
@@ -702,7 +686,7 @@ export class Player {
         const cameraRight = Vector3.Cross(this.scene.yAxis || new Vector3(0, 1, 0), cameraForward);
         cameraRight.normalize();
 
-        // W - Forward
+        // W - 向前
         if (this.inputMap["w"]) {
             moveDirection.addInPlace(cameraForward);
             isMoving = true;
@@ -710,19 +694,19 @@ export class Player {
             this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0, targetRotation, 0);
         }
 
-        // S - Backward
+        // S - 向后
         if (this.inputMap["s"]) {
             moveDirection.subtractInPlace(cameraForward);
             isMoving = true;
         }
 
-        // A - Left
+        // A - 向左
         if (this.inputMap["a"]) {
             moveDirection.subtractInPlace(cameraRight);
             isMoving = true;
         }
 
-        // D - Right
+        // D - 向右
         if (this.inputMap["d"]) {
             moveDirection.addInPlace(cameraRight);
             isMoving = true;
@@ -747,11 +731,11 @@ export class Player {
             const angle = Math.sin(this.walkTime);
 
             if (!this.isGrounded()) {
-                // Align character facing with camera forward in air (Strafing flight)
+                // 在空中将角色朝向与相机前方对齐（横向移动飞行）
                 const yaw = Math.atan2(cameraForward.x, cameraForward.z);
 
                 if (this.isSprinting) {
-                    // Air Move: Super Hero Flight
+                    // 空中移动：超级英雄飞行
                     this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(1.0, yaw, 0);
                     this.rightShoulder.rotation.x = -3.1;
                     this.rightShoulder.rotation.z = 0.0;
@@ -760,11 +744,11 @@ export class Player {
                     this.leftHip.rotation.x = 0.1 + angle * 0.05;
                     this.rightHip.rotation.x = 0.1 - angle * 0.05;
                 } else {
-                    // Normal Jump (Moving) - Velocity Dependent
+                    // 普通跳跃（移动） - 速度依赖
                     const vy = velocity.y;
 
                     if (vy > 0.5) {
-                        // Rising (Launch Pose)
+                        // 上升（发射姿势）
                         this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.2, yaw, 0);
                         this.leftShoulder.rotation.x = -2.8;
                         this.rightShoulder.rotation.x = -2.8;
@@ -773,7 +757,7 @@ export class Player {
                         this.leftHip.rotation.x = -1.2;
                         this.rightHip.rotation.x = 0.2;
                     } else if (vy < -0.5) {
-                        // Falling
+                        // 下落
                         this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.0, yaw, 0);
                         this.leftShoulder.rotation.x = -1.5;
                         this.rightShoulder.rotation.x = -1.5;
@@ -782,7 +766,7 @@ export class Player {
                         this.leftHip.rotation.x = -0.4;
                         this.rightHip.rotation.x = -0.4;
                     } else {
-                        // Apex / Transition
+                        // 顶点 / 过渡
                         this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.1, yaw, 0);
                         this.leftShoulder.rotation.x = -2.0;
                         this.rightShoulder.rotation.x = -2.0;
@@ -812,6 +796,7 @@ export class Player {
             }
 
         } else {
+
             // Stop horizontal movement
             if (this.ascendImpulseMs > 0) { this.ascendImpulseMs = Math.max(0, this.ascendImpulseMs - dtMs); }
             let vyIdle = velocity.y;
@@ -828,7 +813,7 @@ export class Player {
                 const yaw = this.modelRoot.rotationQuaternion ? this.modelRoot.rotationQuaternion.toEulerAngles().y : this.modelRoot.rotation.y;
 
                 if (this.isSprinting) {
-                    // Air Hover: Zero-G Float
+                    // 空中悬停：零重力漂浮
                     this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(-0.1, yaw, 0);
                     this.modelRoot.position.y = -1.2 + ang * 0.08;
                     this.leftShoulder.rotation.x = 0.0 + ang * 0.05;
@@ -838,12 +823,12 @@ export class Player {
                     this.leftHip.rotation.x = 0.1 + ang * 0.05;
                     this.rightHip.rotation.x = 0.05 - ang * 0.05;
                 } else {
-                    // Normal Jump (Idle/Vertical) - Velocity Dependent
+                    // 普通跳跃（静止/垂直） - 速度依赖
                     const vy = velocity.y;
                     this.modelRoot.position.y = -1.2;
 
                     if (vy > 0.5) {
-                        // Rising
+                        // 上升
                         this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.0, yaw, 0);
                         this.leftShoulder.rotation.x = -2.8;
                         this.rightShoulder.rotation.x = -2.8;
@@ -861,7 +846,7 @@ export class Player {
                         this.leftHip.rotation.x = -0.2;
                         this.rightHip.rotation.x = -0.2;
                     } else {
-                        // Apex
+                        // 顶点
                         this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.0, yaw, 0);
                         this.leftShoulder.rotation.x = -2.2;
                         this.rightShoulder.rotation.x = -2.2;
@@ -870,7 +855,7 @@ export class Player {
                     }
                 }
             } else {
-                // Grounded Idle
+                // 着地静止
                 this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0, this.modelRoot.rotationQuaternion ? this.modelRoot.rotationQuaternion.toEulerAngles().y : this.modelRoot.rotation.y, 0);
                 this.modelRoot.position.y = -1.2;
                 this.leftShoulder.rotation.x = 0;
