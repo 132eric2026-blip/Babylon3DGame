@@ -11,6 +11,7 @@ import { setupSkillBar } from "./skills";
 import { Horse } from "./horse";
 import { spawnAlphaParticleCannon } from "./armory/AlphaParticleCannon";
 import { spawnPegasusParticleCannon } from "./armory/PegasusParticleCannon";
+import { spawnSolarPlasmaCannon } from "./armory/SolarPlasmaCannon";
 
 async function createEngine() {
     const canvas = document.getElementById("renderCanvas");
@@ -102,6 +103,9 @@ async function createScene(engine) {
     const rx2 = (Math.random() - 0.5) * 40;
     const rz2 = (Math.random() - 0.5) * 40;
     spawnPegasusParticleCannon(scene, new Vector3(rx2, 0.5, rz2), player);
+
+    // Spawn Solar Plasma Cannon
+    spawnSolarPlasmaCannon(scene, new Vector3(-2, 0.5, 2), player);
 
     return scene;
 }
