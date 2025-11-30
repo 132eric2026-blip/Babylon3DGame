@@ -245,14 +245,16 @@ export class Player {
                 if (evt.repeat) return;
                 const wasSprinting = this.isSprinting;
                 this.isSprinting = !this.isSprinting;
-                if (!this.isSprinting) { this.antiGravity = false; this.hoverActive = false; this.ascendImpulseMs = 0; }
-                else {
-                    if (!this.isGrounded()) {
-                        this.hoverActive = true;
-                        const v = this.aggregate?.body?.getLinearVelocity();
-                        if (v) this.aggregate.body.setLinearVelocity(new Vector3(v.x, 0, v.z));
-                        this.ascendImpulseMs = (Config.player.boosterReenableImpulseMs || 200);
-                    }
+                if (!this.isSprinting) {
+                    this.antiGravity = false;
+                    this.hoverActive = false;
+                    this.ascendImpulseMs = 0;
+                } else {
+                    // Always activate hover and lift off
+                    this.hoverActive = true;
+                    const v = this.aggregate?.body?.getLinearVelocity();
+                    if (v) this.aggregate.body.setLinearVelocity(new Vector3(v.x, 0, v.z));
+                    this.ascendImpulseMs = (Config.player.boosterReenableImpulseMs || 300);
                 }
             }
             if (evt.code === "Space") {
