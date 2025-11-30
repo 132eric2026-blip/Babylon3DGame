@@ -1,10 +1,11 @@
-import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, Quaternion, Matrix, ActionManager, ParticleSystem, Texture, Color4, TransformNode, Ray, Engine, Scalar, TrailMesh, PointLight, PointerEventTypes } from "@babylonjs/core";
+import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, Quaternion, Matrix, ActionManager, ParticleSystem, Texture, Color4, TransformNode, Ray, Engine, Scalar, TrailMesh, PointLight, PointerEventTypes, GlowLayer, Space } from "@babylonjs/core";
 import { Config } from "./config";
 import { Shield } from "./shield";
 import { spawnAlphaParticleCannon } from "./armory/AlphaParticleCannon";
 import { spawnPegasusParticleCannon, createPegasusGunMesh } from "./armory/PegasusParticleCannon";
 import { createLightSpearMesh, spawnLightSpear } from "./armory/LightSpear";
 import { createSolarPlasmaCannonMesh, spawnSolarPlasmaCannon } from "./armory/SolarPlasmaCannon";
+import { createSagittariusRayGunMesh, spawnSagittariusRayGun } from "./armory/SagittariusRayGun";
 
 export class Player {
     constructor(scene, camera) {
@@ -27,6 +28,15 @@ export class Player {
         this.altHoldEnabled = false;
         this.altHoldMinY = 0;
         this.mountedHorse = null;
+
+        // Beam-related (Sagittarius Ray Gun)
+        this.isBeamActive = false;
+        this.beamRoot = null;
+        this.beamCore = null;
+        this.beamGlow = null;
+        this.beamHitPS = null;
+        this.beamScale = 0;
+        this.beamMaxLen = 20;
 
         this.createPlayerMesh();
         this.setupAttackEffect();
@@ -457,6 +467,13 @@ export class Player {
             // Gun is stout.
             this.gunMuzzle.position = new Vector3(0, 0, 0.8);
 
+        } else if (weaponName === "SagittariusRayGun") {
+            this.currentGunModel = createSagittariusRayGunMesh(this.scene);
+            this.currentGunModel.parent = this.gunRoot;
+            this.currentGunModel.rotation = Vector3.Zero();
+            // Red gun
+            this.gunMuzzle.position = new Vector3(0, 0, 0.35); // Match the emitter position exactly
+
         } else {
             // Default / Alpha Particle Cannon (Grey Boxy Gun)
             const group = new TransformNode("defaultGunGroup", this.scene);
@@ -594,6 +611,8 @@ export class Player {
     dropWeapon() {
         if (!this.currentWeapon) return;
 
+        if (this.isBeamActive) this.stopBeam();
+
         // Drop slightly forward to avoid immediate re-pickup
         const forward = this.mesh.getDirection(new Vector3(0, 0, 1));
         const dropPos = this.mesh.position.add(forward.scale(2.5));
@@ -608,6 +627,8 @@ export class Player {
             spawnLightSpear(this.scene, dropPos, this);
         } else if (this.currentWeapon === "SolarPlasmaCannon") {
             spawnSolarPlasmaCannon(this.scene, dropPos, this);
+        } else if (this.currentWeapon === "SagittariusRayGun") {
+            spawnSagittariusRayGun(this.scene, dropPos, this);
         }
 
         this.currentWeapon = null;
@@ -821,43 +842,138 @@ export class Player {
             // Faster velocity for sniper
             bulletData.velocity = forward.scale(80);
         } else if (this.currentWeapon === "SolarPlasmaCannon") {
-            // --- SOLAR PLASMA CANNON ---
-            // 1. Projectile: Large Plasma Ball
-            bulletMesh = MeshBuilder.CreateSphere("plasmaBall", { diameter: 0.6, segments: 16 }, this.scene);
+            // --- SOLAR PLASMA CANNON (MAGIC ORB) ---
+            // 1. Projectile: Purple Magic Orb
+            bulletMesh = MeshBuilder.CreateSphere("plasmaBall", { diameter: 0.8, segments: 32 }, this.scene);
             bulletMesh.position = startPos;
 
             const plasmaMat = new StandardMaterial("plasmaMat", this.scene);
-            plasmaMat.emissiveColor = new Color3(1, 0.5, 0); // Orange Core
-            plasmaMat.diffuseColor = new Color3(1, 0, 1); // Purple Tint
+            plasmaMat.emissiveColor = new Color3(0.7, 0.2, 1.0); // Bright Purple Core
+            plasmaMat.diffuseColor = new Color3(0.5, 0.1, 0.8); // Deep Purple
+            plasmaMat.specularColor = new Color3(0.9, 0.5, 1.0); // Purple specular
+            plasmaMat.emissiveIntensity = 1.5; // Boost emissive
             plasmaMat.disableLighting = true;
             bulletMesh.material = plasmaMat;
 
-            // 2. Rotating Flames Particles
-            const psFire = new ParticleSystem("plasmaFire", 200, this.scene);
-            psFire.particleTexture = this.particleTexture;
-            psFire.emitter = bulletMesh;
-            psFire.createSphereEmitter(0.35);
+            // 2. Glow Effect - Create independent glow layer for this bullet
+            const glowLayer = new GlowLayer("plasmaGlow_" + Date.now(), this.scene);
+            glowLayer.intensity = 1.2;
+            glowLayer.addIncludedOnlyMesh(bulletMesh);
+            bulletData.glowLayer = glowLayer; // Store for cleanup
 
-            psFire.color1 = new Color4(1.0, 0.0, 1.0, 1.0); // Purple
-            psFire.color2 = new Color4(1.0, 0.6, 0.0, 1.0); // Orange
-            psFire.colorDead = new Color4(0.2, 0, 0, 0.0);
+            // 3. Particle Systems Container
+            bulletData.particleSystems = [];
 
-            psFire.minSize = 0.2;
-            psFire.maxSize = 0.5;
-            psFire.minLifeTime = 0.3;
-            psFire.maxLifeTime = 0.6;
-            psFire.emitRate = 150;
-            psFire.blendMode = ParticleSystem.BLENDMODE_ADD;
+            // A. Inner Core - Dense Magic Energy (紫色魔法核心)
+            const psCore = new ParticleSystem("plasmaCore", 500, this.scene);
+            psCore.particleTexture = this.particleTexture;
+            psCore.emitter = bulletMesh;
+            psCore.createSphereEmitter(0.3); // Tight around center
 
-            // Angular rotation for swirling effect
-            psFire.minAngularSpeed = -Math.PI * 2;
-            psFire.maxAngularSpeed = Math.PI * 2;
+            psCore.color1 = new Color4(0.8, 0.3, 1.0, 1.0); // Bright Purple
+            psCore.color2 = new Color4(0.6, 0.1, 0.9, 1.0); // Violet
+            psCore.colorDead = new Color4(0.3, 0.0, 0.5, 0.0); // Dark purple fade
 
-            psFire.start();
-            bulletData.particleSystems = [psFire];
+            psCore.minSize = 0.2;
+            psCore.maxSize = 0.5;
+            psCore.minLifeTime = 0.15;
+            psCore.maxLifeTime = 0.35;
+            psCore.emitRate = 400;
+            psCore.blendMode = ParticleSystem.BLENDMODE_ADD;
 
-            // Slower, heavy projectile
-            bulletData.velocity = forward.scale(25);
+            // Slow rotation for energy swirl
+            psCore.minAngularSpeed = -Math.PI * 2;
+            psCore.maxAngularSpeed = Math.PI * 2;
+            psCore.minEmitPower = 0.5;
+            psCore.maxEmitPower = 2;
+
+            psCore.start();
+            bulletData.particleSystems.push(psCore);
+
+            // B. Outer Magic Vortex - Swirling Aura (旋转紫色光环)
+            const psVortex = new ParticleSystem("plasmaVortex", 350, this.scene);
+            psVortex.particleTexture = new Texture("https://www.babylonjs-playground.com/textures/flare.png", this.scene);
+            psVortex.emitter = bulletMesh;
+            psVortex.createSphereEmitter(0.5); // Medium radius
+
+            psVortex.color1 = new Color4(1.0, 0.2, 1.0, 0.9); // Magenta
+            psVortex.color2 = new Color4(0.7, 0.4, 1.0, 0.8); // Pink Purple
+            psVortex.colorDead = new Color4(0.2, 0.0, 0.4, 0.0); // Dark purple fade
+
+            psVortex.minSize = 0.4;
+            psVortex.maxSize = 0.9;
+            psVortex.minLifeTime = 0.25;
+            psVortex.maxLifeTime = 0.6;
+            psVortex.emitRate = 250;
+            psVortex.blendMode = ParticleSystem.BLENDMODE_ADD;
+
+            // Fast rotation for vortex effect
+            psVortex.minAngularSpeed = -Math.PI * 6;
+            psVortex.maxAngularSpeed = Math.PI * 6;
+            psVortex.minInitialRotation = 0;
+            psVortex.maxInitialRotation = Math.PI * 2;
+            psVortex.minEmitPower = 1;
+            psVortex.maxEmitPower = 3;
+
+            psVortex.start();
+            bulletData.particleSystems.push(psVortex);
+
+            // C. Magic Arcs/Lightning (魔法电弧)
+            const psArcs = new ParticleSystem("plasmaArcs", 200, this.scene);
+            psArcs.particleTexture = this.particleTexture;
+            psArcs.emitter = bulletMesh;
+            psArcs.createSphereEmitter(0.6); // Outer layer
+
+            psArcs.color1 = new Color4(0.8, 0.2, 1.0, 1.0); // Bright Purple
+            psArcs.color2 = new Color4(1.0, 0.8, 1.0, 0.9); // Light Purple/White
+            psArcs.colorDead = new Color4(0.4, 0.0, 0.7, 0.0); // Purple fade
+
+            psArcs.minSize = 0.15;
+            psArcs.maxSize = 0.35;
+            psArcs.minLifeTime = 0.1;
+            psArcs.maxLifeTime = 0.3;
+            psArcs.emitRate = 150;
+            psArcs.blendMode = ParticleSystem.BLENDMODE_ADD;
+
+            // Erratic movement for lightning effect
+            psArcs.minAngularSpeed = -Math.PI * 8;
+            psArcs.maxAngularSpeed = Math.PI * 8;
+            psArcs.minEmitPower = 3;
+            psArcs.maxEmitPower = 7;
+
+            psArcs.start();
+            bulletData.particleSystems.push(psArcs);
+
+            // D. Trailing Magic Sparks (后拖魔法火花)
+            const psSparks = new ParticleSystem("plasmaSparks", 250, this.scene);
+            psSparks.particleTexture = this.particleTexture;
+            psSparks.emitter = bulletMesh;
+            psSparks.minEmitBox = new Vector3(-0.2, -0.2, -0.2);
+            psSparks.maxEmitBox = new Vector3(0.2, 0.2, 0.2);
+
+            psSparks.color1 = new Color4(0.9, 0.5, 1.0, 1.0); // Light Purple
+            psSparks.color2 = new Color4(0.5, 0.2, 0.8, 1.0); // Deep Purple
+            psSparks.colorDead = new Color4(0.2, 0.0, 0.3, 0.0); // Dark purple fade
+
+            psSparks.minSize = 0.08;
+            psSparks.maxSize = 0.25;
+            psSparks.minLifeTime = 0.3;
+            psSparks.maxLifeTime = 0.7;
+            psSparks.emitRate = 180;
+            psSparks.blendMode = ParticleSystem.BLENDMODE_ADD;
+
+            // Slow drift behind
+            psSparks.minAngularSpeed = 0;
+            psSparks.maxAngularSpeed = Math.PI;
+            psSparks.minEmitPower = 0.5;
+            psSparks.maxEmitPower = 2;
+            psSparks.gravity = new Vector3(0, -1, 0); // Slight downward drift
+
+            psSparks.start();
+            bulletData.particleSystems.push(psSparks);
+
+            // High speed projectile
+            bulletData.velocity = forward.scale(60);
 
         } else {
             // --- ALPHA PARTICLE CANNON ---
@@ -907,18 +1023,23 @@ export class Player {
                     b.particleSystem.stop();
                     b.particleSystem.dispose();
                 }
-                // Handle multiple particle systems (Pegasus)
+                // Handle multiple particle systems (Pegasus, Solar)
                 if (b.particleSystems) {
                     b.particleSystems.forEach(ps => {
                         ps.stop();
                         ps.dispose();
                     });
                 }
+                // Handle glow effect (Solar Plasma Cannon)
+                if (b.glowLayer) {
+                    b.glowLayer.dispose();
+                }
 
                 this.bullets.splice(i, 1);
             }
         }
     }
+
 
     updateGunPose() {
         if (!this.isHoldingGun) return;
@@ -1004,8 +1125,24 @@ export class Player {
         // Use Scene Pointer Observable for better compatibility with Pointer Lock
         this.scene.onPointerObservable.add((pointerInfo) => {
             if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
-                if (pointerInfo.event.button === 1) { // Middle Mouse Button
-                    this.shoot();
+                // Left Click (0) -> Shoot (Standard Weapons)
+                if (pointerInfo.event.button === 0) {
+                    if (this.currentWeapon !== "SagittariusRayGun") {
+                        this.shoot();
+                    }
+                }
+                // Middle Click (1) -> Beam (Sagittarius Ray Gun)
+                else if (pointerInfo.event.button === 1) {
+                    if (this.currentWeapon === "SagittariusRayGun") {
+                        this.startBeam();
+                    }
+                }
+            } else if (pointerInfo.type === PointerEventTypes.POINTERUP) {
+                // Middle Click Release -> Stop Beam
+                if (pointerInfo.event.button === 1) {
+                     if (this.currentWeapon === "SagittariusRayGun") {
+                         this.stopBeam();
+                     }
                 }
             }
         });
@@ -1038,6 +1175,7 @@ export class Player {
             }
             this.updateAttack(dt);
             this.updateBullets(dt);
+            this.updateBeam();
             this.updateGunPose();
         });
     }
@@ -1652,6 +1790,133 @@ export class Player {
         }
         // 更新火焰动画
         this.updateJetFlames(dtMs);
+    }
+
+    // --- Beam Logic for Sagittarius Ray Gun ---
+    startBeam() {
+        console.log("startBeam called. Active:", this.isBeamActive);
+        if (this.isBeamActive) return;
+        this.isBeamActive = true;
+        this.beamScale = 0;
+
+        // Create Beam Root
+        if (!this.beamRoot) {
+            this.beamRoot = new TransformNode("beamRoot", this.scene);
+            this.beamRoot.parent = this.gunMuzzle;
+            // Ensure local transform is zero so it aligns perfectly with muzzle
+            this.beamRoot.position = Vector3.Zero();
+            this.beamRoot.rotation = Vector3.Zero();
+        }
+        // Start with a small visible scale to debug
+        this.beamRoot.scaling = new Vector3(1, 1, 0.1);
+
+        // Core Beam (Bright Red/White)
+        if (!this.beamCore) {
+            console.log("Creating beamCore");
+            this.beamCore = MeshBuilder.CreateCylinder("beamCore", { height: 1, diameter: 0.1 }, this.scene);
+            this.beamCore.parent = this.beamRoot;
+            this.beamCore.rotation.x = Math.PI / 2;
+            // Position at 0.5 so it extends from 0 to 1 in Z
+            this.beamCore.position = new Vector3(0, 0, 0.5);
+            // NO BAKING - keep standard transform hierarchy
+            
+            const mat = new StandardMaterial("beamCoreMat", this.scene);
+            mat.emissiveColor = new Color3(1, 0.8, 0.8); // White-ish Red
+            mat.diffuseColor = new Color3(0, 0, 0);
+            mat.disableLighting = true;
+            this.beamCore.material = mat;
+            this.beamCore.isPickable = false;
+        }
+        this.beamCore.isVisible = true;
+
+        // Outer Glow (Red)
+        if (!this.beamGlow) {
+            console.log("Creating beamGlow");
+            this.beamGlow = MeshBuilder.CreateCylinder("beamGlow", { height: 1, diameter: 0.3 }, this.scene);
+            this.beamGlow.parent = this.beamRoot;
+            this.beamGlow.rotation.x = Math.PI / 2;
+            // Position at 0.5 so it extends from 0 to 1 in Z
+            this.beamGlow.position = new Vector3(0, 0, 0.5);
+            // NO BAKING
+
+            const mat = new StandardMaterial("beamGlowMat", this.scene);
+            mat.emissiveColor = new Color3(1, 0, 0); // Red
+            mat.diffuseColor = new Color3(0, 0, 0);
+            mat.disableLighting = true;
+            mat.alpha = 0.5;
+            this.beamGlow.material = mat;
+            this.beamGlow.isPickable = false;
+        }
+        this.beamGlow.isVisible = true;
+
+        // Hit Particles
+        if (!this.beamHitPS) {
+            this.beamHitPS = new ParticleSystem("beamHitPS", 100, this.scene);
+            this.beamHitPS.particleTexture = this.particleTexture;
+            this.beamHitPS.emitter = new Vector3(0, 0, 0);
+            this.beamHitPS.minEmitBox = new Vector3(-0.1, -0.1, -0.1);
+            this.beamHitPS.maxEmitBox = new Vector3(0.1, 0.1, 0.1);
+            this.beamHitPS.color1 = new Color4(1, 0, 0, 1);
+            this.beamHitPS.color2 = new Color4(1, 0.5, 0, 1);
+            this.beamHitPS.colorDead = new Color4(0.5, 0, 0, 0);
+            this.beamHitPS.minSize = 0.1;
+            this.beamHitPS.maxSize = 0.3;
+            this.beamHitPS.minLifeTime = 0.2;
+            this.beamHitPS.maxLifeTime = 0.5;
+            this.beamHitPS.emitRate = 200;
+            this.beamHitPS.createSphereEmitter(0.1);
+        }
+        this.beamHitPS.start();
+        
+        // Force immediate update
+        this.updateBeam();
+    }
+
+    stopBeam() {
+        console.log("stopBeam called");
+        this.isBeamActive = false;
+        if (this.beamCore) this.beamCore.isVisible = false;
+        if (this.beamGlow) this.beamGlow.isVisible = false;
+        if (this.beamHitPS) this.beamHitPS.stop();
+        if (this.beamRoot) this.beamRoot.scaling.z = 0;
+    }
+
+    updateBeam() {
+        if (!this.isBeamActive || !this.beamRoot) return;
+
+        // Ensure transforms are up to date for accurate raycasting
+        this.gunMuzzle.computeWorldMatrix(true);
+
+        // Raycast to find hit point
+        const rayOrigin = this.gunMuzzle.absolutePosition;
+        const rayDir = this.gunMuzzle.getDirection(new Vector3(0, 0, 1));
+        // Debug ray direction occasionally if needed, or verify gunMuzzle orientation
+        
+        const ray = new Ray(rayOrigin, rayDir, this.beamMaxLen);
+
+        const hit = this.scene.pickWithRay(ray, (mesh) => {
+            return mesh !== this.mesh && !mesh.isDescendantOf(this.mesh) && mesh.isVisible && mesh.name !== "beamCore" && mesh.name !== "beamGlow";
+        });
+
+        let dist = this.beamMaxLen;
+        if (hit && hit.pickedPoint) {
+            dist = hit.distance;
+            // Update hit particles
+            this.beamHitPS.emitter = hit.pickedPoint;
+        } else {
+            // Move emitter far away if no hit
+            this.beamHitPS.emitter = rayOrigin.add(rayDir.scale(dist));
+        }
+
+        // Update Beam Length (Scaling Z)
+        // Lerp for smooth extension
+        const currentLen = this.beamRoot.scaling.z;
+        // Use faster lerp for responsiveness
+        const newLen = dist;
+        this.beamRoot.scaling.z = newLen;
+        
+        // Ensure beam root transform is updated
+        this.beamRoot.computeWorldMatrix(true);
     }
 
     updateJetFlames(dtMs) {

@@ -12,6 +12,7 @@ import { Horse } from "./horse";
 import { spawnAlphaParticleCannon } from "./armory/AlphaParticleCannon";
 import { spawnPegasusParticleCannon } from "./armory/PegasusParticleCannon";
 import { spawnSolarPlasmaCannon } from "./armory/SolarPlasmaCannon";
+import { spawnSagittariusRayGun } from "./armory/SagittariusRayGun";
 
 async function createEngine() {
     const canvas = document.getElementById("renderCanvas");
@@ -41,7 +42,7 @@ async function createScene(engine) {
     decorationManager.generateStreetLamps(3);
 
     // Camera
-    const camera = new ArcRotateCamera("camera", -Math.PI / 2.5, Math.PI / 2.5, 10, Vector3.Zero(), scene);
+    const camera = new ArcRotateCamera("camera", -Math.PI / 2.5, Math.PI / 2.5, 20, Vector3.Zero(), scene);
     camera.wheelPrecision = 20;
     camera.attachControl(engine.getRenderingCanvas(), true);
     scene.activeCameras = [camera];
@@ -106,6 +107,9 @@ async function createScene(engine) {
 
     // Spawn Solar Plasma Cannon
     spawnSolarPlasmaCannon(scene, new Vector3(-2, 0.5, 2), player);
+
+    // Spawn Sagittarius Ray Gun (Closer to player for easy pickup)
+    spawnSagittariusRayGun(scene, new Vector3(1, 0.5, 0), player);
 
     return scene;
 }
