@@ -36,7 +36,7 @@ export class Player {
         this.beamGlow = null;
         this.beamHitPS = null;
         this.beamScale = 0;
-        this.beamMaxLen = 20;
+        this.beamMaxLen = 80;
 
         this.createPlayerMesh();
         this.setupAttackEffect();
