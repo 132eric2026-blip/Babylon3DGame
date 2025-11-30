@@ -214,21 +214,11 @@ export function spawnAlphaParticleCannon(scene, position, player) {
     gunGroup.animations.push(animFloat);
 
     scene.beginAnimation(gunGroup, 0, frameRate * 4, true);
-
-    // --- 3. Pickup Logic ---
-    const observer = scene.onBeforeRenderObservable.add(() => {
-        if (!player || !player.mesh) return;
-        
-        const dist = Vector3.Distance(root.position, player.mesh.position);
-        if (dist < 2.0) {
-            player.pickupWeapon("AlphaParticleCannon");
-            scene.onBeforeRenderObservable.remove(observer);
-            particleSystem.stop();
-            particleSystem.dispose();
-            ui.dispose();
-            root.dispose();
-        }
-    });
+    root.metadata = root.metadata || {};
+    root.metadata.weaponPickup = true;
+    root.metadata.weaponName = "AlphaParticleCannon";
+    root.metadata.particleSystem = particleSystem;
+    root.metadata.ui = ui;
 
     return root;
 }

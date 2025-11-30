@@ -65,18 +65,8 @@ export function spawnSagittariusRayGun(scene, position, player) {
     ps.maxLifeTime = 1.0;
     ps.emitRate = 60;
     ps.start();
-
-    // Pickup Logic
-    const observer = scene.onBeforeRenderObservable.add(() => {
-        if (mesh.isDisposed()) {
-            scene.onBeforeRenderObservable.remove(observer);
-            return;
-        }
-        
-        if (player.mesh && Vector3.Distance(player.mesh.position, mesh.position) < 2.0) {
-            player.pickupWeapon("SagittariusRayGun");
-            ps.dispose();
-            mesh.dispose();
-        }
-    });
+    mesh.metadata = mesh.metadata || {};
+    mesh.metadata.weaponPickup = true;
+    mesh.metadata.weaponName = "SagittariusRayGun";
+    mesh.metadata.particleSystem = ps;
 }

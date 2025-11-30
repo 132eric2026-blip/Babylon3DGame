@@ -288,21 +288,11 @@ export function spawnSolarPlasmaCannon(scene, position, player) {
     gunVisuals.animations.push(animFloat);
 
     scene.beginAnimation(gunVisuals, 0, frameRate * 4, true);
-
-    // === 5. 拾取逻辑 ===
-    const observer = scene.onBeforeRenderObservable.add(() => {
-        if (!player || !player.mesh) return;
-
-        const dist = Vector3.Distance(root.position, player.mesh.position);
-        if (dist < 2.0) {
-            player.pickupWeapon("SolarPlasmaCannon");
-            scene.onBeforeRenderObservable.remove(observer);
-            particleSystem.stop();
-            particleSystem.dispose();
-            ui.dispose();
-            root.dispose();
-        }
-    });
+    root.metadata = root.metadata || {};
+    root.metadata.weaponPickup = true;
+    root.metadata.weaponName = "SolarPlasmaCannon";
+    root.metadata.particleSystem = particleSystem;
+    root.metadata.ui = ui;
 
     return root;
 }

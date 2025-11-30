@@ -36,7 +36,7 @@ export class Player {
         this.beamGlow = null;
         this.beamHitPS = null;
         this.beamScale = 0;
-        this.beamMaxLen = 80;
+        this.beamMaxLen = 5;
 
         this.createPlayerMesh();
         this.setupAttackEffect();
@@ -1120,6 +1120,9 @@ export class Player {
             if (evt.key.toLowerCase() === "c") {
                 this.toggleGun();
             }
+            if (evt.key.toLowerCase() === "e") {
+                this.tryPickup();
+            }
         });
 
         // Use Scene Pointer Observable for better compatibility with Pointer Lock
@@ -1164,6 +1167,29 @@ export class Player {
         });
     }
 
+    tryPickup() {
+        const nodes = this.scene.transformNodes || [];
+        let nearest = null;
+        let nearestDist = Infinity;
+        for (const n of nodes) {
+            const md = n.metadata;
+            if (!md || !md.weaponPickup) continue;
+            const d = Vector3.Distance(this.mesh.position, n.position);
+            if (d < 2.0 && d < nearestDist) {
+                nearest = n;
+                nearestDist = d;
+            }
+        }
+        if (!nearest) return;
+        const md = nearest.metadata || {};
+        const name = md.weaponName;
+        if (!name) return;
+        this.pickupWeapon(name);
+        if (md.particleSystem) { try { md.particleSystem.stop(); md.particleSystem.dispose(); } catch (_) {} }
+        if (md.ui) { try { md.ui.dispose(); } catch (_) {} }
+        nearest.dispose();
+    }
+
     registerBeforeRender() {
         this.scene.onBeforeRenderObservable.add(() => {
             const dt = this.scene.getEngine().getDeltaTime() / 1000;
@@ -1176,6 +1202,7 @@ export class Player {
             this.updateAttack(dt);
             this.updateBullets(dt);
             this.updateBeam();
+            this.autoPickupNearby();
             this.updateGunPose();
         });
     }
@@ -1821,9 +1848,10 @@ export class Player {
             // NO BAKING - keep standard transform hierarchy
             
             const mat = new StandardMaterial("beamCoreMat", this.scene);
-            mat.emissiveColor = new Color3(1, 0.8, 0.8); // White-ish Red
+            mat.emissiveColor = new Color3(1, 0.95, 0.6);
             mat.diffuseColor = new Color3(0, 0, 0);
             mat.disableLighting = true;
+            mat.alphaMode = Engine.ALPHA_ADD;
             this.beamCore.material = mat;
             this.beamCore.isPickable = false;
         }
@@ -1840,35 +1868,18 @@ export class Player {
             // NO BAKING
 
             const mat = new StandardMaterial("beamGlowMat", this.scene);
-            mat.emissiveColor = new Color3(1, 0, 0); // Red
+            mat.emissiveColor = new Color3(1, 0.35, 0);
             mat.diffuseColor = new Color3(0, 0, 0);
             mat.disableLighting = true;
-            mat.alpha = 0.5;
+            mat.alpha = 0.4;
+            mat.alphaMode = Engine.ALPHA_ADD;
             this.beamGlow.material = mat;
             this.beamGlow.isPickable = false;
         }
         this.beamGlow.isVisible = true;
 
-        // Hit Particles
-        if (!this.beamHitPS) {
-            this.beamHitPS = new ParticleSystem("beamHitPS", 100, this.scene);
-            this.beamHitPS.particleTexture = this.particleTexture;
-            this.beamHitPS.emitter = new Vector3(0, 0, 0);
-            this.beamHitPS.minEmitBox = new Vector3(-0.1, -0.1, -0.1);
-            this.beamHitPS.maxEmitBox = new Vector3(0.1, 0.1, 0.1);
-            this.beamHitPS.color1 = new Color4(1, 0, 0, 1);
-            this.beamHitPS.color2 = new Color4(1, 0.5, 0, 1);
-            this.beamHitPS.colorDead = new Color4(0.5, 0, 0, 0);
-            this.beamHitPS.minSize = 0.1;
-            this.beamHitPS.maxSize = 0.3;
-            this.beamHitPS.minLifeTime = 0.2;
-            this.beamHitPS.maxLifeTime = 0.5;
-            this.beamHitPS.emitRate = 200;
-            this.beamHitPS.createSphereEmitter(0.1);
-        }
-        this.beamHitPS.start();
-        
         // Force immediate update
+        
         this.updateBeam();
     }
 
@@ -1878,6 +1889,9 @@ export class Player {
         if (this.beamCore) this.beamCore.isVisible = false;
         if (this.beamGlow) this.beamGlow.isVisible = false;
         if (this.beamHitPS) this.beamHitPS.stop();
+        if (this.beamFlamePS) this.beamFlamePS.stop();
+        if (this.beamVortexPS) this.beamVortexPS.forEach(ps => ps.stop());
+        if (this.beamSparksPS) this.beamSparksPS.stop();
         if (this.beamRoot) this.beamRoot.scaling.z = 0;
     }
 
@@ -1898,22 +1912,16 @@ export class Player {
             return mesh !== this.mesh && !mesh.isDescendantOf(this.mesh) && mesh.isVisible && mesh.name !== "beamCore" && mesh.name !== "beamGlow";
         });
 
-        let dist = this.beamMaxLen;
-        if (hit && hit.pickedPoint) {
-            dist = hit.distance;
-            // Update hit particles
-            this.beamHitPS.emitter = hit.pickedPoint;
-        } else {
-            // Move emitter far away if no hit
-            this.beamHitPS.emitter = rayOrigin.add(rayDir.scale(dist));
-        }
+        const dist = this.beamMaxLen;
 
         // Update Beam Length (Scaling Z)
         // Lerp for smooth extension
         const currentLen = this.beamRoot.scaling.z;
-        // Use faster lerp for responsiveness
         const newLen = dist;
         this.beamRoot.scaling.z = newLen;
+        const f = 1 + 0.15 * Math.sin(Date.now() * 0.02);
+        this.beamRoot.scaling.x = f;
+        this.beamRoot.scaling.y = f;
         
         // Ensure beam root transform is updated
         this.beamRoot.computeWorldMatrix(true);
@@ -1962,5 +1970,28 @@ export class Player {
                 root.scaling.z = 0;
             }
         }
+    }
+    autoPickupNearby() {
+        if (this.currentWeapon) return;
+        const nodes = this.scene.transformNodes || [];
+        let target = null;
+        let best = Infinity;
+        for (const n of nodes) {
+            const md = n.metadata;
+            if (!md || !md.weaponPickup) continue;
+            const d = Vector3.Distance(this.mesh.position, n.position);
+            if (d < 1.0 && d < best) {
+                target = n;
+                best = d;
+            }
+        }
+        if (!target) return;
+        const md = target.metadata || {};
+        const name = md.weaponName;
+        if (!name) return;
+        this.pickupWeapon(name);
+        if (md.particleSystem) { try { md.particleSystem.stop(); md.particleSystem.dispose(); } catch (_) {} }
+        if (md.ui) { try { md.ui.dispose(); } catch (_) {} }
+        target.dispose();
     }
 }
