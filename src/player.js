@@ -18,6 +18,10 @@ export class Player {
         this.ascendImpulseMs = 0;
         this._groundEpsilon = 0.06;
         this.nearbyHorse = null;
+        this.hoverHeight = 0.8;
+        this.ascendHeld = false;
+        this.altHoldEnabled = false;
+        this.altHoldMinY = 0;
         this.mountedHorse = null;
 
         this.createPlayerMesh();
@@ -219,7 +223,7 @@ export class Player {
 
             // 创建倒圆锥体/圆柱体
             const mesh = MeshBuilder.CreateCylinder("flameMesh", {
-                height: 1.4, 
+                height: 0.8, 
                 diameterTop: 0.16, 
                 diameterBottom: 0.02,
                 tessellation: 16
@@ -228,7 +232,7 @@ export class Player {
             mesh.material = flameMat;
             mesh.parent = root;
             // 向下偏移一半高度，使顶部对齐 root (即对齐喷嘴)
-            mesh.position.y = -0.7; 
+            mesh.position.y = -0.4; 
             
             // 初始缩放为0 (隐藏)
             root.scaling = new Vector3(0, 0, 0);
@@ -325,14 +329,14 @@ export class Player {
                 if (evt.repeat) return;
                 const wasSprinting = this.isSprinting;
                 this.isSprinting = !this.isSprinting;
-                if (!this.isSprinting) { this.antiGravity = false; this.hoverActive = false; this.ascendImpulseMs = 0; }
+                if (!this.isSprinting) { this.antiGravity = false; this.hoverActive = false; this.ascendImpulseMs = 0; this.ascendHeld = false; this.altHoldEnabled = false; }
                 else {
-                    if (!this.isGrounded()) {
-                        this.hoverActive = true;
-                        const v = this.aggregate?.body?.getLinearVelocity();
-                        if (v) this.aggregate.body.setLinearVelocity(new Vector3(v.x, 0, v.z));
-                        this.ascendImpulseMs = (Config.player.boosterReenableImpulseMs || 200);
-                    }
+                    // 开启喷射模式：无论是否在地面，都进入悬浮控制
+                    this.hoverActive = true;
+                    const v = this.aggregate?.body?.getLinearVelocity();
+                    if (v) this.aggregate.body.setLinearVelocity(new Vector3(v.x, 0, v.z));
+                    // 初始上升脉冲，确保离地
+                    this.ascendImpulseMs = (Config.player.boosterReenableImpulseMs || 300);
                 }
             }
             if (evt.code === "Space") {
@@ -342,8 +346,11 @@ export class Player {
                     return;
                 }
                 if (this.isSprinting) {
-                    if (!this.hoverActive) { this.hoverActive = true; }
-                    else { this.ascendImpulseMs = 300; }
+                    // 按住空格：持续上升
+                    this.hoverActive = true;
+                    this.ascendHeld = true;
+                    this.altHoldEnabled = false;
+                    this.ascendImpulseMs = 0;
                 } else {
 
                     this.tryJump();
@@ -360,6 +367,18 @@ export class Player {
 
         window.addEventListener("keyup", (evt) => {
             this.inputMap[evt.key.toLowerCase()] = false;
+            if (evt.code === "Space") {
+                // 松开空格：在空中保持当前位置，不再下落
+                if (this.isSprinting) {
+                    this.ascendHeld = false;
+                    // 记录当前底部高度为目标高度
+                    const minY = this.mesh.getBoundingInfo().boundingBox.minimumWorld.y;
+                    this.altHoldMinY = minY;
+                    this.altHoldEnabled = true;
+                    const v = this.aggregate?.body?.getLinearVelocity();
+                    if (v) this.aggregate.body.setLinearVelocity(new Vector3(v.x, 0, v.z));
+                }
+            }
         });
     }
 
@@ -738,6 +757,48 @@ export class Player {
         return pickInfo.hit || (minY <= this._groundEpsilon);
     }
 
+    getGroundHeight() {
+        const ray = new Ray(this.mesh.position.add(new Vector3(0, 5, 0)), new Vector3(0, -1, 0), 20);
+        const pickInfo = this.scene.pickWithRay(ray, (mesh) => {
+            return mesh !== this.mesh && !mesh.isDescendantOf(this.mesh);
+        });
+        if (pickInfo.hit && pickInfo.pickedPoint) {
+            return pickInfo.pickedPoint.y;
+        }
+        return 0;
+    }
+
+    computeHoverVy(dtMs, currentVy) {
+        // 按住空格持续上升
+        if (this.ascendHeld) {
+            return (Config.player.ascendHoldSpeed || 2.5);
+        }
+
+        const minY = this.mesh.getBoundingInfo().boundingBox.minimumWorld.y;
+        let targetMinY;
+        if (this.altHoldEnabled) {
+            targetMinY = this.altHoldMinY;
+        } else {
+            const groundY = this.getGroundHeight();
+            targetMinY = groundY + this.hoverHeight;
+        }
+
+        const err = targetMinY - minY;
+        const gain = 6.0;
+        let vy = err * gain;
+
+        if (this.ascendImpulseMs > 0) {
+            this.ascendImpulseMs = Math.max(0, this.ascendImpulseMs - dtMs);
+            vy = (Config.player.antiGravityUpSpeed || 3.5);
+        }
+
+        const maxUp = 4.0;
+        const maxDown = -3.0;
+        vy = Math.min(Math.max(vy, maxDown), maxUp);
+        if (Math.abs(err) < 0.02) vy = 0;
+        return vy;
+    }
+
     tryJump() {
         if (!this.mesh || !this.aggregate) return;
         if (!this.isGrounded()) return;
@@ -795,10 +856,9 @@ export class Player {
         if (isMoving) {
             moveDirection.normalize();
             const curSpeed = this.isSprinting ? sprintSpeed : baseSpeed;
-            if (this.ascendImpulseMs > 0) { this.ascendImpulseMs = Math.max(0, this.ascendImpulseMs - dtMs); }
             let vy = velocity.y;
             if (this.isSprinting && this.hoverActive) {
-                vy = this.ascendImpulseMs > 0 ? (Config.player.antiGravityUpSpeed || 3.5) : 0;
+                vy = this.computeHoverVy(dtMs, velocity.y);
             }
             this.aggregate.body.setLinearVelocity(new Vector3(
                 moveDirection.x * curSpeed,
@@ -875,7 +935,7 @@ export class Player {
             const currentVel = this.aggregate.body.getLinearVelocity();
             let vyIdle = currentVel.y;
             if (this.isSprinting && this.hoverActive) {
-                vyIdle = this.ascendImpulseMs > 0 ? (Config.player.antiGravityUpSpeed || 3.5) : 0;
+                vyIdle = this.computeHoverVy(dtMs, currentVel.y);
             }
             this.aggregate.body.setLinearVelocity(new Vector3(0, vyIdle, 0));
 
@@ -976,17 +1036,17 @@ export class Player {
             }
         }
 
-        // 3. 平滑插值更新
-        const lerpSpeed = 0.15;
+        // 固定长度与宽度：短尾焰
         for (const root of this.flameRoots) {
-            // Y轴缩放 (长度)
-            root.scaling.y = Scalar.Lerp(root.scaling.y, targetScaleY, lerpSpeed);
-            
-            // X/Z轴缩放 (宽度) - 增加微小随机抖动
-            const jitter = 0.9 + Math.random() * 0.2;
-            const currentW = Scalar.Lerp(root.scaling.x, targetWidth * jitter, lerpSpeed);
-            root.scaling.x = currentW;
-            root.scaling.z = currentW;
+            if (this.isSprinting) {
+                root.scaling.y = 0.9; // 固定短长度
+                root.scaling.x = 1.0;
+                root.scaling.z = 1.0;
+            } else {
+                root.scaling.y = 0;
+                root.scaling.x = 0;
+                root.scaling.z = 0;
+            }
         }
     }
 }
