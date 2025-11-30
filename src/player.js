@@ -1,4 +1,4 @@
-import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, Quaternion, Matrix, ActionManager, ParticleSystem, Texture, Color4, TransformNode, Ray } from "@babylonjs/core";
+import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, Quaternion, Matrix, ActionManager, ParticleSystem, Texture, Color4, TransformNode, Ray, Engine, Scalar } from "@babylonjs/core";
 import { Config } from "./config";
 import { Shield } from "./shield";
 
@@ -12,7 +12,7 @@ export class Player {
         this.walkTime = 0;
         this.isSprinting = false;
         this.booster = null;
-        this.boosterPS = null;
+        this.boosterPSList = [];
         this.antiGravity = false;
         this.hoverActive = false;
         this.ascendImpulseMs = 0;
@@ -123,44 +123,124 @@ export class Player {
         const boosterMat = new StandardMaterial("boosterMat", this.scene);
         boosterMat.diffuseColor = new Color3(0.6, 0.6, 0.6);
         boosterMat.specularColor = new Color3(0, 0, 0);
-        this.booster = MeshBuilder.CreateCylinder("booster", { diameter: 0.22, height: 0.38 }, this.scene);
-        this.booster.material = boosterMat;
+        this.booster = new TransformNode("boosterRoot", this.scene);
         this.booster.parent = body;
-        this.booster.rotation.x = Math.PI / 2;
         this.booster.position = new Vector3(0, 0.05, -0.29);
 
-        const nozzle = new TransformNode("boosterNozzle", this.scene);
-        nozzle.parent = this.booster;
-        nozzle.position = new Vector3(0, -.6, -0);
-        this.boosterNozzle = nozzle;
+        const housing = MeshBuilder.CreateBox("boosterHousing", { width: 0.6, height: 0.25, depth: 0.2 }, this.scene);
+        housing.material = boosterMat;
+        housing.parent = this.booster;
+        housing.position = new Vector3(0, 0.1, 0);
 
-        const flamePS = new ParticleSystem("boosterFlame", 400, this.scene);
+        const pipeHeight = 0.25;
+        const pipeY = -0.15;
+
+        const pipeL = MeshBuilder.CreateCylinder("boosterPipeL", { diameter: 0.12, height: pipeHeight }, this.scene);
+        pipeL.material = boosterMat;
+        pipeL.parent = this.booster;
+        pipeL.position = new Vector3(-0.15, pipeY, 0);
+
+        const pipeR = MeshBuilder.CreateCylinder("boosterPipeR", { diameter: 0.12, height: pipeHeight }, this.scene);
+        pipeR.material = boosterMat;
+        pipeR.parent = this.booster;
+        pipeR.position = new Vector3(0.15, pipeY, 0);
+
+        // 喷嘴细节
+        const nozzleHeight = 0.05;
+        const nozzleDiameter = 0.14;
+
+        const nozzleMeshL = MeshBuilder.CreateCylinder("nozzleMeshL", { diameter: nozzleDiameter, height: nozzleHeight }, this.scene);
+        nozzleMeshL.material = boosterMat;
+        nozzleMeshL.parent = pipeL;
+        nozzleMeshL.position.y = -pipeHeight / 2 - nozzleHeight / 2;
+
+        const nozzleMeshR = MeshBuilder.CreateCylinder("nozzleMeshR", { diameter: nozzleDiameter, height: nozzleHeight }, this.scene);
+        nozzleMeshR.material = boosterMat;
+        nozzleMeshR.parent = pipeR;
+        nozzleMeshR.position.y = -pipeHeight / 2 - nozzleHeight / 2;
+
+        const nozzleL = new TransformNode("boosterNozzleL", this.scene);
+        nozzleL.parent = nozzleMeshL;
+        nozzleL.position = new Vector3(0, -nozzleHeight / 2, 0);
+        this.boosterNozzleL = nozzleL;
+
+        const nozzleR = new TransformNode("boosterNozzleR", this.scene);
+        nozzleR.parent = nozzleMeshR;
+        nozzleR.position = new Vector3(0, -nozzleHeight / 2, 0);
+        this.boosterNozzleR = nozzleR;
+
+        // --- 替换为：体积光束（Volumetric Beam）方案 ---
+        // 1. 生成光束纹理 (线性渐变 + 噪声线条)
         const canvas = document.createElement("canvas");
-        canvas.width = 64; canvas.height = 64;
+        canvas.width = 64; canvas.height = 128;
         const ctx = canvas.getContext("2d");
-        const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-        grad.addColorStop(0, "rgba(255,220,120,1)");
-        grad.addColorStop(0.5, "rgba(255,140,40,0.8)");
-        grad.addColorStop(1, "rgba(255,80,0,0)");
-        ctx.fillStyle = grad; ctx.clearRect(0, 0, 64, 64); ctx.fillRect(0, 0, 64, 64);
+        
+        // 背景渐变 (白 -> 黄 -> 橙 -> 红 -> 透明) - 更像真实火焰的颜色
+        const grad = ctx.createLinearGradient(0, 0, 0, 128);
+        grad.addColorStop(0, "rgba(255, 255, 255, 1)");       // 核心白热
+        grad.addColorStop(0.1, "rgba(255, 240, 100, 0.95)");  // 内焰亮黄
+        grad.addColorStop(0.3, "rgba(255, 140, 0, 0.9)");     // 中焰橙红
+        grad.addColorStop(0.6, "rgba(200, 40, 0, 0.7)");      // 外焰深红
+        grad.addColorStop(1, "rgba(100, 0, 0, 0)");           // 尾部烟雾/消散
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 64, 128);
+
+        // 添加随机的高亮线条 (模拟喷射气流感)
+        ctx.globalCompositeOperation = "lighter";
+        ctx.fillStyle = "rgba(255, 255, 200, 0.4)"; // 线条也带点暖色
+        for(let i=0; i<15; i++) {
+            const x = Math.random() * 64;
+            const w = Math.random() * 8 + 2;
+            ctx.fillRect(x, 0, w, 128);
+        }
+
         const texUrl = canvas.toDataURL();
-        const flameTex = Texture.CreateFromBase64String(texUrl, "flame.png", this.scene);
-        flamePS.particleTexture = flameTex;
-        flamePS.emitter = this.boosterNozzle;
-        flamePS.createConeEmitter(0.09, Math.PI / 6);
-        flamePS.color1 = new Color4(3.0, 2.2, 0.8, 1.0);
-        flamePS.color2 = new Color4(2.0, 1.0, 0.2, 1.0);
-        flamePS.colorDead = new Color4(0, 0, 0, 0);
-        flamePS.minSize = 0.09; flamePS.maxSize = 0.20;
-        flamePS.minLifeTime = 0.35; flamePS.maxLifeTime = 0.7;
-        flamePS.emitRate = 0;
-        flamePS.blendMode = ParticleSystem.BLENDMODE_ADD;
-        flamePS.gravity = new Vector3(0, 0, 0);
-        flamePS.direction1 = new Vector3(0, 0, -1);
-        flamePS.direction2 = new Vector3(0, 0, -1);
-        flamePS.minEmitPower = 2.6; flamePS.maxEmitPower = 4.0;
-        flamePS.updateSpeed = 0.02;
-        this.boosterPS = flamePS;
+        const flameTex = Texture.CreateFromBase64String(texUrl, "flame_beam.png", this.scene);
+        flameTex.hasAlpha = true;
+        flameTex.vScale = 1.0;
+
+        // 2. 创建发光材质
+        const flameMat = new StandardMaterial("flameMat", this.scene);
+        flameMat.diffuseTexture = flameTex;
+        flameMat.emissiveTexture = flameTex;
+        flameMat.opacityTexture = flameTex; // 使用同样的纹理作为透明通道
+        flameMat.emissiveColor = new Color3(1.0, 0.5, 0.0); // 强调橙红色发光
+        flameMat.disableLighting = true; // 自发光，不受光照影响
+        flameMat.alphaMode = Engine.ALPHA_ADD; // 叠加模式，更亮
+        flameMat.backFaceCulling = false; // 双面可见
+
+        this.flameMat = flameMat; // 保存引用以便更新UV
+
+        // 3. 创建光束网格 (Cylinder)
+        const createFlameMesh = (parent) => {
+            const root = new TransformNode("flameRoot", this.scene);
+            root.parent = parent;
+            root.position = new Vector3(0, 0, 0);
+
+            // 创建倒圆锥体/圆柱体
+            const mesh = MeshBuilder.CreateCylinder("flameMesh", {
+                height: 1.4, 
+                diameterTop: 0.16, 
+                diameterBottom: 0.02,
+                tessellation: 16
+            }, this.scene);
+            
+            mesh.material = flameMat;
+            mesh.parent = root;
+            // 向下偏移一半高度，使顶部对齐 root (即对齐喷嘴)
+            mesh.position.y = -0.7; 
+            
+            // 初始缩放为0 (隐藏)
+            root.scaling = new Vector3(0, 0, 0);
+            return root;
+        };
+
+        this.flameRootL = createFlameMesh(this.boosterNozzleL);
+        this.flameRootR = createFlameMesh(this.boosterNozzleR);
+        this.flameRoots = [this.flameRootL, this.flameRootR];
+
+        // 移除旧的粒子系统列表引用
+        this.boosterPSList = null;
 
         // 手臂参数
         const armWidth = 0.15;
@@ -786,14 +866,7 @@ export class Player {
                 this.rightShoulder.rotation.z = 0;
             }
 
-            if (this.boosterPS) {
-                let rate = 0;
-                if (this.isSprinting) {
-                    rate = this.hoverActive ? (this.ascendImpulseMs > 0 ? 280 : 140) : 80;
-                }
-                this.boosterPS.emitRate = rate;
-                if (this.isSprinting) this.boosterPS.start(); else this.boosterPS.stop();
-            }
+
 
         } else {
 
@@ -866,10 +939,54 @@ export class Player {
                 this.leftShoulder.rotation.z = 0;
                 this.rightShoulder.rotation.z = 0;
             }
-            if (this.boosterPS) {
-                if (this.isSprinting) { this.boosterPS.emitRate = this.hoverActive ? (this.ascendImpulseMs > 0 ? 240 : 120) : 80; this.boosterPS.start(); }
-                else { this.boosterPS.emitRate = 0; this.boosterPS.stop(); }
+
+        }
+        // 更新火焰动画
+        this.updateJetFlames(dtMs);
+    }
+
+    updateJetFlames(dtMs) {
+        if (!this.flameRoots || !this.flameMat) return;
+
+        // 1. 纹理滚动 (模拟流动)
+        this.flameMat.diffuseTexture.vOffset -= 0.005 * dtMs;
+
+        // 2. 计算目标缩放比例
+        let targetScaleY = 0;
+        let targetWidth = 1.0;
+
+        if (this.isSprinting) {
+            // 基础长度
+            targetScaleY = 1.0; 
+            
+            // 悬浮/加速状态
+            if (this.hoverActive) {
+                if (this.ascendImpulseMs > 0) {
+                    // 爆发上升
+                    targetScaleY = 2.5; 
+                    targetWidth = 1.5;
+                } else {
+                    // 悬浮中
+                    targetScaleY = 1.2;
+                }
+            } else {
+                // 只是开启了冲刺模式但未悬浮（例如地面跑动）
+                // 地面跑动时可能不需要喷火，或者喷小火
+                targetScaleY = 0.3; 
             }
+        }
+
+        // 3. 平滑插值更新
+        const lerpSpeed = 0.15;
+        for (const root of this.flameRoots) {
+            // Y轴缩放 (长度)
+            root.scaling.y = Scalar.Lerp(root.scaling.y, targetScaleY, lerpSpeed);
+            
+            // X/Z轴缩放 (宽度) - 增加微小随机抖动
+            const jitter = 0.9 + Math.random() * 0.2;
+            const currentW = Scalar.Lerp(root.scaling.x, targetWidth * jitter, lerpSpeed);
+            root.scaling.x = currentW;
+            root.scaling.z = currentW;
         }
     }
 }
