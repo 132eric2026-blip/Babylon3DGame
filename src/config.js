@@ -15,6 +15,7 @@ export const Config = {
         particlesEnabled: true // 是否开启护盾粒子效果
     },
     scene: {
+        activeScene: "default", // "sagittarius" or "default"
         gravity: -9.81,
         showAxes: false, // 是否显示世界坐标系
         horseEnabled: false, // 是否生成马
@@ -44,6 +45,17 @@ export const Config = {
         stargate: {
             enabled: true,
             position: { x: 15, y: 0, z: 15 } // 放置在稍远的位置
+        },
+        giantPlanet: {
+            enabled: true,
+            position: { x: -500, y: 200, z: 800 }, // Sky position
+            scale: 300
+        },
+        asteroids: {
+            enabled: true,
+            count: 1500,
+            radius: 300,
+            width: 100
         }
     },
     minimap: {

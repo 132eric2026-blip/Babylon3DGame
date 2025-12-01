@@ -1,7 +1,8 @@
 import { WebGPUEngine, Scene, Vector3, ArcRotateCamera, HavokPlugin, GlowLayer } from "@babylonjs/core";
 import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline";
 import HavokPhysics from "@babylonjs/havok";
-import { createSceneElements } from "./sceneSetup";
+import { SagittariusScene } from "./scenes/sagittarius/SagittariusScene";
+import { DefaultScene } from "./scenes/default/DefaultScene";
 import { Player } from "./player";
 import { Config } from "./config";
 import { DecorationManager } from "./decorations";
@@ -9,7 +10,6 @@ import { setupUI } from "./ui";
 import { setupMinimap } from "./minimap";
 import { setupSkillBar } from "./skills";
 import { Horse } from "./horse";
-import { Stargate } from "./stargate";
 import { spawnWeapons } from "./weaponManager";
 
 async function createEngine() {
@@ -32,7 +32,13 @@ async function createScene(engine) {
     scene.enablePhysics(new Vector3(0, Config.scene.gravity, 0), hk);
 
     // Elements
-    createSceneElements(scene);
+    if (Config.scene.activeScene === "default") {
+        const defaultScene = new DefaultScene(scene);
+        defaultScene.create();
+    } else {
+        const sagittariusScene = new SagittariusScene(scene);
+        sagittariusScene.create();
+    }
 
     // Decorations
     const decorationManager = new DecorationManager(scene);
@@ -94,12 +100,6 @@ async function createScene(engine) {
     // Create Horse
     if (Config.scene.horseEnabled) {
         const horse = new Horse(scene, new Vector3(5, 0, 5));
-    }
-
-    // Create Stargate
-    if (Config.scene.stargate && Config.scene.stargate.enabled) {
-        const pos = Config.scene.stargate.position;
-        new Stargate(scene, new Vector3(pos.x, pos.y, pos.z));
     }
 
     // Spawn Weapons (based on config)

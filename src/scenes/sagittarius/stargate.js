@@ -1,5 +1,5 @@
 import { MeshBuilder, Vector3, StandardMaterial, Color3, TransformNode, ShaderMaterial, Effect, Texture, Animation, PointLight } from "@babylonjs/core";
-import { Config } from "./config";
+import { Config } from "../../config";
 import { AncientGuardian } from "./ancientGuardian";
 
 export class Stargate {
