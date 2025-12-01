@@ -7,6 +7,8 @@ import { createLightSpearMesh, spawnLightSpear } from "./armory/LightSpear";
 import { createSolarPlasmaCannonMesh, spawnSolarPlasmaCannon } from "./armory/SolarPlasmaCannon";
 import { createScorpioPulsarGunMesh, spawnScorpioPulsarGun } from "./armory/ScorpioPulsarGun";
 import { createQuantumAnnihilatorMesh, spawnQuantumAnnihilator } from "./armory/QuantumAnnihilator";
+import { createEmeraldViperMesh, spawnEmeraldViper } from "./armory/EmeraldViper";
+import { createChronoArbalestMesh, spawnChronoArbalest } from "./armory/ChronoArbalest";
 
 export class Player {
     constructor(scene, camera) {
@@ -480,6 +482,14 @@ export class Player {
             // Adjust position for quantum cannon
             this.gunMuzzle.position = new Vector3(0, 0, 0.9);
 
+        } else if (weaponName === "EmeraldViper") {
+            this.currentGunModel = createEmeraldViperMesh(this.scene);
+            this.currentGunModel.parent = this.gunRoot;
+            this.currentGunModel.rotation = Vector3.Zero();
+
+            // 调整位置: 生物武器包裹在手臂上
+            this.gunMuzzle.position = new Vector3(0, 0, 0.85);
+
         } else {
             // Default / Alpha Particle Cannon (Grey Boxy Gun)
             const group = new TransformNode("defaultGunGroup", this.scene);
@@ -640,6 +650,10 @@ export class Player {
             spawnScorpioPulsarGun(this.scene, dropPos, this);
         } else if (this.currentWeapon === "QuantumAnnihilator") {
             spawnQuantumAnnihilator(this.scene, dropPos, this);
+        } else if (this.currentWeapon === "EmeraldViper") {
+            spawnEmeraldViper(this.scene, dropPos, this);
+        } else if (this.currentWeapon === "ChronoArbalest") {
+            spawnChronoArbalest(this.scene, dropPos, this);
         }
 
         this.currentWeapon = null;
@@ -666,6 +680,12 @@ export class Player {
         } else if (this.currentWeapon === "QuantumAnnihilator") {
             this.muzzleFlashPS.color1 = new Color4(0.3, 0.6, 1, 1); // Blue
             this.muzzleFlashPS.color2 = new Color4(0.7, 0.3, 1, 1); // Purple
+        } else if (this.currentWeapon === "EmeraldViper") {
+            this.muzzleFlashPS.color1 = new Color4(0.2, 1.0, 0.0, 1); // Toxic Green
+            this.muzzleFlashPS.color2 = new Color4(0.8, 1.0, 0.2, 1); // Yellow Green
+        } else if (this.currentWeapon === "ChronoArbalest") {
+            this.muzzleFlashPS.color1 = new Color4(1.0, 0.8, 0.4, 1); // Gold
+            this.muzzleFlashPS.color2 = new Color4(1.0, 1.0, 1.0, 1); // White Steam
         } else {
             this.muzzleFlashPS.color1 = new Color4(0, 1, 1, 1);
             this.muzzleFlashPS.color2 = new Color4(0, 0.5, 1, 1);
@@ -1161,6 +1181,182 @@ export class Player {
             // High speed quantum projectile
             bulletData.velocity = forward.scale(70);
 
+        } else if (this.currentWeapon === "EmeraldViper") {
+            // --- EMERALD VIPER (ACID BLOB) ---
+            // 1. Projectile: Deformed Slime Ball
+            bulletMesh = MeshBuilder.CreateSphere("acidBlob", { diameter: 0.4, segments: 16 }, this.scene);
+            bulletMesh.position = startPos;
+            bulletMesh.scaling = new Vector3(1, 0.8, 1.2); // Slightly elongated
+
+            const acidMat = new StandardMaterial("acidMat", this.scene);
+            acidMat.diffuseColor = new Color3(0.2, 0.8, 0.0);
+            acidMat.emissiveColor = new Color3(0.1, 0.4, 0.0);
+            acidMat.specularColor = new Color3(0.5, 1.0, 0.5); // Wet look
+            acidMat.specularPower = 64;
+            acidMat.alpha = 0.9;
+            bulletMesh.material = acidMat;
+
+            // Ensure world matrix is computed before creating trail
+            bulletMesh.computeWorldMatrix(true);
+
+            // 2. Trail: Dripping Slime (No TrailMesh, just particles)
+            bulletData.particleSystems = [];
+
+            // A. Acid Cloud (Smoke)
+            const psCloud = new ParticleSystem("acidCloud", 200, this.scene);
+            psCloud.particleTexture = new Texture("https://www.babylonjs-playground.com/textures/cloud.png", this.scene);
+            psCloud.emitter = bulletMesh;
+            psCloud.createSphereEmitter(0.3);
+
+            psCloud.color1 = new Color4(0.1, 0.6, 0.0, 0.6); // Dark Green
+            psCloud.color2 = new Color4(0.4, 0.8, 0.0, 0.4); // Light Green
+            psCloud.colorDead = new Color4(0.0, 0.2, 0.0, 0.0);
+
+            psCloud.minSize = 0.3;
+            psCloud.maxSize = 0.6;
+            psCloud.minLifeTime = 0.5;
+            psCloud.maxLifeTime = 1.0;
+            psCloud.emitRate = 100;
+            psCloud.blendMode = ParticleSystem.BLENDMODE_STANDARD; // Smoke look
+
+            psCloud.start();
+            bulletData.particleSystems.push(psCloud);
+
+            // B. Dripping Drops
+            const psDrips = new ParticleSystem("acidDrips", 150, this.scene);
+            psDrips.particleTexture = this.particleTexture;
+            psDrips.emitter = bulletMesh;
+
+            psDrips.color1 = new Color4(0.2, 1.0, 0.0, 1.0);
+            psDrips.color2 = new Color4(0.6, 1.0, 0.2, 1.0);
+            psDrips.colorDead = new Color4(0.2, 0.5, 0.0, 0.0);
+
+            psDrips.minSize = 0.05;
+            psDrips.maxSize = 0.15;
+            psDrips.minLifeTime = 0.5;
+            psDrips.maxLifeTime = 1.0;
+            psDrips.emitRate = 80;
+
+            // Gravity effect for dripping
+            psDrips.gravity = new Vector3(0, -5, 0);
+            psDrips.minEmitPower = 0;
+            psDrips.maxEmitPower = 1;
+
+            psDrips.start();
+            bulletData.particleSystems.push(psDrips);
+
+            // Slower projectile with gravity arc
+            bulletData.velocity = forward.scale(25); // Slower
+            // We need to handle gravity for this bullet type in updateBullets
+            bulletData.hasGravity = true;
+
+        } else if (this.currentWeapon === "ChronoArbalest") {
+            // --- CHRONO ARBALEST (BRASS BOLT) ---
+            // 1. Projectile: Brass Bolt with Glowing Core
+            bulletMesh = MeshBuilder.CreateCylinder("brassBolt", { height: 0.8, diameterTop: 0.02, diameterBottom: 0.06, tessellation: 12 }, this.scene);
+            bulletMesh.rotation.x = Math.PI / 2;
+            bulletMesh.position = startPos;
+            bulletMesh.lookAt(bulletMesh.position.add(forward));
+
+            const brassMat = new StandardMaterial("brassBoltMat", this.scene);
+            brassMat.diffuseColor = new Color3(0.8, 0.6, 0.2);
+            brassMat.emissiveColor = new Color3(0.4, 0.3, 0.1); // Slight glow
+            brassMat.specularColor = new Color3(1.0, 0.9, 0.5);
+            brassMat.specularPower = 64;
+            bulletMesh.material = brassMat;
+
+            bulletMesh.computeWorldMatrix(true);
+
+            // 2. Dynamic Point Light (Golden Glow)
+            const bulletLight = new PointLight("bulletLight", new Vector3(0, 0, 0), this.scene);
+            bulletLight.parent = bulletMesh;
+            bulletLight.diffuse = new Color3(1.0, 0.7, 0.2);
+            bulletLight.intensity = 3.0;
+            bulletLight.range = 8;
+            bulletData.light = bulletLight; // Store for cleanup
+
+            // 3. Rotating Rune/Clock Aura (Mesh attached to bullet)
+            const auraMesh = MeshBuilder.CreateDisc("timeAura", { radius: 0.3, tessellation: 32 }, this.scene);
+            auraMesh.parent = bulletMesh;
+            auraMesh.rotation.x = Math.PI / 2; // Face forward
+            auraMesh.position.y = -0.2; // Slightly behind tip
+
+            const auraMat = new StandardMaterial("auraMat", this.scene);
+            auraMat.diffuseColor = new Color3(0, 0, 0);
+            auraMat.emissiveColor = new Color3(1.0, 0.8, 0.0);
+            auraMat.alpha = 0.8;
+            // Use a texture or noise for the aura
+            const auraTexture = new Texture("https://www.babylonjs-playground.com/textures/flare.png", this.scene);
+            auraMat.opacityTexture = auraTexture;
+            auraMat.emissiveTexture = auraTexture;
+            auraMat.disableLighting = true;
+            auraMesh.material = auraMat;
+
+            // Animation for Aura Rotation
+            const spinAnim = new Animation("spin", "rotation.z", 60, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CYCLE);
+            spinAnim.setKeys([{ frame: 0, value: 0 }, { frame: 30, value: Math.PI * 2 }]);
+            bulletMesh.animations.push(spinAnim);
+            this.scene.beginAnimation(bulletMesh, 0, 30, true);
+
+            // 4. TrailMesh: Time Distortion (Golden Trail)
+            const timeTrail = new TrailMesh("timeTrail", bulletMesh, this.scene, 0.3, 30, true);
+            const timeTrailMat = new StandardMaterial("timeTrailMat", this.scene);
+            timeTrailMat.emissiveColor = new Color3(1.0, 0.6, 0.1);
+            timeTrailMat.disableLighting = true;
+            timeTrailMat.alpha = 0.6;
+            timeTrail.material = timeTrailMat;
+            bulletData.trail = timeTrail;
+
+            // 5. Particle Systems
+            bulletData.particleSystems = [];
+
+            // A. Steam Jet (High Pressure)
+            const psSteam = new ParticleSystem("steamTrail", 300, this.scene);
+            psSteam.particleTexture = new Texture("https://www.babylonjs-playground.com/textures/cloud.png", this.scene);
+            psSteam.emitter = bulletMesh;
+            psSteam.createConeEmitter(0.1, 0.8);
+
+            psSteam.color1 = new Color4(1.0, 1.0, 1.0, 0.8);
+            psSteam.color2 = new Color4(0.9, 0.8, 0.7, 0.4);
+            psSteam.colorDead = new Color4(0.6, 0.5, 0.4, 0.0);
+
+            psSteam.minSize = 0.2;
+            psSteam.maxSize = 0.6;
+            psSteam.minLifeTime = 0.3;
+            psSteam.maxLifeTime = 0.8;
+            psSteam.emitRate = 400; // Dense steam
+            psSteam.blendMode = ParticleSystem.BLENDMODE_ADD;
+
+            psSteam.start();
+            bulletData.particleSystems.push(psSteam);
+
+            // B. Golden Gears/Sparks (Explosive)
+            const psTime = new ParticleSystem("timeSparks", 200, this.scene);
+            psTime.particleTexture = this.particleTexture;
+            psTime.emitter = bulletMesh;
+            psTime.createSphereEmitter(0.2);
+
+            psTime.color1 = new Color4(1.0, 0.9, 0.4, 1.0); // Bright Gold
+            psTime.color2 = new Color4(1.0, 0.5, 0.0, 1.0); // Orange Gold
+            psTime.colorDead = new Color4(0.6, 0.2, 0.0, 0.0);
+
+            psTime.minSize = 0.08;
+            psTime.maxSize = 0.25;
+            psTime.minLifeTime = 0.2;
+            psTime.maxLifeTime = 0.5;
+            psTime.emitRate = 200;
+
+            psTime.minAngularSpeed = -Math.PI * 10;
+            psTime.maxAngularSpeed = Math.PI * 10;
+            psTime.minEmitPower = 2;
+            psTime.maxEmitPower = 6; // Wide spread
+
+            psTime.start();
+            bulletData.particleSystems.push(psTime);
+
+            // High velocity bolt
+            bulletData.velocity = forward.scale(90);
+
         } else {
             // --- ALPHA PARTICLE CANNON ---
             // Bolt
@@ -1196,6 +1392,11 @@ export class Player {
             const b = this.bullets[i];
             b.life -= dt;
 
+            // Apply Gravity if needed
+            if (b.hasGravity) {
+                b.velocity.y -= 9.81 * dt; // Gravity
+            }
+
             // Move
             b.mesh.position.addInPlace(b.velocity.scale(dt));
 
@@ -1219,6 +1420,10 @@ export class Player {
                 // Handle glow effect (Solar Plasma Cannon)
                 if (b.glowLayer) {
                     b.glowLayer.dispose();
+                }
+                // Handle dynamic light (Chrono Arbalest)
+                if (b.light) {
+                    b.light.dispose();
                 }
 
                 this.bullets.splice(i, 1);

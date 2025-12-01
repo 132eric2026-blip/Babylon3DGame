@@ -71,6 +71,14 @@ export const Config = {
             spawnWeight: 1.0
         },
         QuantumAnnihilator: { // 量子湮灭炮
+            enabled: false,
+            spawnWeight: 1.0
+        },
+        EmeraldViper: { // 翡翠毒蛇 (生物生化武器)
+            enabled: false,
+            spawnWeight: 1.0
+        },
+        ChronoArbalest: { // 时空劲弩 (蒸汽朋克)
             enabled: true,
             spawnWeight: 1.0
         }
