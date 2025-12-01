@@ -31,13 +31,55 @@ export class DefaultScene {
      * 环境设置：天空色、环境光、雾效
      */
     setupEnvironment() {
-        // 接近地球的环境
-        this.scene.clearColor = new Color4(0.5, 0.8, 1.0, 1.0); // 天空蓝
-        this.scene.ambientColor = new Color3(0.3, 0.3, 0.3);
+        // 背景色
+        if (DefaultSceneConfig.clearColor) {
+            this.scene.clearColor = new Color4(
+                DefaultSceneConfig.clearColor.r, 
+                DefaultSceneConfig.clearColor.g, 
+                DefaultSceneConfig.clearColor.b, 
+                DefaultSceneConfig.clearColor.a
+            );
+        } else {
+            this.scene.clearColor = new Color4(0.5, 0.8, 1.0, 1.0); // 默认天空蓝
+        }
+
+        // 环境光颜色
+        if (DefaultSceneConfig.ambientColor) {
+            this.scene.ambientColor = new Color3(
+                DefaultSceneConfig.ambientColor.r, 
+                DefaultSceneConfig.ambientColor.g, 
+                DefaultSceneConfig.ambientColor.b
+            );
+        } else {
+            this.scene.ambientColor = new Color3(0.3, 0.3, 0.3);
+        }
+
         // 雾效
-        this.scene.fogMode = this.scene.FOGMODE_EXP2;
-        this.scene.fogDensity = 0.002; // 比太空场景更轻的雾
-        this.scene.fogColor = new Color3(0.5, 0.8, 1.0);
+        if (DefaultSceneConfig.fog && DefaultSceneConfig.fog.enabled) {
+            this.scene.fogMode = this.scene.FOGMODE_EXP2;
+            this.scene.fogDensity = DefaultSceneConfig.fog.density !== undefined ? DefaultSceneConfig.fog.density : 0.002;
+            
+            if (DefaultSceneConfig.fog.color) {
+                this.scene.fogColor = new Color3(
+                    DefaultSceneConfig.fog.color.r,
+                    DefaultSceneConfig.fog.color.g,
+                    DefaultSceneConfig.fog.color.b
+                );
+            } else {
+                this.scene.fogColor = new Color3(0.5, 0.8, 1.0);
+            }
+        } else {
+             // 默认雾效配置（如果 config 中没有 fog 字段，或者 fog.enabled 为 true 但未指定细节）
+             // 但如果 user 明确把 fog 删了或者 enabled false，就不开启。
+             // 这里为了兼容旧代码，如果 DefaultSceneConfig.fog 根本不存在，保持原样？
+             // 刚才我加了 default config，所以 DefaultSceneConfig.fog 应该存在。
+             // 但为了安全：
+             if (!DefaultSceneConfig.fog) {
+                this.scene.fogMode = this.scene.FOGMODE_EXP2;
+                this.scene.fogDensity = 0.002;
+                this.scene.fogColor = new Color3(0.5, 0.8, 1.0);
+             }
+        }
     }
 
     /**
@@ -48,14 +90,22 @@ export class DefaultScene {
         const hemiLight = new HemisphericLight("hemiLight", new Vector3(0, 1, 0), this.scene);
         hemiLight.diffuse = new Color3(0.8, 0.8, 0.9); // 略带蓝色
         hemiLight.groundColor = new Color3(0.4, 0.4, 0.4);
-        hemiLight.intensity = 0.6;
+        hemiLight.intensity = DefaultSceneConfig.hemiLightIntensity;
 
         // 方向光（太阳）
         const dirLight = new DirectionalLight("dirLight", new Vector3(-1, -2, -1), this.scene);
-        dirLight.position = new Vector3(20, 40, 20);
+        if (DefaultSceneConfig.dirLightPosition) {
+            dirLight.position = new Vector3(
+                DefaultSceneConfig.dirLightPosition.x, 
+                DefaultSceneConfig.dirLightPosition.y, 
+                DefaultSceneConfig.dirLightPosition.z
+            );
+        } else {
+            dirLight.position = new Vector3(20, 40, 20);
+        }
         dirLight.diffuse = new Color3(1.0, 0.9, 0.8); // 温暖的太阳色
         dirLight.specular = new Color3(1.0, 1.0, 1.0);
-        dirLight.intensity = 0.8;
+        dirLight.intensity = DefaultSceneConfig.dirLightIntensity;
 
         // 阴影
         if (Config.scene.shadows && Config.scene.shadows.enabled) {
@@ -111,27 +161,17 @@ export class DefaultScene {
     createDecorations() {
         const decorationManager = new DecorationManager(this.scene);
         
-        // 默认场景的标准装饰：随机树木与石头、路灯
-        // 为便于生成，临时调整配置后再恢复
-        
-        const originalRocks = DefaultSceneConfig.decorations.rocksEnabled;
-        const originalTrees = DefaultSceneConfig.decorations.treesEnabled;
-        const originalLamps = DefaultSceneConfig.decorations.streetLampsEnabled;
-        
-        // Enable for generation
-        DefaultSceneConfig.decorations.rocksEnabled = true;
-        DefaultSceneConfig.decorations.treesEnabled = true;
-        DefaultSceneConfig.decorations.streetLampsEnabled = true;
-        
+        // 依据配置生成装饰
         decorationManager.generateRandomDecorations();
-        decorationManager.generateStreetLamps(3);
         
-        // 恢复配置（以便后续动态切换场景时保持一致）
-        DefaultSceneConfig.decorations.rocksEnabled = originalRocks;
-        DefaultSceneConfig.decorations.treesEnabled = originalTrees;
-        DefaultSceneConfig.decorations.streetLampsEnabled = originalLamps;
+        // 路灯需单独检查配置
+        if (DefaultSceneConfig.decorations.streetLampsEnabled) {
+            decorationManager.generateStreetLamps(3);
+        }
 
-        // 创建马（默认场景始终生成）
-        new Horse(this.scene, new Vector3(5, 0, 5));
+        // 创建马
+        if (DefaultSceneConfig.horseEnabled) {
+            new Horse(this.scene, new Vector3(5, 0, 5));
+        }
     }
 }
