@@ -13,6 +13,7 @@ import { spawnAlphaParticleCannon } from "./armory/AlphaParticleCannon";
 import { spawnPegasusParticleCannon } from "./armory/PegasusParticleCannon";
 import { spawnSolarPlasmaCannon } from "./armory/SolarPlasmaCannon";
 import { spawnScorpioPulsarGun } from "./armory/ScorpioPulsarGun";
+import { spawnQuantumAnnihilator } from "./armory/QuantumAnnihilator";
 
 async function createEngine() {
     const canvas = document.getElementById("renderCanvas");
@@ -110,6 +111,11 @@ async function createScene(engine) {
 
     // Spawn Scorpio Pulsar Gun
     spawnScorpioPulsarGun(scene, new Vector3(4, 0.5, 2), player);
+
+    // Spawn Quantum Annihilator
+    const rx3 = (Math.random() - 0.5) * 40;
+    const rz3 = (Math.random() - 0.5) * 40;
+    spawnQuantumAnnihilator(scene, new Vector3(rx3, 0.5, rz3), player);
 
     return scene;
 }

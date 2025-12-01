@@ -6,6 +6,7 @@ import { spawnPegasusParticleCannon, createPegasusGunMesh } from "./armory/Pegas
 import { createLightSpearMesh, spawnLightSpear } from "./armory/LightSpear";
 import { createSolarPlasmaCannonMesh, spawnSolarPlasmaCannon } from "./armory/SolarPlasmaCannon";
 import { createScorpioPulsarGunMesh, spawnScorpioPulsarGun } from "./armory/ScorpioPulsarGun";
+import { createQuantumAnnihilatorMesh, spawnQuantumAnnihilator } from "./armory/QuantumAnnihilator";
 
 export class Player {
     constructor(scene, camera) {
@@ -384,7 +385,7 @@ export class Player {
         this.isHoldingGun = false;
         this.bullets = [];
         this.currentGunModel = null;
-        
+
         // Beam Weapon State
         this.isBeamActive = false;
         this.beamMesh = null;
@@ -470,6 +471,14 @@ export class Player {
 
             // Adjust position
             this.gunMuzzle.position = new Vector3(0, 0, 0.8);
+
+        } else if (weaponName === "QuantumAnnihilator") {
+            this.currentGunModel = createQuantumAnnihilatorMesh(this.scene);
+            this.currentGunModel.parent = this.gunRoot;
+            this.currentGunModel.rotation = Vector3.Zero();
+
+            // Adjust position for quantum cannon
+            this.gunMuzzle.position = new Vector3(0, 0, 0.9);
 
         } else {
             // Default / Alpha Particle Cannon (Grey Boxy Gun)
@@ -629,6 +638,8 @@ export class Player {
             spawnSolarPlasmaCannon(this.scene, dropPos, this);
         } else if (this.currentWeapon === "ScorpioPulsarGun") {
             spawnScorpioPulsarGun(this.scene, dropPos, this);
+        } else if (this.currentWeapon === "QuantumAnnihilator") {
+            spawnQuantumAnnihilator(this.scene, dropPos, this);
         }
 
         this.currentWeapon = null;
@@ -652,6 +663,9 @@ export class Player {
         } else if (this.currentWeapon === "SolarPlasmaCannon") {
             this.muzzleFlashPS.color1 = new Color4(1, 0.5, 0, 1); // Orange
             this.muzzleFlashPS.color2 = new Color4(1, 0, 1, 1); // Purple
+        } else if (this.currentWeapon === "QuantumAnnihilator") {
+            this.muzzleFlashPS.color1 = new Color4(0.3, 0.6, 1, 1); // Blue
+            this.muzzleFlashPS.color2 = new Color4(0.7, 0.3, 1, 1); // Purple
         } else {
             this.muzzleFlashPS.color1 = new Color4(0, 1, 1, 1);
             this.muzzleFlashPS.color2 = new Color4(0, 0.5, 1, 1);
@@ -1053,15 +1067,15 @@ export class Player {
 
         // Check if we need to switch beam type
         if (this.beamMesh && this.beamMesh.metadata?.type !== beamType) {
-             this.beamMesh.dispose();
-             this.beamMesh = null;
-             this.beamCore = null;
-             this.beamShell = null;
-             // Glow layer might need reset or update meshes
-             if (this.beamGlow) {
-                 this.beamGlow.dispose();
-                 this.beamGlow = null;
-             }
+            this.beamMesh.dispose();
+            this.beamMesh = null;
+            this.beamCore = null;
+            this.beamShell = null;
+            // Glow layer might need reset or update meshes
+            if (this.beamGlow) {
+                this.beamGlow.dispose();
+                this.beamGlow = null;
+            }
         }
 
         // 1. Create Beam Texture if needed
@@ -1072,7 +1086,7 @@ export class Player {
             canvas.width = width; canvas.height = height;
             const ctx = canvas.getContext("2d");
             ctx.clearRect(0, 0, width, height);
-            
+
             // Purple Theme
             ctx.shadowBlur = 15;
             ctx.shadowColor = "#A020F0"; // Purple
@@ -1091,7 +1105,7 @@ export class Player {
                 ctx.stroke();
             };
 
-            for(let i=0; i<24; i++) {
+            for (let i = 0; i < 24; i++) {
                 drawHorizontalStrand("white", 2, 0.7, 2 + Math.random(), 4);
                 drawHorizontalStrand("#A020F0", 3, 0.35, 3 + Math.random(), 6);
                 drawHorizontalStrand("#FF00FF", 4, 0.2, 1 + Math.random(), 8);
@@ -1132,7 +1146,7 @@ export class Player {
             this.beamCore = MeshBuilder.CreateCylinder("beamCore", { height: 1, diameter: 0.02, tessellation: 16 }, this.scene);
             this.beamCore.setPivotPoint(new Vector3(0, -0.5, 0));
             this.beamCore.parent = this.beamMesh;
-            
+
             const coreMat = new StandardMaterial("beamCoreMat", this.scene);
             coreMat.emissiveColor = new Color3(1, 1, 1);
             coreMat.diffuseColor = new Color3(0, 0, 0);
@@ -1151,7 +1165,7 @@ export class Player {
                 Effect.ShadersStore["beamShellFragmentShader"] = "precision highp float;varying vec2 vUV;varying vec3 vNormalW;varying vec3 vPosW;uniform vec3 cameraPosition;uniform float time;uniform vec3 baseColor;uniform float alpha;uniform float flowSpeed;uniform float rimPower;uniform float rimIntensity;uniform float noiseAmp;uniform float glowBoost;float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}float noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);float a=hash(i);float b=hash(i+vec2(1.0,0.0));float c=hash(i+vec2(0.0,1.0));float d=hash(i+vec2(1.0,1.0));vec2 u=f*f*(3.0-2.0*f);return mix(a,b,u.x)+(c-a)*u.y*(1.0-u.x)+(d-b)*u.x*u.y;}void main(){vec3 V=normalize(cameraPosition-vPosW);float NdotV=dot(normalize(vNormalW),V);float fres=pow(1.0-max(0.0,abs(NdotV)),rimPower);float v=vUV.y;float spiral1=sin((vUV.x*12.0+v*30.0)-time*flowSpeed*3.0);float spiral2=sin((vUV.x*8.0-v*25.0)+time*flowSpeed*2.0);float spirals=smoothstep(0.2,0.9,max(0.0,spiral1*0.5+spiral2*0.5));float n1=noise(vec2(vUV.x*10.0+time,v*12.0-time*flowSpeed));float n2=noise(vec2(vUV.x*20.0-time*0.5,v*20.0-time*flowSpeed*1.5));float pulse=1.0+0.15*sin(time*20.0);float coreFlow=0.5+0.5*sin(v*40.0-time*flowSpeed*4.0);float bright=coreFlow*0.4+spirals*0.6+(n1+n2)*0.3*noiseAmp+fres*rimIntensity;vec3 col=baseColor*bright*pulse*glowBoost;col+=vec3(1.0,1.0,1.0)*fres*0.6*rimIntensity;float a=alpha*clamp(bright,0.0,1.0);gl_FragColor=vec4(col,a);}";
             }
             if (!this.beamShellMat) {
-                this.beamShellMat = new ShaderMaterial("beamShellMat", this.scene, { vertex: "beamShell", fragment: "beamShell" }, { attributes: ["position","normal","uv"], uniforms: ["world","worldViewProjection","cameraPosition","time","baseColor","alpha","flowSpeed","rimPower","rimIntensity","noiseAmp","glowBoost"] });
+                this.beamShellMat = new ShaderMaterial("beamShellMat", this.scene, { vertex: "beamShell", fragment: "beamShell" }, { attributes: ["position", "normal", "uv"], uniforms: ["world", "worldViewProjection", "cameraPosition", "time", "baseColor", "alpha", "flowSpeed", "rimPower", "rimIntensity", "noiseAmp", "glowBoost"] });
                 this.beamShellMat.disableLighting = true;
                 this.beamShellMat.alphaMode = Engine.ALPHA_ADD;
                 this.beamShellMat.backFaceCulling = false;
@@ -1188,7 +1202,7 @@ export class Player {
             this.beamImpactPS.minEmitPower = 2;
             this.beamImpactPS.maxEmitPower = 5;
         }
-        
+
         // Update Particle Colors
         if (isScorpio) {
             this.beamImpactPS.color1 = new Color4(0.8, 0, 1, 1); // Purple
@@ -1205,15 +1219,15 @@ export class Player {
 
         // 4. Muzzle Flash
         if (this.muzzleFlashPS) {
-             if (isScorpio) {
-                 this.muzzleFlashPS.color1 = new Color4(0.8, 0, 1, 1);
-                 this.muzzleFlashPS.color2 = new Color4(0.5, 0, 0.8, 1);
-             } else {
-                 this.muzzleFlashPS.color1 = new Color4(0.2, 1, 1, 1); 
-                 this.muzzleFlashPS.color2 = new Color4(0, 0.5, 1, 1);
-             }
-             this.muzzleFlashPS.emitRate = 100; 
-             this.muzzleFlashPS.start();
+            if (isScorpio) {
+                this.muzzleFlashPS.color1 = new Color4(0.8, 0, 1, 1);
+                this.muzzleFlashPS.color2 = new Color4(0.5, 0, 0.8, 1);
+            } else {
+                this.muzzleFlashPS.color1 = new Color4(0.2, 1, 1, 1);
+                this.muzzleFlashPS.color2 = new Color4(0, 0.5, 1, 1);
+            }
+            this.muzzleFlashPS.emitRate = 100;
+            this.muzzleFlashPS.start();
         }
     }
 
@@ -1223,8 +1237,8 @@ export class Player {
 
         if (this.beamMesh) {
             this.beamMesh.isVisible = false;
-            if(this.beamCore) this.beamCore.isVisible = false;
-            if(this.beamShell) this.beamShell.isVisible = false;
+            if (this.beamCore) this.beamCore.isVisible = false;
+            if (this.beamShell) this.beamShell.isVisible = false;
         }
         if (this.beamLight) {
             this.beamLight.setEnabled(false);
@@ -1259,8 +1273,8 @@ export class Player {
             this.beamImpactPS.emitter = hit.pickedPoint;
             this.beamImpactPS.emitRate = 300;
         } else {
-             this.beamImpactPS.emitRate = 0;
-             this.beamImpactPS.emitter = origin.add(direction.scale(maxDist));
+            this.beamImpactPS.emitRate = 0;
+            this.beamImpactPS.emitter = origin.add(direction.scale(maxDist));
         }
 
         // Update Light
@@ -1282,7 +1296,7 @@ export class Player {
         // Scale Length
         this.beamCore.scaling.y = dist;
         this.beamShell.scaling.y = dist;
-        
+
         // Animation: Scroll Texture (around circumference)
         this.beamTime = (this.beamTime || 0) + dt;
         if (this.beamShellMat) {
@@ -1302,7 +1316,7 @@ export class Player {
         // Keep shell thickness stable to avoid bead-like bulges
         this.beamShell.scaling.x = 1;
         this.beamShell.scaling.z = 1;
-        
+
         // Core flickers slightly
         const flicker = 1 + Math.random() * 0.03;
         this.beamCore.scaling.x = flicker;
@@ -1451,8 +1465,8 @@ export class Player {
         const name = md.weaponName;
         if (!name) return;
         this.pickupWeapon(name);
-        if (md.particleSystem) { try { md.particleSystem.stop(); md.particleSystem.dispose(); } catch (_) {} }
-        if (md.ui) { try { md.ui.dispose(); } catch (_) {} }
+        if (md.particleSystem) { try { md.particleSystem.stop(); md.particleSystem.dispose(); } catch (_) { } }
+        if (md.ui) { try { md.ui.dispose(); } catch (_) { } }
         nearest.dispose();
     }
 
@@ -2148,8 +2162,8 @@ export class Player {
         const name = md.weaponName;
         if (!name) return;
         this.pickupWeapon(name);
-        if (md.particleSystem) { try { md.particleSystem.stop(); md.particleSystem.dispose(); } catch (_) {} }
-        if (md.ui) { try { md.ui.dispose(); } catch (_) {} }
+        if (md.particleSystem) { try { md.particleSystem.stop(); md.particleSystem.dispose(); } catch (_) { } }
+        if (md.ui) { try { md.ui.dispose(); } catch (_) { } }
         target.dispose();
     }
 }
