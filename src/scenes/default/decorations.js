@@ -1,5 +1,5 @@
 import { MeshBuilder, StandardMaterial, Color3, Vector3, PhysicsAggregate, PhysicsShapeType, PointLight, ShadowGenerator } from "@babylonjs/core";
-import { Config } from "./config";
+import { DefaultSceneConfig } from "./config";
 
 export class DecorationManager {
     constructor(scene) {
@@ -12,9 +12,9 @@ export class DecorationManager {
         // 石头材质
         const stoneMat = new StandardMaterial("stoneMat", this.scene);
         stoneMat.diffuseColor = new Color3(
-            Config.scene.decorations.stoneColor.r,
-            Config.scene.decorations.stoneColor.g,
-            Config.scene.decorations.stoneColor.b
+            DefaultSceneConfig.decorations.stoneColor.r,
+            DefaultSceneConfig.decorations.stoneColor.g,
+            DefaultSceneConfig.decorations.stoneColor.b
         );
         stoneMat.specularColor = new Color3(0, 0, 0);
         this.materials.stone = stoneMat;
@@ -22,9 +22,9 @@ export class DecorationManager {
         // 树干材质
         const trunkMat = new StandardMaterial("trunkMat", this.scene);
         trunkMat.diffuseColor = new Color3(
-            Config.scene.decorations.treeTrunkColor.r,
-            Config.scene.decorations.treeTrunkColor.g,
-            Config.scene.decorations.treeTrunkColor.b
+            DefaultSceneConfig.decorations.treeTrunkColor.r,
+            DefaultSceneConfig.decorations.treeTrunkColor.g,
+            DefaultSceneConfig.decorations.treeTrunkColor.b
         );
         trunkMat.specularColor = new Color3(0, 0, 0);
         this.materials.trunk = trunkMat;
@@ -32,9 +32,9 @@ export class DecorationManager {
         // 树叶材质
         const leavesMat = new StandardMaterial("leavesMat", this.scene);
         leavesMat.diffuseColor = new Color3(
-            Config.scene.decorations.treeLeavesColor.r,
-            Config.scene.decorations.treeLeavesColor.g,
-            Config.scene.decorations.treeLeavesColor.b
+            DefaultSceneConfig.decorations.treeLeavesColor.r,
+            DefaultSceneConfig.decorations.treeLeavesColor.g,
+            DefaultSceneConfig.decorations.treeLeavesColor.b
         );
         leavesMat.specularColor = new Color3(0, 0, 0);
         this.materials.leaves = leavesMat;
@@ -60,11 +60,11 @@ export class DecorationManager {
     }
 
     generateRandomDecorations() {
-        const count = Config.scene.decorations.count;
-        const areaSize = Config.scene.decorations.areaSize;
+        const count = DefaultSceneConfig.decorations.count;
+        const areaSize = DefaultSceneConfig.decorations.areaSize;
         const halfSize = areaSize / 2;
-        const rocksEnabled = Config.scene.decorations.rocksEnabled;
-        const treesEnabled = Config.scene.decorations.treesEnabled;
+        const rocksEnabled = DefaultSceneConfig.decorations.rocksEnabled;
+        const treesEnabled = DefaultSceneConfig.decorations.treesEnabled;
 
         if (!rocksEnabled && !treesEnabled) return;
 
@@ -250,7 +250,7 @@ export class DecorationManager {
     }
 
     generateStreetLamps(count = 6) {
-        const areaSize = Config.scene.decorations.areaSize;
+        const areaSize = DefaultSceneConfig.decorations.areaSize;
         const half = areaSize / 2;
         const positions = [];
         const minDist = 6;

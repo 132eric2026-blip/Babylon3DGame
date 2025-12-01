@@ -1,5 +1,6 @@
 import { HemisphericLight, DirectionalLight, Vector3, MeshBuilder, StandardMaterial, Color3, ShadowGenerator, PhysicsAggregate, PhysicsShapeType, ShaderMaterial, Effect, Texture, Color4 } from "@babylonjs/core";
 import { Config } from "../../config";
+import { SagittariusSceneConfig } from "./config";
 import { AsteroidBelt } from "./asteroidBelt";
 import { Stargate } from "./stargate";
 import { GiantPlanet } from "./giantPlanet";
@@ -278,20 +279,20 @@ export class SagittariusScene {
 
     createSceneObjects() {
         // 5. Asteroid Belt
-        if (Config.scene.asteroids && Config.scene.asteroids.enabled) {
-            const ac = Config.scene.asteroids;
+        if (SagittariusSceneConfig.asteroids && SagittariusSceneConfig.asteroids.enabled) {
+            const ac = SagittariusSceneConfig.asteroids;
             new AsteroidBelt(this.scene, ac.count, ac.radius, ac.width);
         }
 
         // Create Stargate
-        if (Config.scene.stargate && Config.scene.stargate.enabled) {
-            const pos = Config.scene.stargate.position;
+        if (SagittariusSceneConfig.stargate && SagittariusSceneConfig.stargate.enabled) {
+            const pos = SagittariusSceneConfig.stargate.position;
             new Stargate(this.scene, new Vector3(pos.x, pos.y, pos.z));
         }
 
         // Create Giant Planet
-        if (Config.scene.giantPlanet && Config.scene.giantPlanet.enabled) {
-            const gp = Config.scene.giantPlanet;
+        if (SagittariusSceneConfig.giantPlanet && SagittariusSceneConfig.giantPlanet.enabled) {
+            const gp = SagittariusSceneConfig.giantPlanet;
             new GiantPlanet(this.scene, new Vector3(gp.position.x, gp.position.y, gp.position.z), gp.scale);
         }
     }
