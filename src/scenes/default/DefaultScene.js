@@ -1,5 +1,7 @@
 import { HemisphericLight, DirectionalLight, Vector3, MeshBuilder, StandardMaterial, Color3, ShadowGenerator, PhysicsAggregate, PhysicsShapeType, Color4 } from "@babylonjs/core";
 import { Config } from "../../config";
+import { DecorationManager } from "../../decorations";
+import { Horse } from "../../horse";
 
 export class DefaultScene {
     constructor(scene) {
@@ -10,6 +12,7 @@ export class DefaultScene {
         this.setupEnvironment();
         this.setupLights();
         this.createGround();
+        this.createDecorations();
     }
 
     setupEnvironment() {
@@ -56,7 +59,7 @@ export class DefaultScene {
         const ground = MeshBuilder.CreateGround("ground", { width: 200, height: 200, subdivisions: 2 }, this.scene);
         
         const groundMat = new StandardMaterial("groundMat", this.scene);
-        groundMat.diffuseColor = new Color3(0.2, 0.6, 0.2); // Grass Green
+        groundMat.diffuseColor = new Color3(0.2, 0.2, 0.2); // Grey ground
         groundMat.specularColor = new Color3(0.1, 0.1, 0.1); // Low gloss
         
         // Optional: Grid texture if we wanted, but simple color is fine for "Default"
@@ -76,5 +79,53 @@ export class DefaultScene {
             const axisZ = MeshBuilder.CreateLines("axisZ", { points: [Vector3.Zero(), new Vector3(0, 0, 5)] }, this.scene);
             axisZ.color = new Color3(0, 0, 1);
         }
+    }
+
+    createDecorations() {
+        // Decorations
+        // Force enable for DefaultScene if they were disabled in config
+        // But to respect "Default", we should probably just use the manager
+        // However, user said "ground has rocks, trees, lamps, horse" as default.
+        // Let's temporarily override config flags for this scene generation or just manually call them.
+        
+        // To avoid mutating global config state that might affect other scenes if switched at runtime,
+        // we can just manually invoke the generation logic with explicit "true" where possible, 
+        // OR we assume the user wants these enabled in the config for "Default" scene.
+        
+        // Better approach: The DecorationManager reads from Config.
+        // Let's use the manager but ensure we pass flags or modified config? 
+        // Since Config is a singleton object, modifying it here is risky if we switch scenes.
+        // But for now, let's assume the user wants these enabled when in Default scene.
+        
+        // We will manually trigger the generation methods.
+        const decorationManager = new DecorationManager(this.scene);
+        
+        // Manually generate standard set for Default Scene
+        // 1. Random decorations (Trees + Rocks)
+        // We need to temporarily mock the config or modify the manager to accept params.
+        // Looking at DecorationManager, it reads directly from Config.
+        // Let's create a helper to generate them regardless of config, 
+        // or we can just temporarily set config values and restore them.
+        
+        const originalRocks = Config.scene.decorations.rocksEnabled;
+        const originalTrees = Config.scene.decorations.treesEnabled;
+        const originalLamps = Config.scene.decorations.streetLampsEnabled;
+        
+        // Enable for generation
+        Config.scene.decorations.rocksEnabled = true;
+        Config.scene.decorations.treesEnabled = true;
+        Config.scene.decorations.streetLampsEnabled = true;
+        
+        decorationManager.generateRandomDecorations();
+        decorationManager.generateStreetLamps(3);
+        
+        // Restore config (optional, but good practice if we switch scenes dynamically later)
+        Config.scene.decorations.rocksEnabled = originalRocks;
+        Config.scene.decorations.treesEnabled = originalTrees;
+        Config.scene.decorations.streetLampsEnabled = originalLamps;
+
+        // Create Horse
+        // Always create horse in default scene
+        new Horse(this.scene, new Vector3(5, 0, 5));
     }
 }

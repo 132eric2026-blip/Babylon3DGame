@@ -5,11 +5,9 @@ import { SagittariusScene } from "./scenes/sagittarius/SagittariusScene";
 import { DefaultScene } from "./scenes/default/DefaultScene";
 import { Player } from "./player";
 import { Config } from "./config";
-import { DecorationManager } from "./decorations";
 import { setupUI } from "./ui";
 import { setupMinimap } from "./minimap";
 import { setupSkillBar } from "./skills";
-import { Horse } from "./horse";
 import { spawnWeapons } from "./weaponManager";
 
 async function createEngine() {
@@ -38,13 +36,6 @@ async function createScene(engine) {
     } else {
         const sagittariusScene = new SagittariusScene(scene);
         sagittariusScene.create();
-    }
-
-    // Decorations
-    const decorationManager = new DecorationManager(scene);
-    decorationManager.generateRandomDecorations();
-    if (Config.scene.decorations.streetLampsEnabled) {
-        decorationManager.generateStreetLamps(3);
     }
 
     // Camera
@@ -96,11 +87,6 @@ async function createScene(engine) {
 
     // Skills
     setupSkillBar(scene, player);
-
-    // Create Horse
-    if (Config.scene.horseEnabled) {
-        const horse = new Horse(scene, new Vector3(5, 0, 5));
-    }
 
     // Spawn Weapons (based on config)
     spawnWeapons(scene, player);
