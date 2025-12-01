@@ -989,6 +989,175 @@ export class Player {
             // High speed projectile
             bulletData.velocity = forward.scale(60);
 
+        } else if (this.currentWeapon === "QuantumAnnihilator") {
+            // --- QUANTUM ANNIHILATOR (QUANTUM ENERGY SPHERE) ---
+            // 1. Projectile: Quantum Energy Sphere with Rotating Rings
+            bulletMesh = MeshBuilder.CreateSphere("quantumBolt", { diameter: 0.6, segments: 32 }, this.scene);
+            bulletMesh.position = startPos;
+
+            const quantumMat = new StandardMaterial("quantumBoltMat", this.scene);
+            quantumMat.emissiveColor = new Color3(0.3, 0.6, 1.0); // Bright Blue Core
+            quantumMat.diffuseColor = new Color3(0.2, 0.4, 0.8); // Deep Blue
+            quantumMat.specularColor = new Color3(0.5, 0.7, 1.0); // Blue specular
+            quantumMat.emissiveIntensity = 1.5; // Boost emissive
+            quantumMat.disableLighting = true;
+            bulletMesh.material = quantumMat;
+
+            // 2. Glow Effect - Create independent glow layer for this bullet
+            const quantumGlowLayer = new GlowLayer("quantumGlow_" + Date.now(), this.scene);
+            quantumGlowLayer.intensity = 1.5;
+            quantumGlowLayer.addIncludedOnlyMesh(bulletMesh);
+            bulletData.glowLayer = quantumGlowLayer; // Store for cleanup
+
+            // 3. Spiral Trail Mesh (Quantum Distortion)
+            const quantumTrail = new TrailMesh("quantumTrail", bulletMesh, this.scene, 0.15, 30, true);
+            const quantumTrailMat = new StandardMaterial("quantumTrailMat", this.scene);
+            quantumTrailMat.emissiveColor = new Color3(0.4, 0.6, 1.0); // Blue glow
+            quantumTrailMat.disableLighting = true;
+            quantumTrailMat.alpha = 0.7;
+            quantumTrail.material = quantumTrailMat;
+            bulletData.trail = quantumTrail;
+
+            // 4. Particle Systems Container
+            bulletData.particleSystems = [];
+
+            // A. Quantum Core - Dense Energy Particles (量子核心)
+            const psQuantumCore = new ParticleSystem("quantumCore", 450, this.scene);
+            psQuantumCore.particleTexture = this.particleTexture;
+            psQuantumCore.emitter = bulletMesh;
+            psQuantumCore.createSphereEmitter(0.25); // Tight around center
+
+            psQuantumCore.color1 = new Color4(0.3, 0.6, 1.0, 1.0); // Bright Blue
+            psQuantumCore.color2 = new Color4(0.5, 0.4, 1.0, 1.0); // Blue-Purple
+            psQuantumCore.colorDead = new Color4(0.1, 0.2, 0.5, 0.0); // Dark blue fade
+
+            psQuantumCore.minSize = 0.15;
+            psQuantumCore.maxSize = 0.4;
+            psQuantumCore.minLifeTime = 0.2;
+            psQuantumCore.maxLifeTime = 0.4;
+            psQuantumCore.emitRate = 350;
+            psQuantumCore.blendMode = ParticleSystem.BLENDMODE_ADD;
+
+            // Quantum fluctuation rotation
+            psQuantumCore.minAngularSpeed = -Math.PI * 3;
+            psQuantumCore.maxAngularSpeed = Math.PI * 3;
+            psQuantumCore.minEmitPower = 0.5;
+            psQuantumCore.maxEmitPower = 2;
+
+            psQuantumCore.start();
+            bulletData.particleSystems.push(psQuantumCore);
+
+            // B. Quantum Vortex - Swirling Energy Field (量子漩涡)
+            const psQuantumVortex = new ParticleSystem("quantumVortex", 300, this.scene);
+            psQuantumVortex.particleTexture = new Texture("https://www.babylonjs-playground.com/textures/flare.png", this.scene);
+            psQuantumVortex.emitter = bulletMesh;
+            psQuantumVortex.createSphereEmitter(0.4); // Medium radius
+
+            psQuantumVortex.color1 = new Color4(0.4, 0.7, 1.0, 0.9); // Bright Blue
+            psQuantumVortex.color2 = new Color4(0.6, 0.5, 1.0, 0.8); // Purple-Blue
+            psQuantumVortex.colorDead = new Color4(0.2, 0.3, 0.6, 0.0); // Dark blue fade
+
+            psQuantumVortex.minSize = 0.3;
+            psQuantumVortex.maxSize = 0.8;
+            psQuantumVortex.minLifeTime = 0.3;
+            psQuantumVortex.maxLifeTime = 0.7;
+            psQuantumVortex.emitRate = 220;
+            psQuantumVortex.blendMode = ParticleSystem.BLENDMODE_ADD;
+
+            // Fast rotation for vortex effect
+            psQuantumVortex.minAngularSpeed = -Math.PI * 5;
+            psQuantumVortex.maxAngularSpeed = Math.PI * 5;
+            psQuantumVortex.minInitialRotation = 0;
+            psQuantumVortex.maxInitialRotation = Math.PI * 2;
+            psQuantumVortex.minEmitPower = 1;
+            psQuantumVortex.maxEmitPower = 3;
+
+            psQuantumVortex.start();
+            bulletData.particleSystems.push(psQuantumVortex);
+
+            // C. Electric Arcs - Quantum Lightning (量子电弧)
+            const psQuantumArcs = new ParticleSystem("quantumArcs", 180, this.scene);
+            psQuantumArcs.particleTexture = this.particleTexture;
+            psQuantumArcs.emitter = bulletMesh;
+            psQuantumArcs.createSphereEmitter(0.5); // Outer layer
+
+            psQuantumArcs.color1 = new Color4(0.0, 1.0, 1.0, 1.0); // Bright Cyan
+            psQuantumArcs.color2 = new Color4(0.5, 0.8, 1.0, 0.9); // Light Blue
+            psQuantumArcs.colorDead = new Color4(0.0, 0.4, 0.8, 0.0); // Blue fade
+
+            psQuantumArcs.minSize = 0.1;
+            psQuantumArcs.maxSize = 0.3;
+            psQuantumArcs.minLifeTime = 0.08;
+            psQuantumArcs.maxLifeTime = 0.25;
+            psQuantumArcs.emitRate = 140;
+            psQuantumArcs.blendMode = ParticleSystem.BLENDMODE_ADD;
+
+            // Erratic movement for lightning effect
+            psQuantumArcs.minAngularSpeed = -Math.PI * 10;
+            psQuantumArcs.maxAngularSpeed = Math.PI * 10;
+            psQuantumArcs.minEmitPower = 4;
+            psQuantumArcs.maxEmitPower = 8;
+
+            psQuantumArcs.start();
+            bulletData.particleSystems.push(psQuantumArcs);
+
+            // D. Quantum Trail - Trailing Energy Particles (量子拖尾)
+            const psQuantumTrail = new ParticleSystem("quantumTrailPS", 220, this.scene);
+            psQuantumTrail.particleTexture = this.particleTexture;
+            psQuantumTrail.emitter = bulletMesh;
+            psQuantumTrail.minEmitBox = new Vector3(-0.15, -0.15, -0.15);
+            psQuantumTrail.maxEmitBox = new Vector3(0.15, 0.15, 0.15);
+
+            psQuantumTrail.color1 = new Color4(0.5, 0.7, 1.0, 1.0); // Light Blue
+            psQuantumTrail.color2 = new Color4(0.7, 0.5, 1.0, 1.0); // Purple-Blue
+            psQuantumTrail.colorDead = new Color4(0.2, 0.2, 0.5, 0.0); // Dark blue fade
+
+            psQuantumTrail.minSize = 0.1;
+            psQuantumTrail.maxSize = 0.3;
+            psQuantumTrail.minLifeTime = 0.4;
+            psQuantumTrail.maxLifeTime = 0.8;
+            psQuantumTrail.emitRate = 160;
+            psQuantumTrail.blendMode = ParticleSystem.BLENDMODE_ADD;
+
+            // Slow drift behind with quantum fluctuation
+            psQuantumTrail.minAngularSpeed = -Math.PI;
+            psQuantumTrail.maxAngularSpeed = Math.PI;
+            psQuantumTrail.minEmitPower = 0.3;
+            psQuantumTrail.maxEmitPower = 1.5;
+            psQuantumTrail.gravity = new Vector3(0, 0, 0); // No gravity for quantum particles
+
+            psQuantumTrail.start();
+            bulletData.particleSystems.push(psQuantumTrail);
+
+            // E. Quantum Sparkles - High-frequency micro particles (量子闪烁)
+            const psQuantumSparkles = new ParticleSystem("quantumSparkles", 150, this.scene);
+            psQuantumSparkles.particleTexture = this.particleTexture;
+            psQuantumSparkles.emitter = bulletMesh;
+            psQuantumSparkles.createSphereEmitter(0.35);
+
+            psQuantumSparkles.color1 = new Color4(0.8, 0.9, 1.0, 1.0); // Bright White-Blue
+            psQuantumSparkles.color2 = new Color4(0.3, 0.7, 1.0, 1.0); // Blue
+            psQuantumSparkles.colorDead = new Color4(0.0, 0.3, 0.6, 0.0); // Dark blue fade
+
+            psQuantumSparkles.minSize = 0.05;
+            psQuantumSparkles.maxSize = 0.15;
+            psQuantumSparkles.minLifeTime = 0.15;
+            psQuantumSparkles.maxLifeTime = 0.4;
+            psQuantumSparkles.emitRate = 180;
+            psQuantumSparkles.blendMode = ParticleSystem.BLENDMODE_ADD;
+
+            // Fast chaotic movement
+            psQuantumSparkles.minAngularSpeed = -Math.PI * 6;
+            psQuantumSparkles.maxAngularSpeed = Math.PI * 6;
+            psQuantumSparkles.minEmitPower = 2;
+            psQuantumSparkles.maxEmitPower = 5;
+
+            psQuantumSparkles.start();
+            bulletData.particleSystems.push(psQuantumSparkles);
+
+            // High speed quantum projectile
+            bulletData.velocity = forward.scale(70);
+
         } else {
             // --- ALPHA PARTICLE CANNON ---
             // Bolt
