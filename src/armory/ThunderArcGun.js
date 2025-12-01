@@ -1,6 +1,10 @@
 import { MeshBuilder, Vector3, StandardMaterial, Color3, TransformNode, Animation, DynamicTexture, Mesh } from "@babylonjs/core";
 
-// 创建雷霆电弧枪的视觉网格
+/**
+ * 创建雷霆电弧枪的视觉网格
+ * @param {Scene} scene 场景实例
+ * @returns {TransformNode} 枪械模型根节点
+ */
 export function createThunderArcGunMesh(scene) {
     const gunGroup = new TransformNode("thunderArcVisuals", scene);
 
@@ -121,7 +125,14 @@ export function createThunderArcGunMesh(scene) {
     return gunGroup;
 }
 
-// 生成世界中的拾取物
+/**
+ * 生成雷霆电弧枪拾取物
+ * 创建武器视觉、地面电场光环与交互元数据
+ * @param {Scene} scene 场景实例
+ * @param {Vector3} position 生成位置
+ * @param {any} player 玩家对象（用于交互）
+ * @returns {TransformNode} 武器根节点
+ */
 export function spawnThunderArcGun(scene, position, player) {
     const root = new TransformNode("thunderWeaponRoot", scene);
     root.position = position.clone();

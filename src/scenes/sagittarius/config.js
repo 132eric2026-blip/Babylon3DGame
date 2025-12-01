@@ -1,3 +1,7 @@
+/**
+ * 人马座场景配置
+ * 控制星门、巨行星与小行星带的启用与参数
+ */
 export const SagittariusSceneConfig = {
     stargate: {
         enabled: true,
@@ -5,7 +9,7 @@ export const SagittariusSceneConfig = {
     },
     giantPlanet: {
         enabled: true,
-        position: { x: -500, y: 200, z: 800 }, // Sky position
+        position: { x: -500, y: 200, z: 800 }, // 天空位置
         scale: 300
     },
     asteroids: {

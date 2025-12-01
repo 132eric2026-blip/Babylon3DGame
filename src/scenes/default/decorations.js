@@ -1,13 +1,24 @@
 import { MeshBuilder, StandardMaterial, Color3, Vector3, PhysicsAggregate, PhysicsShapeType, PointLight, ShadowGenerator } from "@babylonjs/core";
 import { DefaultSceneConfig } from "./config";
 
+/**
+ * 默认场景装饰管理器
+ * 负责生成石头、树、路灯等装饰物，并应用材质、物理与阴影
+ */
 export class DecorationManager {
+    /**
+     * 构造装饰管理器
+     * @param {Scene} scene 场景实例
+     */
     constructor(scene) {
         this.scene = scene;
         this.materials = {};
         this.initMaterials();
     }
 
+    /**
+     * 初始化装饰所用材质
+     */
     initMaterials() {
         // 石头材质
         const stoneMat = new StandardMaterial("stoneMat", this.scene);
@@ -59,6 +70,9 @@ export class DecorationManager {
         this.materials.lampGlass = lampGlass;
     }
 
+    /**
+     * 随机生成装饰（石头/树）
+     */
     generateRandomDecorations() {
         const count = DefaultSceneConfig.decorations.count;
         const areaSize = DefaultSceneConfig.decorations.areaSize;
@@ -90,6 +104,11 @@ export class DecorationManager {
         }
     }
 
+    /**
+     * 创建石头
+     * @param {number} x X 坐标
+     * @param {number} z Z 坐标
+     */
     createStone(x, z) {
         const scale = 0.5 + Math.random() * 1.5; // 随机大小
         const stone = MeshBuilder.CreateBox("stone", { size: 1 }, this.scene);
@@ -110,6 +129,11 @@ export class DecorationManager {
         }
     }
 
+    /**
+     * 创建树
+     * @param {number} x X 坐标
+     * @param {number} z Z 坐标
+     */
     createTree(x, z) {
         const trunkHeight = 1.5 + Math.random();
         const variant = Math.floor(Math.random() * 7);
@@ -214,6 +238,12 @@ export class DecorationManager {
     }
 
     // --- 我的世界风格路灯 ---
+    /**
+     * 创建路灯
+     * @param {number} x X 坐标
+     * @param {number} z Z 坐标
+     * @returns {{base:any,pole:any,head:any,light:any}} 路灯组件
+     */
     createStreetLamp(x, z) {
         const base = MeshBuilder.CreateBox("lampBase", { width: 0.8, depth: 0.8, height: 0.2 }, this.scene);
         base.position = new Vector3(x, 0.1, z);
@@ -236,7 +266,7 @@ export class DecorationManager {
         light.diffuse = new Color3(1.0, 0.85, 0.2);
         light.range = 18;
 
-        // 路灯不产生阴影，保留照明与Bloom即可
+        // 路灯不产生阴影，保留照明与 Bloom 即可
 
         const ground = this.scene.getMeshByName("ground");
         if (ground) ground.receiveShadows = true;
@@ -249,6 +279,10 @@ export class DecorationManager {
         return { base, pole, head, light };
     }
 
+    /**
+     * 批量生成路灯，避免位置重叠
+     * @param {number} count 数量
+     */
     generateStreetLamps(count = 6) {
         const areaSize = DefaultSceneConfig.decorations.areaSize;
         const half = areaSize / 2;

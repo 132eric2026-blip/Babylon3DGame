@@ -16,30 +16,36 @@ import {
 } from "@babylonjs/gui";
 import { Config } from "./config";
 
+/**
+ * 初始化小地图系统
+ * 包含标记创建、独立相机、遮罩与缩放控件、视口布局与跟随更新
+ * @param {Scene} scene 场景实例
+ * @param {any} player 玩家对象
+ */
 export function setupMinimap(scene, player) {
-    // --- Constants & Masks ---
-    // Bit 28: Minimap Objects (Visible to Minimap, Invisible to Main)
+    // 常量与图层掩码
+    // 第28位：小地图对象（仅对小地图可见，对主相机不可见）
     const MASK_MINIMAP = 0x10000000;
-    // Bit 29: UI Objects (Visible to UI Camera, Invisible to Main)
+    // 第29位：UI 对象（仅对 UI 相机可见，对主相机不可见）
     const MASK_UI = 0x20000000;
 
-    // Main camera sees everything EXCEPT MASK_MINIMAP and MASK_UI
+    // 主相机：排除小地图与 UI 图层
     const MASK_MAIN = 0xFFFFFFFF;
 
     if (scene.activeCamera) {
         scene.activeCamera.layerMask = MASK_MAIN & ~MASK_MINIMAP & ~MASK_UI;
     }
 
-    // --- 1. Create Minimap Markers ---
+    // 1. 创建小地图标记
 
-    // 1.1 Player Marker Root (Container)
+    // 1.1 玩家标记容器
     const playerMarker = MeshBuilder.CreateBox("playerMarkerRoot", { size: 0.1 }, scene);
     playerMarker.isVisible = false; // Invisible container
     playerMarker.parent = player.mesh;
     playerMarker.position.y = 10;
     playerMarker.layerMask = MASK_MINIMAP;
 
-    // Arrow (Triangle)
+    // 箭头（三角形）
     const arrow = MeshBuilder.CreateDisc("minimapArrow", { radius: 1.5, tessellation: 3 }, scene);
     arrow.rotation.x = Math.PI / 2;
     arrow.rotation.y = -Math.PI / 2; // Points Forward
@@ -52,7 +58,7 @@ export function setupMinimap(scene, player) {
     arrow.parent = playerMarker;
     arrow.layerMask = MASK_MINIMAP;
 
-    // Dot (Circle) behind arrow
+    // 箭头后的圆点
     const dot = MeshBuilder.CreateDisc("minimapDot", { radius: 0.6, tessellation: 16 }, scene);
     dot.rotation.x = Math.PI / 2;
     dot.position.z = -1.2; // Behind the arrow center
@@ -60,8 +66,7 @@ export function setupMinimap(scene, player) {
     dot.parent = playerMarker;
     dot.layerMask = MASK_MINIMAP;
 
-    // 1.2 Object Markers (Circles)
-    // Scan scene for stones and trees (leaves)
+    // 1.2 物体标记（圆形）：扫描场景中的石头与树
     scene.meshes.forEach(mesh => {
         if (mesh.name.startsWith("stone") || mesh.name.startsWith("leaves")) {
             // Calculate size
@@ -82,7 +87,7 @@ export function setupMinimap(scene, player) {
         }
     });
 
-    // Zoom / Ortho Size
+    // 缩放与正交尺寸
     let currentZoom = Config.minimap.zoom;
     let zoomTextControl = null;
 
@@ -92,7 +97,7 @@ export function setupMinimap(scene, player) {
     minimapCamera.rotation.x = Math.PI / 2; // Look Down
     minimapCamera.rotation.y = 0; // North Up
 
-    // Function to update zoom
+    // 更新缩放的函数
     const updateCameraZoom = () => {
         minimapCamera.orthoLeft = -currentZoom;
         minimapCamera.orthoRight = currentZoom;
@@ -106,18 +111,16 @@ export function setupMinimap(scene, player) {
         }
     };
 
-    updateCameraZoom(); // Initial Set
+    updateCameraZoom(); // 初始设置
 
-    // Minimap sees ONLY the markers
+    // 小地图相机仅渲染标记图层
     minimapCamera.layerMask = MASK_MINIMAP;
 
-    // --- UI Camera Setup ---
-    // Create a dedicated camera for UI to avoid Bloom
+    // UI 相机设置：使用独立相机避免被主相机的泛光影响
     const uiCamera = new TargetCamera("uiCamera", Vector3.Zero(), scene);
     uiCamera.layerMask = MASK_UI;
 
-    // Add to active cameras
-    // Ensure Main Camera is still active and in 0 index (usually)
+    // 添加到活动相机列表，确保主相机仍然在列表中
     if (scene.activeCameras.length === 0 && scene.activeCamera) {
         scene.activeCameras.push(scene.activeCamera);
     }
@@ -129,13 +132,13 @@ export function setupMinimap(scene, player) {
         scene.activeCameras.push(uiCamera);
     }
 
-    // --- 3. Viewport & UI Mask (Circular Effect) ---
+    // 3. 视口与 UI 遮罩（圆形效果）
     const mapSize = 200; // px
     const mapMargin = 20; // px
 
-    // 3.1 Create GUI to hold the mask and buttons
+    // 3.1 创建 GUI 容器用于遮罩与按钮
     const advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("MinimapUI");
-    // Important: Set layer mask so ONLY uiCamera sees this, preventing Bloom from Main Camera
+    // 重要：设置图层掩码，使其仅被 UI 相机渲染，避免主相机的泛光影响
     advancedTexture.layer.layerMask = MASK_UI;
 
     // Container for Minimap UI
@@ -149,31 +152,31 @@ export function setupMinimap(scene, player) {
     minimapContainer.thickness = 0; // Invisible container border
     advancedTexture.addControl(minimapContainer);
 
-    // 3.2 Circular Mask (Optional Config)
+    // 3.2 圆形遮罩（按配置可选）
     if (Config.minimap.showMask) {
-        // Create Circular Mask Texture using Canvas
+        // 使用 Canvas 创建圆形遮罩纹理
         const maskCanvas = document.createElement("canvas");
         maskCanvas.width = mapSize;
         maskCanvas.height = mapSize;
         const ctx = maskCanvas.getContext("2d");
 
-        // Minimap camera clear color
+        // 小地图相机清屏颜色
         minimapCamera.clearColor = new Color3(0, 0, 0.2);
 
-        // Fill all with Black (covers viewport corners)
+        // 填充黑色（遮住视口四角）
         ctx.fillStyle = "#222222";
         ctx.fillRect(0, 0, mapSize, mapSize);
 
-        // Cut out the circle
+        // 切出圆形区域
         ctx.globalCompositeOperation = "destination-out";
         ctx.beginPath();
         ctx.arc(mapSize / 2, mapSize / 2, mapSize / 2 - 4, 0, Math.PI * 2);
         ctx.fill();
 
-        // Reset composite
+        // 重置混合模式
         ctx.globalCompositeOperation = "source-over";
 
-        // Draw border ring
+        // 画边框圆环
         ctx.strokeStyle = "white";
         ctx.lineWidth = 4;
         ctx.beginPath();
@@ -186,19 +189,18 @@ export function setupMinimap(scene, player) {
         maskImage.stretch = Image.STRETCH_FILL;
         minimapContainer.addControl(maskImage);
     } else {
-        // Square Border if no mask
+        // 无遮罩时使用方形边框
         const border = new Rectangle("minimapBorder");
         border.thickness = 2;
         border.color = "white";
         border.background = "transparent";
         minimapContainer.addControl(border);
 
-        // Set camera clear color to something opaque so it doesn't show game behind
-        // Or if we want it to be transparent? Usually Minimaps have background.
+        // 设置相机清屏颜色为不透明背景，小地图通常有底色
         minimapCamera.clearColor = new Color3(0, 0, 0.2);
     }
 
-    // Debug: Zoom Level Text
+    // 调试：显示缩放级别文本
     zoomTextControl = new TextBlock();
     zoomTextControl.text = "Zoom: " + currentZoom;
     zoomTextControl.color = "white";
@@ -209,7 +211,7 @@ export function setupMinimap(scene, player) {
     zoomTextControl.top = "5px";
     minimapContainer.addControl(zoomTextControl);
 
-    // 3.3 Zoom Buttons
+    // 3.3 缩放按钮
     const createZoomButton = (text, alignLeft) => {
         const btn = Button.CreateSimpleButton("zoomBtn" + text, text);
         btn.width = "30px";
@@ -219,29 +221,27 @@ export function setupMinimap(scene, player) {
         btn.cornerRadius = 15;
         btn.horizontalAlignment = alignLeft ? Control.HORIZONTAL_ALIGNMENT_LEFT : Control.HORIZONTAL_ALIGNMENT_RIGHT;
         btn.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-        // Position slightly outside or inside? User said "Lower two corners".
-        // If inside, they might block map. If outside, they expand footprint.
-        // Let's put them INSIDE the corners for compactness.
+        // 位置：放置在容器内部的左右下角，更紧凑
         btn.left = alignLeft ? "5px" : "-5px";
         btn.top = "-5px";
         return btn;
     };
 
-    const btnMinus = createZoomButton("-", true); // Left corner -> Zoom Out (Increase View)
+    const btnMinus = createZoomButton("-", true); // 左下角：缩小（视野扩大）
     btnMinus.onPointerUpObservable.add(() => {
         currentZoom = Math.min(currentZoom + Config.minimap.zoomStep, Config.minimap.maxZoom);
         updateCameraZoom();
     });
     minimapContainer.addControl(btnMinus);
 
-    const btnPlus = createZoomButton("+", false); // Right corner -> Zoom In (Decrease View)
+    const btnPlus = createZoomButton("+", false); // 右下角：放大（视野缩小）
     btnPlus.onPointerUpObservable.add(() => {
         currentZoom = Math.max(currentZoom - Config.minimap.zoomStep, Config.minimap.minZoom);
         updateCameraZoom();
     });
     minimapContainer.addControl(btnPlus);
 
-    // 4. Handle Viewport Logic
+    // 4. 视口逻辑
     const updateViewport = () => {
         const engine = scene.getEngine();
         const w = engine.getRenderWidth();
@@ -258,36 +258,17 @@ export function setupMinimap(scene, player) {
     updateViewport();
     window.addEventListener("resize", updateViewport);
 
-    // 5. Update Logic (Follow Player)
+    // 5. 更新逻辑（跟随玩家）
     scene.onBeforeRenderObservable.add(() => {
         if (player.mesh) {
             minimapCamera.position.x = player.mesh.position.x;
             minimapCamera.position.z = player.mesh.position.z;
-            // Rotation: The user wants "Player arrow matches 3D world direction".
-            // 1. If Minimap is "North Up" (RotY=0), and Player Arrow rotates:
-            //    - We set Arrow rotation to Player Rotation.
-            // 2. If Minimap rotates with player:
-            //    - We rotate Camera.
-            // The prompt says: "Player uses yellow arrow... matches 3D world direction".
-            // Usually means: Map is Fixed (North Up), Arrow Rotates.
-            // Let's stick to North Up (Map fixed), Arrow Rotates.
+            // 旋转：采用“北向固定，箭头随玩家朝向旋转”的方案
 
-            // Sync marker rotation with player rotation
-            // Player Mesh (Capsule) might not rotate? The modelRoot inside it rotates?
-            // In `player.js`, `this.mesh.rotationQuaternion` or `rotation` is usually 0 for physics capsule?
-            // The `modelRoot` rotates.
+            // 同步标记与玩家朝向
+            // 玩家物理胶囊体不旋转，实际旋转的是 `modelRoot`
             if (player.modelRoot) {
-                // playerMarker is child of player.mesh.
-                // If player.mesh doesn't rotate, we need to rotate marker manually?
-                // Or if player.mesh DOES rotate (Havok usually rotates body?), then marker rotates automatically.
-                // In `player.js`, we use `setLinearVelocity`. Rotation is handled by... ?
-                // Let's check `player.js`.
-                // Ah, `updateMovement`: `this.modelRoot.rotationQuaternion = ...`
-                // The CAPSULE (`this.mesh`) usually has `rotationQuaternion` fixed (Inertia locked)?
-                // "this.aggregate.body.setMassProperties({ inertia: new Vector3(0, 0, 0) });" -> Lock rotation.
-                // So `this.mesh` does NOT rotate.
-                // So `playerMarker` (child of mesh) will NOT rotate.
-                // We must update `playerMarker.rotation.y` to match `player.modelRoot.rotationQuaternion`.
+                // 由于锁定了玩家刚体转动，需要手动将 `playerMarker.rotation.y` 对齐到 `modelRoot` 的朝向
 
                 if (player.modelRoot.rotationQuaternion) {
                     const euler = player.modelRoot.rotationQuaternion.toEulerAngles();

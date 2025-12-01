@@ -1,12 +1,17 @@
 import { AdvancedDynamicTexture, TextBlock, Control } from "@babylonjs/gui";
 
+/**
+ * 初始化基础 UI（FPS 显示等）
+ * @param {Scene} scene 场景实例
+ * @param {any} player 玩家对象
+ */
 export function setupUI(scene, player) {
-    // --- GUI (FPS) ---
+    // GUI（FPS）
     const advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("UI");
-    // Set LayerMask to 0x20000000 (MASK_UI) to be visible only to UI Camera and avoid Bloom
+    // 设置图层掩码为 0x20000000（仅 UI 相机可见，避免被主相机的泛光影响）
     advancedTexture.layer.layerMask = 0x20000000;
 
-    // FPS Counter
+    // FPS 计数器
     const fpsText = new TextBlock();
     fpsText.text = "FPS: 60";
     fpsText.color = "white";
@@ -17,7 +22,7 @@ export function setupUI(scene, player) {
     fpsText.top = "20px";
     advancedTexture.addControl(fpsText);
 
-    // Update Logic
+    // 更新逻辑
     scene.onBeforeRenderObservable.add(() => {
         fpsText.text = "FPS: " + scene.getEngine().getFps().toFixed(0);
     });

@@ -5,11 +5,22 @@ import { AsteroidBelt } from "./asteroidBelt";
 import { Stargate } from "./stargate";
 import { GiantPlanet } from "./giantPlanet";
 
+/**
+ * 人马座科幻场景
+ * 搭建太空环境、光照、外星地面与场景物体（小行星带、星门、巨行星）
+ */
 export class SagittariusScene {
+    /**
+     * 构造人马座场景
+     * @param {Scene} scene Babylon 场景实例
+     */
     constructor(scene) {
         this.scene = scene;
     }
 
+    /**
+     * 创建场景：环境、光照、天空、地面与场景物体
+     */
     create() {
         this.setupEnvironment();
         this.setupLights();
@@ -18,35 +29,39 @@ export class SagittariusScene {
         this.createSceneObjects();
     }
 
+    /**
+     * 环境设置：深色太空背景与雾效
+     */
     setupEnvironment() {
-        // 0. Space Environment (Clear Color)
         this.scene.clearColor = new Color4(0.05, 0.05, 0.1, 1.0);
         this.scene.fogMode = this.scene.FOGMODE_EXP2;
         this.scene.fogDensity = 0.02;
         this.scene.fogColor = new Color3(0.05, 0.05, 0.1);
     }
 
+    /**
+     * 光照设置：宇宙环境光、主星方向光与星云边缘光
+     */
     setupLights() {
-        // 1. Cosmic Lighting
-        // Dim ambient light (Space is dark)
+        // 微弱环境光（太空较暗）
         const hemiLight = new HemisphericLight("hemiLight", new Vector3(0, 1, 0), this.scene);
         hemiLight.diffuse = new Color3(0.1, 0.1, 0.2);
         hemiLight.groundColor = new Color3(0.1, 0.1, 0.1);
         hemiLight.intensity = 0.3;
 
-        // Main Star Light (Blue/White distant star)
+        // 主恒星方向光（偏蓝白）
         const dirLight = new DirectionalLight("dirLight", new Vector3(-1, -2, -1), this.scene);
         dirLight.position = new Vector3(20, 40, 20);
         dirLight.diffuse = new Color3(0.8, 0.8, 1.0);
         dirLight.specular = new Color3(1.0, 1.0, 1.0);
         dirLight.intensity = 1.2;
 
-        // Secondary Light (Nebula Glow - Purple/Pink from opposite side)
+        // 次级光（星云辉光，紫粉色，来自相对方向）
         const rimLight = new DirectionalLight("rimLight", new Vector3(1, -0.5, 1), this.scene);
         rimLight.diffuse = new Color3(0.6, 0.2, 0.8);
         rimLight.intensity = 0.5;
 
-        // Shadows
+        // 阴影
         if (Config.scene.shadows && Config.scene.shadows.enabled) {
             const shadowConfig = Config.scene.shadows;
             const shadowGenerator = new ShadowGenerator(shadowConfig.size, dirLight);
@@ -60,11 +75,13 @@ export class SagittariusScene {
         }
     }
 
+    /**
+     * 创建外星地面并应用着色器与物理
+     */
     createAlienGround() {
-        // 3. Alien Ground
         const ground = MeshBuilder.CreateGround("ground", { width: 200, height: 200, subdivisions: 50 }, this.scene);
         
-        // Custom Ground Shader
+        // 自定义地面着色器
         Effect.ShadersStore["alienGroundVertexShader"] = `
             precision highp float;
             attribute vec3 position;
@@ -152,7 +169,7 @@ export class SagittariusScene {
         // Physics
         new PhysicsAggregate(ground, PhysicsShapeType.BOX, { mass: 0, friction: 0.5, restitution: 0.1 }, this.scene);
 
-        // 4. Axes (Optional)
+        // 坐标轴（可选）
         if (Config.scene.showAxes) {
             const axisX = MeshBuilder.CreateLines("axisX", { points: [Vector3.Zero(), new Vector3(5, 0, 0)] }, this.scene);
             axisX.color = new Color3(1, 0, 0);
@@ -163,6 +180,9 @@ export class SagittariusScene {
         }
     }
 
+    /**
+     * 创建程序化太空天空盒
+     */
     createCosmicSky() {
         Effect.ShadersStore["skyBoxVertexShader"] = `
             precision highp float;
@@ -277,20 +297,23 @@ export class SagittariusScene {
         });
     }
 
+    /**
+     * 创建场景物体：小行星带、星门与巨行星（按配置）
+     */
     createSceneObjects() {
-        // 5. Asteroid Belt
+        // 小行星带
         if (SagittariusSceneConfig.asteroids && SagittariusSceneConfig.asteroids.enabled) {
             const ac = SagittariusSceneConfig.asteroids;
             new AsteroidBelt(this.scene, ac.count, ac.radius, ac.width);
         }
 
-        // Create Stargate
+        // 星门
         if (SagittariusSceneConfig.stargate && SagittariusSceneConfig.stargate.enabled) {
             const pos = SagittariusSceneConfig.stargate.position;
             new Stargate(this.scene, new Vector3(pos.x, pos.y, pos.z));
         }
 
-        // Create Giant Planet
+        // 巨行星
         if (SagittariusSceneConfig.giantPlanet && SagittariusSceneConfig.giantPlanet.enabled) {
             const gp = SagittariusSceneConfig.giantPlanet;
             new GiantPlanet(this.scene, new Vector3(gp.position.x, gp.position.y, gp.position.z), gp.scale);

@@ -1,6 +1,16 @@
 import { MeshBuilder, Vector3, StandardMaterial, Color3, TransformNode, ShaderMaterial, Effect, Texture, Animation, Color4 } from "@babylonjs/core";
 
+/**
+ * 巨行星
+ * 使用着色器生成气态行星与环系统
+ */
 export class GiantPlanet {
+    /**
+     * 构造巨行星
+     * @param {Scene} scene 场景实例
+     * @param {Vector3} position 位置
+     * @param {number} scale 缩放（半径）
+     */
     constructor(scene, position, scale) {
         this.scene = scene;
         this.root = new TransformNode("planetRoot", scene);
@@ -11,8 +21,11 @@ export class GiantPlanet {
         this.createRings();
     }
 
+    /**
+     * 创建气态行星球体与流动条纹着色器
+     */
     createPlanet() {
-        // Custom Shader for Gas Giant
+        // 气态行星自定义着色器
         Effect.ShadersStore["gasGiantVertexShader"] = `
             precision highp float;
             attribute vec3 position;
@@ -74,8 +87,7 @@ export class GiantPlanet {
                 vec3 color = mix(col2, col1, pattern);
                 color = mix(color, col3, smoothstep(0.4, 0.6, pattern));
                 
-                // Lighting (Fake)
-                // Simple rim lighting or directional
+        // 简易光照（模拟）
                 vec3 normal = normalize(vPosition);
                 float light = dot(normal, normalize(vec3(1.0, 0.5, 1.0))); // Sun direction
                 light = max(0.05, light); // Ambient
@@ -107,14 +119,17 @@ export class GiantPlanet {
         });
     }
 
+    /**
+     * 创建行星环几何与着色器
+     */
     createRings() {
-        // Ring Geometry
+        // 环几何
         const rings = MeshBuilder.CreateDisc("planetRings", { radius: 1.2, tessellation: 64 }, this.scene);
         rings.parent = this.root;
         rings.rotation.x = Math.PI / 2.2; // Tilted
         rings.scaling = new Vector3(1, 1, 1); // Flattened handled by Disc
 
-        // Custom Ring Shader
+        // 自定义行星环着色器
         Effect.ShadersStore["planetRingFragmentShader"] = `
             precision highp float;
             varying vec2 vUV;

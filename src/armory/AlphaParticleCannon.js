@@ -1,6 +1,14 @@
 import { MeshBuilder, Vector3, StandardMaterial, Color3, TransformNode, Animation, Scalar, ParticleSystem, Texture, Color4, Engine, PointLight, DynamicTexture, Mesh } from "@babylonjs/core";
 import { AdvancedDynamicTexture, TextBlock } from "@babylonjs/gui";
 
+/**
+ * 生成阿尔法粒子炮拾取物
+ * 创建武器视觉模型、地面光环与粒子、名称标签与漂浮动画，并挂载拾取元数据
+ * @param {Scene} scene 场景实例
+ * @param {Vector3} position 生成位置
+ * @param {any} player 玩家对象（用于交互）
+ * @returns {TransformNode} 武器根节点
+ */
 export function spawnAlphaParticleCannon(scene, position, player) {
     const root = new TransformNode("worldWeaponRoot", scene);
     root.position = position.clone();

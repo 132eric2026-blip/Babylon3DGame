@@ -1,3 +1,7 @@
+/**
+ * 默认场景配置
+ * 控制马生成、地面颜色、光照强度与装饰开关等
+ */
 export const DefaultSceneConfig = {
     horseEnabled: false, // 是否生成马
     groundColor: { r: 0.2, g: 0.2, b: 0.2 },
