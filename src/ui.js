@@ -3,6 +3,8 @@ import { AdvancedDynamicTexture, TextBlock, Control } from "@babylonjs/gui";
 export function setupUI(scene, player) {
     // --- GUI (FPS) ---
     const advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("UI");
+    // Set LayerMask to 0x20000000 (MASK_UI) to be visible only to UI Camera and avoid Bloom
+    advancedTexture.layer.layerMask = 0x20000000;
 
     // FPS Counter
     const fpsText = new TextBlock();
