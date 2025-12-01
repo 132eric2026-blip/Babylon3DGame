@@ -1275,28 +1275,7 @@ export class Player {
             bulletLight.range = 8;
             bulletData.light = bulletLight; // Store for cleanup
 
-            // 3. Rotating Rune/Clock Aura (Mesh attached to bullet)
-            const auraMesh = MeshBuilder.CreateDisc("timeAura", { radius: 0.3, tessellation: 32 }, this.scene);
-            auraMesh.parent = bulletMesh;
-            auraMesh.rotation.x = Math.PI / 2; // Face forward
-            auraMesh.position.y = -0.2; // Slightly behind tip
-
-            const auraMat = new StandardMaterial("auraMat", this.scene);
-            auraMat.diffuseColor = new Color3(0, 0, 0);
-            auraMat.emissiveColor = new Color3(1.0, 0.8, 0.0);
-            auraMat.alpha = 0.8;
-            // Use a texture or noise for the aura
-            const auraTexture = new Texture("https://www.babylonjs-playground.com/textures/flare.png", this.scene);
-            auraMat.opacityTexture = auraTexture;
-            auraMat.emissiveTexture = auraTexture;
-            auraMat.disableLighting = true;
-            auraMesh.material = auraMat;
-
-            // Animation for Aura Rotation
-            const spinAnim = new Animation("spin", "rotation.z", 60, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CYCLE);
-            spinAnim.setKeys([{ frame: 0, value: 0 }, { frame: 30, value: Math.PI * 2 }]);
-            bulletMesh.animations.push(spinAnim);
-            this.scene.beginAnimation(bulletMesh, 0, 30, true);
+            // 3. Rotating Rune/Clock Aura (Removed based on user feedback)
 
             // 4. TrailMesh: Time Distortion (Golden Trail)
             const timeTrail = new TrailMesh("timeTrail", bulletMesh, this.scene, 0.3, 30, true);

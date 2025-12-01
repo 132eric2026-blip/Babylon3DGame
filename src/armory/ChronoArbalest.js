@@ -124,56 +124,8 @@ export function spawnChronoArbalest(scene, position, player) {
     gunVisuals.parent = root;
     gunVisuals.rotation.x = Math.PI / 2; // 竖直放置
 
-    // === 2. 时钟光环 (地面) ===
-    const aura = MeshBuilder.CreateGround("clockAura", { width: 3, height: 3 }, scene);
-    aura.parent = root;
-    aura.position.y = 0.02;
-
-    const auraMat = new StandardMaterial("clockAuraMat", scene);
-    auraMat.diffuseColor = new Color3(0, 0, 0);
-    auraMat.emissiveColor = new Color3(1.0, 0.8, 0.4); // 金色
-
-    // 绘制时钟表盘纹理
-    const texture = new DynamicTexture("clockTexture", 512, scene, true);
-    const ctx = texture.getContext();
-    const cx = 256, cy = 256;
-
-    ctx.clearRect(0, 0, 512, 512);
-
-    // 外圈
-    ctx.strokeStyle = "rgba(255, 200, 100, 0.8)";
-    ctx.lineWidth = 10;
-    ctx.beginPath();
-    ctx.arc(cx, cy, 200, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // 刻度
-    for (let i = 0; i < 12; i++) {
-        const angle = (i / 12) * Math.PI * 2;
-        const x1 = cx + Math.cos(angle) * 180;
-        const y1 = cy + Math.sin(angle) * 180;
-        const x2 = cx + Math.cos(angle) * 200;
-        const y2 = cy + Math.sin(angle) * 200;
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-    }
-
-    // 罗马数字 (简化为线条)
-
-    texture.update();
-
-    auraMat.diffuseTexture = texture;
-    auraMat.opacityTexture = texture;
-    auraMat.disableLighting = true;
-    aura.material = auraMat;
-
-    // 光环旋转 (像秒针一样跳动?) 不，平滑旋转吧
-    const auraAnim = new Animation("auraAnim", "rotation.y", 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CYCLE);
-    auraAnim.setKeys([{ frame: 0, value: 0 }, { frame: 600, value: Math.PI * 2 }]); // 慢速旋转
-    aura.animations.push(auraAnim);
-    scene.beginAnimation(aura, 0, 600, true);
+    // === 2. 时钟光环 (已移除) ===
+    // 用户反馈像雨伞，故移除
 
     // === 3. 蒸汽粒子 ===
     const steamPS = new ParticleSystem("steamPS", 100, scene);
