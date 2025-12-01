@@ -10,18 +10,8 @@ import { createQuantumAnnihilatorMesh, spawnQuantumAnnihilator } from "./armory/
 import { createEmeraldViperMesh, spawnEmeraldViper } from "./armory/EmeraldViper";
 import { createChronoArbalestMesh, spawnChronoArbalest } from "./armory/ChronoArbalest";
 import { createThunderArcGunMesh, spawnThunderArcGun } from "./armory/ThunderArcGun";
-import { BoxMan } from "./characters/boxMan/BoxMan";
 
-/**
- * 玩家角色
- * 负责玩家模型、物理、输入、武器与特效的管理与更新
- */
 export class Player {
-    /**
-     * 构造玩家
-     * @param {Scene} scene 场景实例
-     * @param {ArcRotateCamera|Camera} camera 相机实例
-     */
     constructor(scene, camera) {
         this.scene = scene;
         this.camera = camera;
@@ -44,6 +34,7 @@ export class Player {
         this.mountedHorse = null;
 
         this.createPlayerMesh();
+        this.setupAttackEffect();
         this.setupGun();
 
         // 创建护盾
@@ -54,58 +45,344 @@ export class Player {
         this.registerBeforeRender();
     }
 
-    /**
-     * 创建玩家可视网格与身体结构
-     */
     createPlayerMesh() {
         // 玩家容器
         this.mesh = MeshBuilder.CreateCapsule("player", { height: 2, radius: 0.5 }, this.scene);
         this.mesh.position.y = 1;
         this.mesh.visibility = Config.player.showCollider ? 0.5 : 0; // 根据配置显示或隐藏胶囊体
 
-        // 实例化角色
-        this.character = new BoxMan(this.scene, this.mesh);
-        
-        // 映射引用以保持兼容性
-        this.modelRoot = this.character.modelRoot;
-        this.rightShoulder = this.character.rightShoulder;
-        this.leftShoulder = this.character.leftShoulder;
-        this.rightArm = this.character.rightArm; // 确保 setupGun 能找到
-        
-        // 移除旧的引用初始化
-        this.booster = this.character.booster;
-        this.boosterNozzleL = this.character.boosterNozzleL;
-        this.boosterNozzleR = this.character.boosterNozzleR;
-        this.flameMat = this.character.flameMat;
-        this.flameRoots = this.character.flameRoots;
-        
-        // 腿部引用 (用于 updateMovement 兼容，虽然逻辑已移至 BoxMan)
-        this.leftHip = this.character.leftHip;
-        this.rightHip = this.character.rightHip;
+        // 材质
+        const skinMat = new StandardMaterial("skinMat", this.scene);
+        skinMat.diffuseColor = new Color3(1, 0.8, 0.6);
+        skinMat.specularColor = new Color3(0, 0, 0); // 去掉高光
+
+        const hairMat = new StandardMaterial("hairMat", this.scene);
+        hairMat.diffuseColor = new Color3(0.4, 0.2, 0.1); // 棕色头发
+        hairMat.specularColor = new Color3(0, 0, 0); // 去掉高光
+
+        const clothesMat = new StandardMaterial("clothesMat", this.scene);
+        clothesMat.diffuseColor = new Color3(1, 0.4, 0.6); // 粉色衬衫
+        clothesMat.specularColor = new Color3(0, 0, 0); // 去掉高光
+
+        const pantsMat = new StandardMaterial("pantsMat", this.scene);
+        pantsMat.diffuseColor = new Color3(0.2, 0.2, 0.8); // 蓝色裤子
+        pantsMat.specularColor = new Color3(0, 0, 0); // 去掉高光
+
+        const eyeMat = new StandardMaterial("eyeMat", this.scene);
+        eyeMat.diffuseColor = new Color3(0, 0, 0);
+        eyeMat.specularColor = new Color3(0, 0, 0); // 去掉高光
+
+        const mouthMat = new StandardMaterial("mouthMat", this.scene);
+        mouthMat.diffuseColor = new Color3(0.8, 0.2, 0.2);
+        mouthMat.specularColor = new Color3(0, 0, 0); // 去掉高光
+
+        // 身体容器，用于旋转
+        this.modelRoot = new MeshBuilder.CreateBox("modelRoot", { size: 0.1 }, this.scene);
+        this.modelRoot.isVisible = false;
+        this.modelRoot.parent = this.mesh;
+        this.modelRoot.position.y = -1.2; // 调整模型在胶囊体中的位置 (腿底是0.2, 所以 -1.2 + 0.2 = -1, 刚好到底)
+
+        // 头部
+        const head = MeshBuilder.CreateBox("head", { size: 0.5 }, this.scene);
+        head.material = skinMat;
+        head.parent = this.modelRoot;
+        head.position.y = 1.75;
+
+        // 头发
+        const hairTop = MeshBuilder.CreateBox("hairTop", { width: 0.55, height: 0.15, depth: 0.55 }, this.scene);
+        hairTop.material = hairMat;
+        hairTop.parent = head;
+        hairTop.position.y = 0.25;
+
+        const hairBack = MeshBuilder.CreateBox("hairBack", { width: 0.55, height: 0.6, depth: 0.15 }, this.scene);
+        hairBack.material = hairMat;
+        hairBack.parent = head;
+        hairBack.position.y = -0.1;
+        hairBack.position.z = -0.22;
+
+        // 眼睛
+        const leftEye = MeshBuilder.CreateBox("leftEye", { width: 0.08, height: 0.08, depth: 0.02 }, this.scene);
+        leftEye.material = eyeMat;
+        leftEye.parent = head;
+        leftEye.position.z = 0.251;
+        leftEye.position.x = -0.12;
+        leftEye.position.y = 0;
+
+        const rightEye = MeshBuilder.CreateBox("rightEye", { width: 0.08, height: 0.08, depth: 0.02 }, this.scene);
+        rightEye.material = eyeMat;
+        rightEye.parent = head;
+        rightEye.position.z = 0.251;
+        rightEye.position.x = 0.12;
+        rightEye.position.y = 0;
+
+        // 鼻子
+        const nose = MeshBuilder.CreateBox("nose", { width: 0.06, height: 0.06, depth: 0.02 }, this.scene);
+        nose.material = skinMat; // 与皮肤相同但突出
+        nose.parent = head;
+        nose.position.z = 0.26;
+        nose.position.y = -0.08;
+
+        // 嘴巴
+        const mouth = MeshBuilder.CreateBox("mouth", { width: 0.15, height: 0.04, depth: 0.02 }, this.scene);
+        mouth.material = mouthMat;
+        mouth.parent = head;
+        mouth.position.z = 0.251;
+        mouth.position.y = -0.18;
+
+        // 身体
+        const body = MeshBuilder.CreateBox("body", { width: 0.5, height: 0.6, depth: 0.25 }, this.scene);
+        body.material = clothesMat;
+        body.parent = this.modelRoot;
+        body.position.y = 1.2;
+
+        const boosterMat = new StandardMaterial("boosterMat", this.scene);
+        boosterMat.diffuseColor = new Color3(0.6, 0.6, 0.6);
+        boosterMat.specularColor = new Color3(0, 0, 0);
+        this.booster = new TransformNode("boosterRoot", this.scene);
+        this.booster.parent = body;
+        this.booster.position = new Vector3(0, 0.05, -0.29);
+
+        const housing = MeshBuilder.CreateBox("boosterHousing", { width: 0.6, height: 0.25, depth: 0.2 }, this.scene);
+        housing.material = boosterMat;
+        housing.parent = this.booster;
+        housing.position = new Vector3(0, 0.1, 0);
+
+        const pipeHeight = 0.25;
+        const pipeY = -0.15;
+
+        const pipeL = MeshBuilder.CreateCylinder("boosterPipeL", { diameter: 0.12, height: pipeHeight }, this.scene);
+        pipeL.material = boosterMat;
+        pipeL.parent = this.booster;
+        pipeL.position = new Vector3(-0.15, pipeY, 0);
+
+        const pipeR = MeshBuilder.CreateCylinder("boosterPipeR", { diameter: 0.12, height: pipeHeight }, this.scene);
+        pipeR.material = boosterMat;
+        pipeR.parent = this.booster;
+        pipeR.position = new Vector3(0.15, pipeY, 0);
+
+        // 喷嘴细节
+        const nozzleHeight = 0.05;
+        const nozzleDiameter = 0.14;
+
+        const nozzleMeshL = MeshBuilder.CreateCylinder("nozzleMeshL", { diameter: nozzleDiameter, height: nozzleHeight }, this.scene);
+        nozzleMeshL.material = boosterMat;
+        nozzleMeshL.parent = pipeL;
+        nozzleMeshL.position.y = -pipeHeight / 2 - nozzleHeight / 2;
+
+        const nozzleMeshR = MeshBuilder.CreateCylinder("nozzleMeshR", { diameter: nozzleDiameter, height: nozzleHeight }, this.scene);
+        nozzleMeshR.material = boosterMat;
+        nozzleMeshR.parent = pipeR;
+        nozzleMeshR.position.y = -pipeHeight / 2 - nozzleHeight / 2;
+
+        const nozzleL = new TransformNode("boosterNozzleL", this.scene);
+        nozzleL.parent = nozzleMeshL;
+        nozzleL.position = new Vector3(0, -nozzleHeight / 2, 0);
+        this.boosterNozzleL = nozzleL;
+
+        const nozzleR = new TransformNode("boosterNozzleR", this.scene);
+        nozzleR.parent = nozzleMeshR;
+        nozzleR.position = new Vector3(0, -nozzleHeight / 2, 0);
+        this.boosterNozzleR = nozzleR;
+
+        // --- 替换为：体积光束（Volumetric Beam）方案 ---
+        // 1. 生成光束纹理 (线性渐变 + 噪声线条)
+        const canvas = document.createElement("canvas");
+        canvas.width = 64; canvas.height = 128;
+        const ctx = canvas.getContext("2d");
+
+        // 背景渐变 (白 -> 黄 -> 橙 -> 红 -> 透明) - 更像真实火焰的颜色
+        const grad = ctx.createLinearGradient(0, 0, 0, 128);
+        grad.addColorStop(0, "rgba(255, 255, 255, 1)");       // 核心白热
+        grad.addColorStop(0.1, "rgba(255, 240, 100, 0.95)");  // 内焰亮黄
+        grad.addColorStop(0.3, "rgba(255, 140, 0, 0.9)");     // 中焰橙红
+        grad.addColorStop(0.6, "rgba(200, 40, 0, 0.7)");      // 外焰深红
+        grad.addColorStop(1, "rgba(100, 0, 0, 0)");           // 尾部烟雾/消散
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 64, 128);
+
+        // 添加随机的高亮线条 (模拟喷射气流感)
+        ctx.globalCompositeOperation = "lighter";
+        ctx.fillStyle = "rgba(255, 255, 200, 0.4)"; // 线条也带点暖色
+        for (let i = 0; i < 15; i++) {
+            const x = Math.random() * 64;
+            const w = Math.random() * 8 + 2;
+            ctx.fillRect(x, 0, w, 128);
+        }
+
+        const texUrl = canvas.toDataURL();
+        const flameTex = Texture.CreateFromBase64String(texUrl, "flame_beam.png", this.scene);
+        flameTex.hasAlpha = true;
+        flameTex.vScale = 1.0;
+
+        // 2. 创建发光材质
+        const flameMat = new StandardMaterial("flameMat", this.scene);
+        flameMat.diffuseTexture = flameTex;
+        flameMat.emissiveTexture = flameTex;
+        flameMat.opacityTexture = flameTex; // 使用同样的纹理作为透明通道
+        flameMat.emissiveColor = new Color3(1.0, 0.5, 0.0); // 强调橙红色发光
+        flameMat.disableLighting = true; // 自发光，不受光照影响
+        flameMat.alphaMode = Engine.ALPHA_ADD; // 叠加模式，更亮
+        flameMat.backFaceCulling = false; // 双面可见
+
+        this.flameMat = flameMat; // 保存引用以便更新UV
+
+        // 3. 创建光束网格 (Cylinder)
+        const createFlameMesh = (parent) => {
+            const root = new TransformNode("flameRoot", this.scene);
+            root.parent = parent;
+            root.position = new Vector3(0, 0, 0);
+
+            // 创建倒圆锥体/圆柱体
+            const mesh = MeshBuilder.CreateCylinder("flameMesh", {
+                height: 0.8,
+                diameterTop: 0.16,
+                diameterBottom: 0.02,
+                tessellation: 16
+            }, this.scene);
+
+            mesh.material = flameMat;
+            mesh.parent = root;
+            // 向下偏移一半高度，使顶部对齐 root (即对齐喷嘴)
+            mesh.position.y = -0.4;
+
+            // 初始缩放为0 (隐藏)
+            root.scaling = new Vector3(0, 0, 0);
+            return root;
+        };
+
+        this.flameRootL = createFlameMesh(this.boosterNozzleL);
+        this.flameRootR = createFlameMesh(this.boosterNozzleR);
+        this.flameRoots = [this.flameRootL, this.flameRootR];
+
+        // 移除旧的粒子系统列表引用
+        this.boosterPSList = null;
+
+        // 手臂参数
+        const armWidth = 0.15;
+        const armHeight = 0.6;
+        const armDepth = 0.15;
+        const shoulderY = 1.5; // 肩膀高度 (身体顶部在 1.2 + 0.3 = 1.5)
+        const armOffsetX = 0.35;
+
+        // 左肩关节
+        this.leftShoulder = MeshBuilder.CreateBox("leftShoulder", { size: 0.01 }, this.scene);
+        this.leftShoulder.isVisible = false;
+        this.leftShoulder.parent = this.modelRoot;
+        this.leftShoulder.position = new Vector3(-armOffsetX, shoulderY, 0);
+
+        // 左臂 (挂在左肩下)
+        const leftArm = MeshBuilder.CreateBox("leftArm", { width: armWidth, height: armHeight, depth: armDepth }, this.scene);
+        leftArm.material = skinMat;
+        leftArm.parent = this.leftShoulder;
+        leftArm.position.y = -armHeight / 2; // 向下偏移一半高度
+
+        // 右肩关节
+        this.rightShoulder = MeshBuilder.CreateBox("rightShoulder", { size: 0.01 }, this.scene);
+        this.rightShoulder.isVisible = false;
+        this.rightShoulder.parent = this.modelRoot;
+        this.rightShoulder.position = new Vector3(armOffsetX, shoulderY, 0);
+
+        // 右臂
+        const rightArm = MeshBuilder.CreateBox("rightArm", { width: armWidth, height: armHeight, depth: armDepth }, this.scene);
+        rightArm.material = skinMat;
+        rightArm.parent = this.rightShoulder;
+        rightArm.position.y = -armHeight / 2;
+
+        // 腿部参数
+        const legWidth = 0.2;
+        const legHeight = 0.7;
+        const legDepth = 0.2;
+        const hipY = 0.9; // 臀部高度 (身体底部在 1.2 - 0.3 = 0.9)
+        const legOffsetX = 0.12;
+
+        // 左髋关节
+        this.leftHip = MeshBuilder.CreateBox("leftHip", { size: 0.01 }, this.scene);
+        this.leftHip.isVisible = false;
+        this.leftHip.parent = this.modelRoot;
+        this.leftHip.position = new Vector3(-legOffsetX, hipY, 0);
+
+        // 左腿
+        const leftLeg = MeshBuilder.CreateBox("leftLeg", { width: legWidth, height: legHeight, depth: legDepth }, this.scene);
+        leftLeg.material = pantsMat;
+        leftLeg.parent = this.leftHip;
+        leftLeg.position.y = -legHeight / 2;
+
+        // 右髋关节
+        this.rightHip = MeshBuilder.CreateBox("rightHip", { size: 0.01 }, this.scene);
+        this.rightHip.isVisible = false;
+        this.rightHip.parent = this.modelRoot;
+        this.rightHip.position = new Vector3(legOffsetX, hipY, 0);
+
+        // 右腿
+        const rightLeg = MeshBuilder.CreateBox("rightLeg", { width: legWidth, height: legHeight, depth: legDepth }, this.scene);
+        rightLeg.material = pantsMat;
+        rightLeg.parent = this.rightHip;
+        rightLeg.position.y = -legHeight / 2;
     }
 
-    /**
-     * 触发一次近战攻击
-     */
+    setupAttackEffect() {
+        // 攻击状态
+        this.isAttacking = false;
+        this.attackTime = 0;
+        this.attackDuration = 0.4; // 攻击持续时间 0.4秒
+
+        // 攻击特效挂点 (手部)
+        this.attackRef = new TransformNode("attackRef", this.scene);
+        this.attackRef.parent = this.rightArm;
+        this.attackRef.position = new Vector3(0, -0.3, 0); // 手部末端位置
+
+        // 拖尾特效 - 增加直径和长度，使其更明显
+        this.attackTrail = new TrailMesh("attackTrail", this.attackRef, this.scene, 0.2, 30, true);
+
+        // 拖尾材质 - 酷炫的光效
+        const trailMat = new StandardMaterial("trailMat", this.scene);
+        trailMat.emissiveColor = new Color3(0.2, 0.8, 1); // 青蓝色光效，更有科技感
+        trailMat.diffuseColor = new Color3(0, 0, 0);
+        trailMat.specularColor = new Color3(0, 0, 0);
+        trailMat.alpha = 0.8;
+        trailMat.disableLighting = true;
+
+        this.attackTrail.material = trailMat;
+        this.attackTrail.isVisible = false; // 初始隐藏
+    }
+
     attack() {
-        if (this.character) {
-            this.character.attack();
-        }
+        if (this.isAttacking) return;
+        this.isAttacking = true;
+        this.attackTime = 0;
+        this.attackTrail.isVisible = true;
+        this.attackTrail.start();
     }
 
-    /**
-     * 更新近战攻击动画与状态
-     * @param {number} dt 帧间隔（秒）
-     */
     updateAttack(dt) {
-        if (this.character) {
-            this.character.updateAttack(dt);
+        if (!this.isAttacking) return;
+
+        this.attackTime += dt;
+        const progress = Math.min(this.attackTime / this.attackDuration, 1.0);
+
+        // 简单的挥砍动画曲线 (EaseOut)
+        const t = 1 - Math.pow(1 - progress, 3);
+
+        // 挥动动作: 右臂横向挥动
+        // 初始: 向后蓄力 (Rotation Y 约 -0.5)
+        // 结束: 向前挥过 (Rotation Y 约 2.8)
+        const startAngle = -0.8;
+        const endAngle = 2.8;
+        const currentAngle = startAngle + (endAngle - startAngle) * t;
+
+        // 覆盖右肩旋转
+        // x轴微调保持手臂水平或略斜
+        this.rightShoulder.rotation.x = -Math.PI / 2; // 手臂平举
+        this.rightShoulder.rotation.y = currentAngle;
+        this.rightShoulder.rotation.z = 0;
+
+        // 结束判定
+        if (progress >= 1.0) {
+            this.isAttacking = false;
+            this.attackTrail.isVisible = false;
         }
     }
 
-    /**
-     * 初始化枪械系统（挂点、枪口、粒子贴图、常驻枪口火焰等）
-     */
     setupGun() {
         this.currentWeapon = null;
         this.isHoldingGun = false;
@@ -144,10 +421,6 @@ export class Player {
         this.setGunVisibility(false);
     }
 
-    /**
-     * 切换并装备武器的视觉模型与枪口位置
-     * @param {string|null} weaponName 武器名称
-     */
     equipWeaponVisuals(weaponName) {
         // Dispose old model
         if (this.currentGunModel) {
@@ -274,10 +547,6 @@ export class Player {
         }
     }
 
-    /**
-     * 创建基础粒子纹理（星形光斑）
-     * @returns {Texture}
-     */
     createParticleTexture() {
         const canvas = document.createElement("canvas");
         canvas.width = 64; canvas.height = 64;
@@ -315,9 +584,6 @@ export class Player {
         return Texture.CreateFromBase64String(canvas.toDataURL(), "particleStar", this.scene);
     }
 
-    /**
-     * 初始化常驻枪口火焰粒子系统（发射时手动触发）
-     */
     setupMuzzleFlash() {
         if (this.muzzleFlashPS) {
             this.muzzleFlashPS.dispose();
@@ -356,28 +622,17 @@ export class Player {
         this.muzzleFlashPS = ps;
     }
 
-    /**
-     * 设置枪械可见性（通过缩放显示/隐藏）
-     * @param {boolean} visible 是否可见
-     */
     setGunVisibility(visible) {
         const scale = visible ? 1 : 0;
         this.gunRoot.scaling = new Vector3(scale, scale, scale);
     }
 
-    /**
-     * 切换持枪状态（如已持有则丢弃）
-     */
     toggleGun() {
         if (this.currentWeapon) {
             this.dropWeapon();
         }
     }
 
-    /**
-     * 拾取武器
-     * @param {string} weaponName 武器名称
-     */
     pickupWeapon(weaponName) {
         if (this.currentWeapon) return;
         this.currentWeapon = weaponName || "AlphaParticleCannon";
@@ -389,9 +644,6 @@ export class Player {
         this.setGunVisibility(true);
     }
 
-    /**
-     * 丢弃当前武器并在前方生成拾取物
-     */
     dropWeapon() {
         if (!this.currentWeapon) return;
 
@@ -428,9 +680,6 @@ export class Player {
         this.setGunVisibility(false);
     }
 
-    /**
-     * 射击：根据武器类型创建子弹/光束并触发枪口火焰
-     */
     shoot() {
         if (!this.isHoldingGun) return;
 
@@ -1136,10 +1385,6 @@ export class Player {
         this.bullets.push(bulletData);
     }
 
-    /**
-     * 更新子弹生命周期与运动，处理销毁与特效清理
-     * @param {number} dt 帧间隔（秒）
-     */
     updateBullets(dt) {
         for (let i = this.bullets.length - 1; i >= 0; i--) {
             const b = this.bullets[i];
@@ -1184,9 +1429,6 @@ export class Player {
         }
     }
 
-    /**
-     * 启动持续光束武器（天蝎/雷霆），创建光束网格、材质与粒子
-     */
     startBeam() {
         if (this.isBeamActive) return;
         this.isBeamActive = true;
@@ -1500,9 +1742,6 @@ export class Player {
         }
     }
 
-    /**
-     * 停止光束武器，关闭/销毁相关特效与光源
-     */
     stopBeam() {
         if (!this.isBeamActive) return;
         this.isBeamActive = false;
@@ -1525,10 +1764,6 @@ export class Player {
         if (this.beamGlow) { this.beamGlow.dispose(); this.beamGlow = null; }
     }
 
-    /**
-     * 更新光束长度、命中点、光源与着色器参数
-     * @param {number} dt 帧间隔（秒）
-     */
     updateBeam(dt) {
         if (!this.isBeamActive) return;
         if (!this.beamMesh) return;
@@ -1644,21 +1879,25 @@ export class Player {
     }
 
 
-    /**
-     * 更新持枪姿势（双臂姿态等）
-     */
     updateGunPose() {
         if (!this.isHoldingGun) return;
         if (this.isAttacking) return;
 
-        if (this.character) {
-            this.character.updateGunPose();
-        }
+        // Override arm rotations
+        // Right arm aims forward
+        this.rightShoulder.rotation.x = -Math.PI / 2;
+        this.rightShoulder.rotation.y = 0;
+        this.rightShoulder.rotation.z = 0;
+
+        // Left arm holds the gun body
+        this.leftShoulder.rotation.x = -Math.PI / 2;
+        this.leftShoulder.rotation.y = 0.5; // Inward
+        this.leftShoulder.rotation.z = 0;
+
+        // Adjust left arm length/position if needed to match gun?
+        // Visual approximation is usually enough.
     }
 
-    /**
-     * 初始化玩家物理（胶囊体、锁转动等）
-     */
     setupPhysics() {
         // 胶囊体物理聚合体
         // mass: 1, friction: 0.2, restitution: 0
@@ -1670,9 +1909,6 @@ export class Player {
         });
     }
 
-    /**
-     * 注册输入事件（键盘与指针），处理移动、拾取、攻击与光束
-     */
     setupInputs() {
         this.scene.actionManager = this.scene.actionManager || new ActionManager(this.scene);
 
@@ -1766,9 +2002,6 @@ export class Player {
         });
     }
 
-    /**
-     * 尝试拾取最近的武器拾取物
-     */
     tryPickup() {
         const nodes = this.scene.transformNodes || [];
         let nearest = null;
@@ -1792,9 +2025,6 @@ export class Player {
         nearest.dispose();
     }
 
-    /**
-     * 注册每帧更新回调：运动、攻击、子弹、光束、自动拾取、持枪姿态
-     */
     registerBeforeRender() {
         this.scene.onBeforeRenderObservable.add(() => {
             const dt = this.scene.getEngine().getDeltaTime() / 1000;
@@ -1812,9 +2042,6 @@ export class Player {
         });
     }
 
-    /**
-     * 检查附近是否有可骑乘的马
-     */
     checkNearbyHorses() {
         // 简单的距离检查，对所有名为 "horseRoot" 的网格进行检测
         // 理想情况下我们应该有一个可交互对象列表，但现在先扫描场景
@@ -1882,15 +2109,225 @@ export class Player {
     }
 
     setRidingPose() {
-        if (this.character) {
-            this.character.setRidingPose();
-        }
+        // Sitting pose
+        this.modelRoot.rotationQuaternion = Quaternion.Identity();
+        this.modelRoot.position.y = -1.0;
+
+        // Legs straddle
+        this.leftHip.rotation.x = -1.5; // Sitting
+        this.leftHip.rotation.z = -0.5; // Spread
+        this.rightHip.rotation.x = -1.5;
+        this.rightHip.rotation.z = 0.5;
+
+        // Arms holding reins
+        this.leftShoulder.rotation.x = -0.8;
+        this.rightShoulder.rotation.x = -0.8;
     }
 
     resetPose() {
-        if (this.character) {
-            this.character.resetPose();
+        // Reset to default idle
+        this.modelRoot.position.y = -1.2;
+        this.leftHip.rotation.x = 0;
+        this.leftHip.rotation.z = 0;
+        this.rightHip.rotation.x = 0;
+        this.rightHip.rotation.z = 0;
+        this.leftShoulder.rotation.x = 0;
+        this.rightShoulder.rotation.x = 0;
+    }
+
+    updateMountedMovement() {
+        // Move the horse using Physics
+        if (!this.mountedHorse) return;
+
+        // Find the PhysicsAggregate of the horse
+        // Since we don't have direct access to the horse instance here easily,
+        // we can try to get the metadata or just check if the mesh has an aggregate.
+        // But wait, the aggregate is usually on the transform node or mesh.
+        // Let's assume mountedHorse has metadata.aggregate or we look it up.
+        // Actually, Babylon Havok plugin attaches body to the mesh.
+        // However, the `PhysicsAggregate` object is what we need.
+        // Usually it's stored on the mesh in some projects, or we can try to access it.
+        // Let's assume we can access physicsBody directly if we are lucky, 
+        // but Havok V2 uses PhysicsBody which is on the mesh? No, it's on the aggregate.
+
+        // Workaround: When mounting, store the horse's aggregate on the player
+        if (!this.horseAggregate) return;
+
+        const speed = 8.0; // Horse speed
+        const dt = this.scene.getEngine().getDeltaTime() / 1000;
+        let moveDir = new Vector3(0, 0, 0);
+
+        const cameraForward = this.camera.getForwardRay().direction;
+        cameraForward.y = 0;
+        cameraForward.normalize();
+        const cameraRight = Vector3.Cross(new Vector3(0, 1, 0), cameraForward);
+
+        if (this.inputMap["w"]) moveDir.addInPlace(cameraForward);
+        if (this.inputMap["s"]) moveDir.subtractInPlace(cameraForward);
+        if (this.inputMap["a"]) moveDir.subtractInPlace(cameraRight);
+        if (this.inputMap["d"]) moveDir.addInPlace(cameraRight);
+
+        // Align horse with camera forward when moving forward/backward, or general movement?
+        // User asked: "Horse rigid body direction should be consistent with camera direction."
+        // Usually this means if I press W, horse faces camera forward.
+        // If I press S, horse faces camera backward? Or still forward but moves back?
+        // Typically in TPS, "Forward" means Character Forward aligns with Camera Forward when moving forward.
+        // But if "consistent with camera direction" means the horse ALWAYS faces camera forward (strafe mode)?
+        // Or just when moving?
+        // Let's assume standard TPS control: When moving, rotate towards movement direction.
+        // BUT, if the user specifically asked for "consistent with camera direction", it might imply
+        // the horse should turn to look where the camera is looking, especially when pressing W.
+
+        // Let's refine:
+        // If user means "Horse Rotation = Camera Rotation" (Strafe mode):
+        // Then pressing A/D would strafe left/right.
+        // Let's try to interpret "direction consistent with camera".
+        // Most likely: Horse always faces the direction the camera is facing (Camera Forward), 
+        // regardless of movement direction (like in shooter mode or strafing).
+
+        // Let's implement Strafing logic for Horse Rotation:
+        const targetRotation = Math.atan2(cameraForward.x, cameraForward.z);
+        this.mountedHorse.rotationQuaternion = Quaternion.FromEulerAngles(0, targetRotation, 0);
+
+        if (moveDir.length() > 0.1) {
+            moveDir.normalize();
+
+            // Apply Velocity to Horse
+            // Keep existing Y velocity (gravity)
+            const currentVel = this.horseAggregate.body.getLinearVelocity();
+            this.horseAggregate.body.setLinearVelocity(new Vector3(
+                moveDir.x * speed,
+                currentVel.y,
+                moveDir.z * speed
+            ));
+
+            // Bobbing animation for horse/player
+            this.walkTime += dt * 12;
+            // Animate player bobbing on horse
+            this.mesh.position.y = 1.2 + Math.sin(this.walkTime) * 0.08;
+        } else {
+            // Stop horizontal movement, keep gravity
+            const currentVel = this.horseAggregate.body.getLinearVelocity();
+            this.horseAggregate.body.setLinearVelocity(new Vector3(0, currentVel.y, 0));
         }
+    }
+
+    isGrounded() {
+        // Raycast down to find ANY surface (ground, book, platform)
+        // Player height is 2, so center to bottom is 1.
+        // We cast a ray of length 1.1 to allow for small floating errors (epsilon).
+        const rayLength = 1.1;
+        const ray = new Ray(this.mesh.position, new Vector3(0, -1, 0), rayLength);
+
+        const pickInfo = this.scene.pickWithRay(ray, (mesh) => {
+            // Filter out player itself and its parts
+            return mesh !== this.mesh && !mesh.isDescendantOf(this.mesh);
+        });
+
+        // Also keep the Y=0 check just in case the ground mesh is missing or non-pickable
+        const minY = this.mesh.getBoundingInfo().boundingBox.minimumWorld.y;
+        return pickInfo.hit || (minY <= this._groundEpsilon);
+    }
+
+    tryJump() {
+        if (!this.mesh || !this.aggregate) return;
+        if (!this.isGrounded()) return;
+        const v = this.aggregate.body.getLinearVelocity();
+        const j = Config.player.jumpSpeed || 6.5;
+        this.aggregate.body.setLinearVelocity(new Vector3(v.x, j, v.z));
+    }
+
+    updateMovement() {
+        if (!this.mesh || !this.aggregate) return;
+
+        const baseSpeed = Config.player.speed;
+        const sprintMul = (Config.player.sprintMultiplier || 2);
+        const sprintSpeed = (Config.player.sprintSpeed || (baseSpeed * sprintMul));
+        const velocity = this.aggregate.body.getLinearVelocity();
+        const dtMs = this.scene.getEngine().getDeltaTime();
+
+        let moveDirection = new Vector3(0, 0, 0);
+        let isMoving = false;
+
+        // 获取相机的前方方向（忽略Y轴）
+    }
+
+    mountHorse(horseMesh) {
+        if (!horseMesh) return;
+        this.mountedHorse = horseMesh;
+
+        // Try to find the aggregate on the horse mesh metadata or via a global lookup if needed.
+        // In our case, we created the aggregate in horse.js but didn't attach it to mesh.metadata.
+        // BUT, we can just look for a way to get it.
+        // Actually, we need to pass the Horse instance or store the aggregate on the mesh.
+        // Let's assume we can hack it: check scene physics bodies?
+        // Better way: Let's modify Horse.js to attach aggregate to mesh.metadata.
+        // For now, let's assume we did that (I will do it in next step).
+        this.horseAggregate = horseMesh.metadata?.aggregate;
+
+        // Disable player physics temporarily or make it kinematic to attach?
+        // Easier: Make player child of horse? 
+        // But player has physics body. 
+        // Strategy: Disable player physics, parent mesh to horse, reset local position.
+
+        if (this.aggregate) {
+            this.aggregate.body.disablePreStep = false; // Ensure we can modify
+            this.aggregate.dispose(); // Remove physics body while riding
+            this.aggregate = null;
+        }
+
+        this.mesh.setParent(horseMesh);
+        this.mesh.position = new Vector3(0, 1.2, 0); // Sit on top
+        this.mesh.rotationQuaternion = Quaternion.Identity();
+
+        // Set riding pose
+        this.setRidingPose();
+    }
+
+    dismountHorse() {
+        if (!this.mountedHorse) return;
+
+        const horsePos = this.mountedHorse.absolutePosition;
+
+        this.mesh.setParent(null);
+        this.mountedHorse = null;
+
+        // Place player next to horse
+        this.mesh.position = horsePos.add(new Vector3(1.5, 0, 0));
+        this.mesh.rotationQuaternion = Quaternion.Identity();
+
+        // Re-enable physics
+        this.setupPhysics();
+
+        // Reset pose
+        this.resetPose();
+    }
+
+    setRidingPose() {
+        // Sitting pose
+        this.modelRoot.rotationQuaternion = Quaternion.Identity();
+        this.modelRoot.position.y = -1.0;
+
+        // Legs straddle
+        this.leftHip.rotation.x = -1.5; // Sitting
+        this.leftHip.rotation.z = -0.5; // Spread
+        this.rightHip.rotation.x = -1.5;
+        this.rightHip.rotation.z = 0.5;
+
+        // Arms holding reins
+        this.leftShoulder.rotation.x = -0.8;
+        this.rightShoulder.rotation.x = -0.8;
+    }
+
+    resetPose() {
+        // Reset to default idle
+        this.modelRoot.position.y = -1.2;
+        this.leftHip.rotation.x = 0;
+        this.leftHip.rotation.z = 0;
+        this.rightHip.rotation.x = 0;
+        this.rightHip.rotation.z = 0;
+        this.leftShoulder.rotation.x = 0;
+        this.rightShoulder.rotation.x = 0;
     }
 
     updateMountedMovement() {
@@ -1928,9 +2365,6 @@ export class Player {
         // 实现骑马的横向移动逻辑：
         const targetRotation = Math.atan2(cameraForward.x, cameraForward.z);
         this.mountedHorse.rotationQuaternion = Quaternion.FromEulerAngles(0, targetRotation, 0);
-
-        // Lock angular velocity to prevent physics rotation drift
-        this.horseAggregate.body.setAngularVelocity(Vector3.Zero());
 
         if (moveDir.length() > 0.1) {
             moveDir.normalize();
@@ -1972,10 +2406,6 @@ export class Player {
         return pickInfo.hit || (minY <= this._groundEpsilon);
     }
 
-    /**
-     * 获取玩家下方地面高度（射线拾取）
-     * @returns {number}
-     */
     getGroundHeight() {
         const ray = new Ray(this.mesh.position.add(new Vector3(0, 5, 0)), new Vector3(0, -1, 0), 20);
         const pickInfo = this.scene.pickWithRay(ray, (mesh) => {
@@ -1987,12 +2417,6 @@ export class Player {
         return 0;
     }
 
-    /**
-     * 计算悬浮上/下垂直速度（高度保持/按住上升）
-     * @param {number} dtMs 帧间隔（毫秒）
-     * @param {number} currentVy 当前垂直速度
-     * @returns {number} 新垂直速度
-     */
     computeHoverVy(dtMs, currentVy) {
         // 按住空格持续上升
         if (this.ascendHeld) {
@@ -2024,9 +2448,6 @@ export class Player {
         return vy;
     }
 
-    /**
-     * 尝试跳跃（仅在着地时）
-     */
     tryJump() {
         if (!this.mesh || !this.aggregate) return;
         if (!this.isGrounded()) return;
@@ -2035,10 +2456,8 @@ export class Player {
         this.aggregate.body.setLinearVelocity(new Vector3(v.x, j, v.z));
     }
 
-    /**
-     * 更新玩家移动与姿态（行走/冲刺/悬浮/空中动画等）
-     */
     updateMovement() {
+
         if (!this.mesh || !this.aggregate) return;
 
         const baseSpeed = Config.player.speed;
@@ -2057,14 +2476,12 @@ export class Player {
         const cameraRight = Vector3.Cross(this.scene.yAxis || new Vector3(0, 1, 0), cameraForward);
         cameraRight.normalize();
 
-        let targetYaw = this.modelRoot.rotationQuaternion ? this.modelRoot.rotationQuaternion.toEulerAngles().y : this.modelRoot.rotation.y;
-
         // W - 向前
         if (this.inputMap["w"]) {
             moveDirection.addInPlace(cameraForward);
             isMoving = true;
-            // 更新目标朝向
-            targetYaw = Math.atan2(cameraForward.x, cameraForward.z);
+            const targetRotation = Math.atan2(cameraForward.x, cameraForward.z);
+            this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0, targetRotation, 0);
         }
 
         // S - 向后
@@ -2097,7 +2514,71 @@ export class Player {
                 vy,
                 moveDirection.z * curSpeed
             ));
+            const dtScale = this.isSprinting ? 0.018 : 0.01;
+            this.walkTime += this.scene.getEngine().getDeltaTime() * dtScale * (curSpeed / 5);
+            const amp = this.isSprinting ? 1.2 : 0.8;
+            const angle = Math.sin(this.walkTime);
+
+            if (!this.isGrounded()) {
+                // 在空中将角色朝向与相机前方对齐（横向移动飞行）
+                const yaw = Math.atan2(cameraForward.x, cameraForward.z);
+
+                if (this.isSprinting) {
+                    // 空中移动：超级英雄飞行
+                    this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(1.0, yaw, 0);
+                    this.rightShoulder.rotation.x = -3.1;
+                    this.rightShoulder.rotation.z = 0.0;
+                    this.leftShoulder.rotation.x = 0.5;
+                    this.leftShoulder.rotation.z = 0.2;
+                    this.leftHip.rotation.x = 0.1 + angle * 0.05;
+                    this.rightHip.rotation.x = 0.1 - angle * 0.05;
+                } else {
+                    // 普通跳跃（移动） - 速度依赖
+                    const vy = velocity.y;
+
+                    if (vy > 0.5) {
+                        // 上升（发射姿势）
+                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.2, yaw, 0);
+                        this.leftShoulder.rotation.x = -2.8;
+                        this.rightShoulder.rotation.x = -2.8;
+                        this.leftShoulder.rotation.z = -0.2;
+                        this.rightShoulder.rotation.z = 0.2;
+                        this.leftHip.rotation.x = -1.2;
+                        this.rightHip.rotation.x = 0.2;
+                    } else if (vy < -0.5) {
+                        // 下落
+                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.0, yaw, 0);
+                        this.leftShoulder.rotation.x = -1.5;
+                        this.rightShoulder.rotation.x = -1.5;
+                        this.leftShoulder.rotation.z = -0.8;
+                        this.rightShoulder.rotation.z = 0.8;
+                        this.leftHip.rotation.x = -0.4;
+                        this.rightHip.rotation.x = -0.4;
+                    } else {
+                        // 顶点 / 过渡
+                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.1, yaw, 0);
+                        this.leftShoulder.rotation.x = -2.0;
+                        this.rightShoulder.rotation.x = -2.0;
+                        this.leftShoulder.rotation.z = -0.4;
+                        this.rightShoulder.rotation.z = 0.4;
+                        this.leftHip.rotation.x = -0.8;
+                        this.rightHip.rotation.x = -0.8;
+                    }
+                }
+            } else {
+                this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0, this.modelRoot.rotationQuaternion ? this.modelRoot.rotationQuaternion.toEulerAngles().y : this.modelRoot.rotation.y, 0);
+                this.leftShoulder.rotation.x = angle * amp;
+                this.rightShoulder.rotation.x = -angle * amp;
+                this.leftHip.rotation.x = -angle * amp;
+                this.rightHip.rotation.x = angle * amp;
+                this.leftShoulder.rotation.z = 0;
+                this.rightShoulder.rotation.z = 0;
+            }
+
+
+
         } else {
+
             // Stop horizontal movement
             if (this.ascendImpulseMs > 0) { this.ascendImpulseMs = Math.max(0, this.ascendImpulseMs - dtMs); }
             const currentVel = this.aggregate.body.getLinearVelocity();
@@ -2106,26 +2587,117 @@ export class Player {
                 vyIdle = this.computeHoverVy(dtMs, currentVel.y);
             }
             this.aggregate.body.setLinearVelocity(new Vector3(0, vyIdle, 0));
-        }
 
-        // 委托动画逻辑给角色类
-        if (this.character) {
-            this.character.updateAnimation({
-                isMoving: isMoving,
-                isSprinting: this.isSprinting,
-                isGrounded: this.isGrounded(),
-                velocity: this.aggregate.body.getLinearVelocity(),
-                dt: dtMs / 1000,
-                yaw: targetYaw,
-                hoverActive: this.hoverActive,
-                ascendImpulse: this.ascendImpulseMs > 0
-            });
+            if (!this.isGrounded()) {
+                const ds = 0.003;
+                this.walkTime += this.scene.getEngine().getDeltaTime() * ds;
+                const ang = Math.sin(this.walkTime);
+
+                const yaw = this.modelRoot.rotationQuaternion ? this.modelRoot.rotationQuaternion.toEulerAngles().y : this.modelRoot.rotation.y;
+
+                if (this.isSprinting) {
+                    // 空中悬停：零重力漂浮
+                    this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(-0.1, yaw, 0);
+                    this.modelRoot.position.y = -1.2 + ang * 0.08;
+                    this.leftShoulder.rotation.x = 0.0 + ang * 0.05;
+                    this.rightShoulder.rotation.x = 0.0 + ang * 0.05;
+                    this.leftShoulder.rotation.z = 0.8 + ang * 0.05;
+                    this.rightShoulder.rotation.z = -0.8 - ang * 0.05;
+                    this.leftHip.rotation.x = 0.1 + ang * 0.05;
+                    this.rightHip.rotation.x = 0.05 - ang * 0.05;
+                } else {
+                    // 普通跳跃（静止/垂直） - 速度依赖
+                    const vy = velocity.y;
+                    this.modelRoot.position.y = -1.2;
+
+                    if (vy > 0.5) {
+                        // 上升
+                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.0, yaw, 0);
+                        this.leftShoulder.rotation.x = -2.8;
+                        this.rightShoulder.rotation.x = -2.8;
+                        this.leftShoulder.rotation.z = -0.1;
+                        this.rightShoulder.rotation.z = 0.1;
+                        this.leftHip.rotation.x = -1.0;
+                        this.rightHip.rotation.x = -1.0;
+                    } else if (vy < -0.5) {
+                        // Falling
+                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.0, yaw, 0);
+                        this.leftShoulder.rotation.x = -1.8 + ang * 0.1;
+                        this.rightShoulder.rotation.x = -1.8 - ang * 0.1;
+                        this.leftShoulder.rotation.z = -0.5;
+                        this.rightShoulder.rotation.z = 0.5;
+                        this.leftHip.rotation.x = -0.2;
+                        this.rightHip.rotation.x = -0.2;
+                    } else {
+                        // 顶点
+                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.0, yaw, 0);
+                        this.leftShoulder.rotation.x = -2.2;
+                        this.rightShoulder.rotation.x = -2.2;
+                        this.leftHip.rotation.x = -0.8;
+                        this.rightHip.rotation.x = -0.8;
+                    }
+                }
+            } else {
+                // 着地静止
+                this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0, this.modelRoot.rotationQuaternion ? this.modelRoot.rotationQuaternion.toEulerAngles().y : this.modelRoot.rotation.y, 0);
+                this.modelRoot.position.y = -1.2;
+                this.leftShoulder.rotation.x = 0;
+                this.rightShoulder.rotation.x = 0;
+                this.leftHip.rotation.x = 0;
+                this.rightHip.rotation.x = 0;
+                this.leftShoulder.rotation.z = 0;
+                this.rightShoulder.rotation.z = 0;
+            }
+
         }
+        // 更新火焰动画
+        this.updateJetFlames(dtMs);
     }
 
-    /**
-     * 自动拾取近距离武器（当未持有武器时）
-     */
+    updateJetFlames(dtMs) {
+        if (!this.flameRoots || !this.flameMat) return;
+
+        // 1. 纹理滚动 (模拟流动)
+        this.flameMat.diffuseTexture.vOffset -= 0.005 * dtMs;
+
+        // 2. 计算目标缩放比例
+        let targetScaleY = 0;
+        let targetWidth = 1.0;
+
+        if (this.isSprinting) {
+            // 基础长度
+            targetScaleY = 1.0;
+
+            // 悬浮/加速状态
+            if (this.hoverActive) {
+                if (this.ascendImpulseMs > 0) {
+                    // 爆发上升
+                    targetScaleY = 2.5;
+                    targetWidth = 1.5;
+                } else {
+                    // 悬浮中
+                    targetScaleY = 1.2;
+                }
+            } else {
+                // 只是开启了冲刺模式但未悬浮（例如地面跑动）
+                // 地面跑动时可能不需要喷火，或者喷小火
+                targetScaleY = 0.3;
+            }
+        }
+
+        // 固定长度与宽度：短尾焰
+        for (const root of this.flameRoots) {
+            if (this.isSprinting) {
+                root.scaling.y = 0.9; // 固定短长度
+                root.scaling.x = 1.0;
+                root.scaling.z = 1.0;
+            } else {
+                root.scaling.y = 0;
+                root.scaling.x = 0;
+                root.scaling.z = 0;
+            }
+        }
+    }
     autoPickupNearby() {
         if (this.currentWeapon) return;
         const nodes = this.scene.transformNodes || [];
