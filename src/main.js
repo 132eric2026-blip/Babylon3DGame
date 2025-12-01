@@ -9,11 +9,7 @@ import { setupUI } from "./ui";
 import { setupMinimap } from "./minimap";
 import { setupSkillBar } from "./skills";
 import { Horse } from "./horse";
-import { spawnAlphaParticleCannon } from "./armory/AlphaParticleCannon";
-import { spawnPegasusParticleCannon } from "./armory/PegasusParticleCannon";
-import { spawnSolarPlasmaCannon } from "./armory/SolarPlasmaCannon";
-import { spawnScorpioPulsarGun } from "./armory/ScorpioPulsarGun";
-import { spawnQuantumAnnihilator } from "./armory/QuantumAnnihilator";
+import { spawnWeapons } from "./weaponManager";
 
 async function createEngine() {
     const canvas = document.getElementById("renderCanvas");
@@ -95,27 +91,8 @@ async function createScene(engine) {
     // Create Horse
     const horse = new Horse(scene, new Vector3(5, 0, 5));
 
-    // Spawn Random Weapon (Alpha Particle Cannon)
-    // Random position within -20 to 20 range
-    const rx = (Math.random() - 0.5) * 40;
-    const rz = (Math.random() - 0.5) * 40;
-    spawnAlphaParticleCannon(scene, new Vector3(rx, 0.5, rz), player);
-
-    // Spawn Random Weapon (Pegasus Particle Cannon)
-    const rx2 = (Math.random() - 0.5) * 40;
-    const rz2 = (Math.random() - 0.5) * 40;
-    spawnPegasusParticleCannon(scene, new Vector3(rx2, 0.5, rz2), player);
-
-    // Spawn Solar Plasma Cannon
-    spawnSolarPlasmaCannon(scene, new Vector3(-2, 0.5, 2), player);
-
-    // Spawn Scorpio Pulsar Gun
-    spawnScorpioPulsarGun(scene, new Vector3(4, 0.5, 2), player);
-
-    // Spawn Quantum Annihilator
-    const rx3 = (Math.random() - 0.5) * 40;
-    const rz3 = (Math.random() - 0.5) * 40;
-    spawnQuantumAnnihilator(scene, new Vector3(rx3, 0.5, rz3), player);
+    // Spawn Weapons (based on config)
+    spawnWeapons(scene, player);
 
     return scene;
 }

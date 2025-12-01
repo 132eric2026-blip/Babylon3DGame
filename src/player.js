@@ -1003,6 +1003,9 @@ export class Player {
             quantumMat.disableLighting = true;
             bulletMesh.material = quantumMat;
 
+            // Ensure world matrix is computed before creating trail
+            bulletMesh.computeWorldMatrix(true);
+
             // 2. Glow Effect - Create independent glow layer for this bullet
             const quantumGlowLayer = new GlowLayer("quantumGlow_" + Date.now(), this.scene);
             quantumGlowLayer.intensity = 1.5;

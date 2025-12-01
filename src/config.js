@@ -43,5 +43,36 @@ export const Config = {
         minZoom: 10,
         maxZoom: 100,
         zoomStep: 10
+    },
+    weapons: {
+        // 武器生成配置
+        spawnCount: 1, // 游戏中生成的武器数量
+        spawnAreaSize: 40, // 生成范围 (-20 到 20)
+
+        // 各武器配置
+        AlphaParticleCannon: { // 阿尔法粒子炮
+            enabled: false,
+            spawnWeight: 1.0 // 生成权重(相对概率)
+        },
+        PegasusParticleCannon: { // 飞马粒子炮
+            enabled: false,
+            spawnWeight: 1.0
+        },
+        LightSpear: { // 光矛
+            enabled: false, // 未实现,默认禁用
+            spawnWeight: 1.0
+        },
+        SolarPlasmaCannon: { // 太阳等离子炮
+            enabled: false,
+            spawnWeight: 1.0
+        },
+        ScorpioPulsarGun: { // 天蝎脉冲枪
+            enabled: false,
+            spawnWeight: 1.0
+        },
+        QuantumAnnihilator: { // 量子湮灭炮
+            enabled: true,
+            spawnWeight: 1.0
+        }
     }
 };
