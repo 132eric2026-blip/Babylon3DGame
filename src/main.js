@@ -9,6 +9,7 @@ import { setupUI } from "./ui";
 import { setupMinimap } from "./minimap";
 import { setupSkillBar } from "./skills";
 import { Horse } from "./horse";
+import { Stargate } from "./stargate";
 import { spawnWeapons } from "./weaponManager";
 
 async function createEngine() {
@@ -93,6 +94,12 @@ async function createScene(engine) {
     // Create Horse
     if (Config.scene.horseEnabled) {
         const horse = new Horse(scene, new Vector3(5, 0, 5));
+    }
+
+    // Create Stargate
+    if (Config.scene.stargate && Config.scene.stargate.enabled) {
+        const pos = Config.scene.stargate.position;
+        new Stargate(scene, new Vector3(pos.x, pos.y, pos.z));
     }
 
     // Spawn Weapons (based on config)

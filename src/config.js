@@ -40,6 +40,10 @@ export const Config = {
             treesEnabled: false, // 是否生成树木
             rocksEnabled: false,  // 是否生成岩石
             streetLampsEnabled: false // 是否生成路灯
+        },
+        stargate: {
+            enabled: true,
+            position: { x: 15, y: 0, z: 15 } // 放置在稍远的位置
         }
     },
     minimap: {
