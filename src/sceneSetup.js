@@ -48,10 +48,12 @@ export function createSceneElements(scene) {
     new PhysicsAggregate(ground, PhysicsShapeType.BOX, { mass: 0 }, scene);
 
     // 世界坐标系辅助线
-    const axisX = MeshBuilder.CreateLines("axisX", { points: [Vector3.Zero(), new Vector3(5, 0, 0)] }, scene);
-    axisX.color = new Color3(1, 0, 0);
-    const axisY = MeshBuilder.CreateLines("axisY", { points: [Vector3.Zero(), new Vector3(0, 5, 0)] }, scene);
-    axisY.color = new Color3(0, 1, 0);
-    const axisZ = MeshBuilder.CreateLines("axisZ", { points: [Vector3.Zero(), new Vector3(0, 0, 5)] }, scene);
-    axisZ.color = new Color3(0, 0, 1);
+    if (Config.scene.showAxes) {
+        const axisX = MeshBuilder.CreateLines("axisX", { points: [Vector3.Zero(), new Vector3(5, 0, 0)] }, scene);
+        axisX.color = new Color3(1, 0, 0);
+        const axisY = MeshBuilder.CreateLines("axisY", { points: [Vector3.Zero(), new Vector3(0, 5, 0)] }, scene);
+        axisY.color = new Color3(0, 1, 0);
+        const axisZ = MeshBuilder.CreateLines("axisZ", { points: [Vector3.Zero(), new Vector3(0, 0, 5)] }, scene);
+        axisZ.color = new Color3(0, 0, 1);
+    }
 }

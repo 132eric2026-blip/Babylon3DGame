@@ -16,6 +16,8 @@ export const Config = {
     },
     scene: {
         gravity: -9.81,
+        showAxes: false, // 是否显示世界坐标系
+        horseEnabled: false, // 是否生成马
         groundColor: { r: 0.2, g: 0.2, b: 0.2 },
         // 阴影配置
         shadows: {
@@ -34,7 +36,10 @@ export const Config = {
             areaSize: 80, // 分布范围（-40 到 40）
             stoneColor: { r: 0.5, g: 0.5, b: 0.5 },
             treeTrunkColor: { r: 0.4, g: 0.2, b: 0.1 },
-            treeLeavesColor: { r: 0.1, g: 0.6, b: 0.1 }
+            treeLeavesColor: { r: 0.1, g: 0.6, b: 0.1 },
+            treesEnabled: false, // 是否生成树木
+            rocksEnabled: false,  // 是否生成岩石
+            streetLampsEnabled: false // 是否生成路灯
         }
     },
     minimap: {
@@ -46,7 +51,7 @@ export const Config = {
     },
     weapons: {
         // 武器生成配置
-        spawnCount: 1, // 游戏中生成的武器数量
+        spawnCount: 2, // 游戏中生成的武器数量
         spawnAreaSize: 40, // 生成范围 (-20 到 20)
 
         // 各武器配置
@@ -63,8 +68,8 @@ export const Config = {
             spawnWeight: 1.0
         },
         SolarPlasmaCannon: { // 太阳等离子炮
-            enabled: false,
-            spawnWeight: 1.0
+            enabled: true,
+            spawnWeight: .5
         },
         ScorpioPulsarGun: { // 天蝎脉冲枪
             enabled: false,
@@ -79,8 +84,12 @@ export const Config = {
             spawnWeight: 1.0
         },
         ChronoArbalest: { // 时空劲弩 (蒸汽朋克)
-            enabled: true,
+            enabled: false,
             spawnWeight: 1.0
+        },
+        ThunderArcGun: { // 雷霆电弧枪 (特斯拉电弧)
+            enabled: true,
+            spawnWeight:.5
         }
     }
 };

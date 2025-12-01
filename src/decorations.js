@@ -63,6 +63,10 @@ export class DecorationManager {
         const count = Config.scene.decorations.count;
         const areaSize = Config.scene.decorations.areaSize;
         const halfSize = areaSize / 2;
+        const rocksEnabled = Config.scene.decorations.rocksEnabled;
+        const treesEnabled = Config.scene.decorations.treesEnabled;
+
+        if (!rocksEnabled && !treesEnabled) return;
 
         for (let i = 0; i < count; i++) {
             const x = (Math.random() * areaSize) - halfSize;
@@ -71,10 +75,16 @@ export class DecorationManager {
             // 避免在出生点附近生成
             if (Math.abs(x) < 5 && Math.abs(z) < 5) continue;
 
-            const type = Math.random();
-            if (type < 0.6) {
+            if (rocksEnabled && treesEnabled) {
+                const type = Math.random();
+                if (type < 0.6) {
+                    this.createStone(x, z);
+                } else {
+                    this.createTree(x, z);
+                }
+            } else if (rocksEnabled) {
                 this.createStone(x, z);
-            } else {
+            } else if (treesEnabled) {
                 this.createTree(x, z);
             }
         }

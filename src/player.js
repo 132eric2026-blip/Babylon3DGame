@@ -9,6 +9,7 @@ import { createScorpioPulsarGunMesh, spawnScorpioPulsarGun } from "./armory/Scor
 import { createQuantumAnnihilatorMesh, spawnQuantumAnnihilator } from "./armory/QuantumAnnihilator";
 import { createEmeraldViperMesh, spawnEmeraldViper } from "./armory/EmeraldViper";
 import { createChronoArbalestMesh, spawnChronoArbalest } from "./armory/ChronoArbalest";
+import { createThunderArcGunMesh, spawnThunderArcGun } from "./armory/ThunderArcGun";
 
 export class Player {
     constructor(scene, camera) {
@@ -490,6 +491,22 @@ export class Player {
             // 调整位置: 生物武器包裹在手臂上
             this.gunMuzzle.position = new Vector3(0, 0, 0.85);
 
+        } else if (weaponName === "ChronoArbalest") {
+            this.currentGunModel = createChronoArbalestMesh(this.scene);
+            this.currentGunModel.parent = this.gunRoot;
+            this.currentGunModel.rotation = Vector3.Zero();
+
+            // 调整位置
+            this.gunMuzzle.position = new Vector3(0, 0, 0.9);
+
+        } else if (weaponName === "ThunderArcGun") {
+            this.currentGunModel = createThunderArcGunMesh(this.scene);
+            this.currentGunModel.parent = this.gunRoot;
+            this.currentGunModel.rotation = Vector3.Zero();
+
+            // 调整位置
+            this.gunMuzzle.position = new Vector3(0, 0, 0.8);
+
         } else {
             // Default / Alpha Particle Cannon (Grey Boxy Gun)
             const group = new TransformNode("defaultGunGroup", this.scene);
@@ -654,6 +671,8 @@ export class Player {
             spawnEmeraldViper(this.scene, dropPos, this);
         } else if (this.currentWeapon === "ChronoArbalest") {
             spawnChronoArbalest(this.scene, dropPos, this);
+        } else if (this.currentWeapon === "ThunderArcGun") {
+            spawnThunderArcGun(this.scene, dropPos, this);
         }
 
         this.currentWeapon = null;
@@ -1417,9 +1436,10 @@ export class Player {
         if (this.beamGlow) { this.beamGlow.dispose(); this.beamGlow = null; }
 
         const isScorpio = (this.currentWeapon === "ScorpioPulsarGun");
-        if (!isScorpio) return; // Safety check
+        const isThunder = (this.currentWeapon === "ThunderArcGun");
+        if (!isScorpio && !isThunder) return; // Safety check
 
-        const beamType = "Scorpio";
+        const beamType = isScorpio ? "Scorpio" : "Thunder";
 
         // Check if we need to switch beam type
         if (this.beamMesh && this.beamMesh.metadata?.type !== beamType) {
@@ -1520,13 +1540,141 @@ export class Player {
             if (!Effect.ShadersStore["beamShellFragmentShader"]) {
                 Effect.ShadersStore["beamShellFragmentShader"] = "precision highp float;varying vec2 vUV;varying vec3 vNormalW;varying vec3 vPosW;uniform vec3 cameraPosition;uniform float time;uniform vec3 baseColor;uniform float alpha;uniform float flowSpeed;uniform float rimPower;uniform float rimIntensity;uniform float noiseAmp;uniform float glowBoost;float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}float noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);float a=hash(i);float b=hash(i+vec2(1.0,0.0));float c=hash(i+vec2(0.0,1.0));float d=hash(i+vec2(1.0,1.0));vec2 u=f*f*(3.0-2.0*f);return mix(a,b,u.x)+(c-a)*u.y*(1.0-u.x)+(d-b)*u.x*u.y;}void main(){vec3 V=normalize(cameraPosition-vPosW);float NdotV=dot(normalize(vNormalW),V);float fres=pow(1.0-max(0.0,abs(NdotV)),rimPower);float v=vUV.y;float spiral1=sin((vUV.x*12.0+v*30.0)-time*flowSpeed*3.0);float spiral2=sin((vUV.x*8.0-v*25.0)+time*flowSpeed*2.0);float spirals=smoothstep(0.2,0.9,max(0.0,spiral1*0.5+spiral2*0.5));float n1=noise(vec2(vUV.x*10.0+time,v*12.0-time*flowSpeed));float n2=noise(vec2(vUV.x*20.0-time*0.5,v*20.0-time*flowSpeed*1.5));float pulse=1.0+0.15*sin(time*20.0);float coreFlow=0.5+0.5*sin(v*40.0-time*flowSpeed*4.0);float bright=coreFlow*0.4+spirals*0.6+(n1+n2)*0.3*noiseAmp+fres*rimIntensity;vec3 col=baseColor*bright*pulse*glowBoost;col+=vec3(1.0,1.0,1.0)*fres*0.6*rimIntensity;float a=alpha*clamp(bright,0.0,1.0);gl_FragColor=vec4(col,a);}";
             }
-            if (!this.beamShellMat) {
-                this.beamShellMat = new ShaderMaterial("beamShellMat", this.scene, { vertex: "beamShell", fragment: "beamShell" }, { attributes: ["position", "normal", "uv"], uniforms: ["world", "worldViewProjection", "cameraPosition", "time", "baseColor", "alpha", "flowSpeed", "rimPower", "rimIntensity", "noiseAmp", "glowBoost"] });
-                this.beamShellMat.disableLighting = true;
-                this.beamShellMat.alphaMode = Engine.ALPHA_ADD;
-                this.beamShellMat.backFaceCulling = false;
+
+            // --- THUNDER ARC SHADERS ---
+            if (!Effect.ShadersStore["thunderArcVertexShader"]) {
+                Effect.ShadersStore["thunderArcVertexShader"] = `
+                    precision highp float;
+                    attribute vec3 position;
+                    attribute vec3 normal;
+                    attribute vec2 uv;
+                    uniform mat4 world;
+                    uniform mat4 worldViewProjection;
+                    uniform float time;
+                    uniform float jitterAmount;
+                    varying vec2 vUV;
+                    varying vec3 vPosW;
+                    
+                    float hash(float n) { return fract(sin(n) * 43758.5453123); }
+                    float noise(float p) {
+                        float fl = floor(p);
+                        float fc = fract(p);
+                        return mix(hash(fl), hash(fl + 1.0), fc);
+                    }
+
+                    void main() {
+                        vUV = uv;
+                        
+                        // Jitter: Displace X and Z based on Y (length) to create jagged path
+                        // Use high frequency noise for lightning shape
+                        float jitterX = (noise(uv.y * 15.0 + time * 40.0) - 0.5) * jitterAmount;
+                        float jitterZ = (noise(uv.y * 15.0 + time * 55.0 + 100.0) - 0.5) * jitterAmount;
+                        
+                        // Thickness variation
+                        float thickness = 1.0 + (noise(uv.y * 30.0 + time * 60.0) - 0.5) * 0.5;
+                        
+                        // Fade jitter at start (muzzle) so it stays attached
+                        float fade = smoothstep(0.0, 0.05, uv.y);
+                        
+                        vec3 newPos = position;
+                        // Apply thickness
+                        newPos.x *= thickness;
+                        newPos.z *= thickness;
+                        
+                        // Apply jitter
+                        newPos.x += jitterX * fade;
+                        newPos.z += jitterZ * fade;
+                        
+                        vec4 worldPos = world * vec4(newPos, 1.0);
+                        vPosW = worldPos.xyz;
+                        gl_Position = worldViewProjection * vec4(newPos, 1.0);
+                    }
+                `;
             }
-            this.beamShell.material = this.beamShellMat;
+
+            if (!Effect.ShadersStore["thunderArcFragmentShader"]) {
+                Effect.ShadersStore["thunderArcFragmentShader"] = `
+                    precision highp float;
+                    varying vec2 vUV;
+                    varying vec3 vPosW;
+                    uniform float time;
+                    uniform vec3 color1;
+                    uniform vec3 color2;
+                    uniform float glowStrength;
+                    
+                    float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+                    float noise(vec2 p) {
+                        vec2 i = floor(p);
+                        vec2 f = fract(p);
+                        f = f * f * (3.0 - 2.0 * f);
+                        return mix(mix(hash(i + vec2(0.0, 0.0)), hash(i + vec2(1.0, 0.0)), f.x),
+                                   mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+                    }
+                    float fbm(vec2 p) {
+                        float v = 0.0;
+                        float a = 0.5;
+                        for (int i = 0; i < 4; i++) {
+                            v += a * noise(p);
+                            p *= 2.0;
+                            a *= 0.5;
+                        }
+                        return v;
+                    }
+
+                    void main() {
+                        // Create dynamic electric pattern
+                        float n = fbm(vec2(vUV.x * 10.0, vUV.y * 5.0 - time * 15.0));
+                        
+                        // Lightning core intensity
+                        float t = abs(2.0 * vUV.x - 1.0); // 0 at center, 1 at edges (assuming UV.x wraps)
+                        // Actually cylinder UV.x goes 0-1 around. So we want random bright streaks?
+                        // Or just general electric noise.
+                        
+                        // Let's make electricity flow along Y
+                        float electricity = fbm(vec2(vUV.x * 20.0 + time * 5.0, vUV.y * 10.0 - time * 20.0));
+                        
+                        // Combine for brightness
+                        float brightness = electricity * 2.0;
+                        
+                        // Pulsing
+                        float pulse = 1.0 + 0.3 * sin(time * 50.0);
+                        
+                        // Color mix
+                        vec3 col = mix(color2, color1, brightness);
+                        
+                        // Add very bright core spots
+                        if (brightness > 1.2) col += vec3(0.5);
+                        
+                        // Soft edges fade (if we want transparent shell)
+                        // But for additive blending, just output color
+                        
+                        gl_FragColor = vec4(col * pulse * glowStrength, 1.0);
+                    }
+                `;
+            }
+
+            if (isThunder) {
+                if (!this.thunderShellMat) {
+                    this.thunderShellMat = new ShaderMaterial("thunderShellMat", this.scene, {
+                        vertex: "thunderArc",
+                        fragment: "thunderArc"
+                    }, {
+                        attributes: ["position", "normal", "uv"],
+                        uniforms: ["world", "worldViewProjection", "time", "jitterAmount", "color1", "color2", "glowStrength"]
+                    });
+                    this.thunderShellMat.backFaceCulling = false;
+                    this.thunderShellMat.alphaMode = Engine.ALPHA_ADD;
+                }
+                this.beamShell.material = this.thunderShellMat;
+            } else {
+                if (!this.beamShellMat) {
+                    this.beamShellMat = new ShaderMaterial("beamShellMat", this.scene, { vertex: "beamShell", fragment: "beamShell" }, { attributes: ["position", "normal", "uv"], uniforms: ["world", "worldViewProjection", "cameraPosition", "time", "baseColor", "alpha", "flowSpeed", "rimPower", "rimIntensity", "noiseAmp", "glowBoost"] });
+                    this.beamShellMat.disableLighting = true;
+                    this.beamShellMat.alphaMode = Engine.ALPHA_ADD;
+                    this.beamShellMat.backFaceCulling = false;
+                }
+                this.beamShell.material = this.beamShellMat;
+            }
 
             // C. Light
             if (!this.beamLight) {
@@ -1564,6 +1712,10 @@ export class Player {
             this.beamImpactPS.color1 = new Color4(0.8, 0, 1, 1); // Purple
             this.beamImpactPS.color2 = new Color4(1, 0, 1, 1); // Magenta
             this.beamImpactPS.colorDead = new Color4(0.2, 0, 0.5, 0);
+        } else if (isThunder) {
+            this.beamImpactPS.color1 = new Color4(0.2, 0.8, 1.0, 1); // Cyan
+            this.beamImpactPS.color2 = new Color4(0.5, 0.9, 1.0, 1); // Light Cyan
+            this.beamImpactPS.colorDead = new Color4(0.0, 0.2, 1.0, 0);
         } else {
             this.beamImpactPS.color1 = new Color4(0.5, 1, 1, 1); // Cyan
             this.beamImpactPS.color2 = new Color4(1, 1, 1, 1); // White
@@ -1578,6 +1730,9 @@ export class Player {
             if (isScorpio) {
                 this.muzzleFlashPS.color1 = new Color4(0.8, 0, 1, 1);
                 this.muzzleFlashPS.color2 = new Color4(0.5, 0, 0.8, 1);
+            } else if (isThunder) {
+                this.muzzleFlashPS.color1 = new Color4(0.2, 0.8, 1.0, 1);
+                this.muzzleFlashPS.color2 = new Color4(0.0, 0.5, 1.0, 1);
             } else {
                 this.muzzleFlashPS.color1 = new Color4(0.2, 1, 1, 1);
                 this.muzzleFlashPS.color2 = new Color4(0, 0.5, 1, 1);
@@ -1638,12 +1793,27 @@ export class Player {
             this.beamLight.setEnabled(true);
             if (hit.hit) {
                 // 稍微拉回一点，避免穿模
-                this.beamLight.position = hit.pickedPoint.add(hit.getNormal(true).scale(0.2));
+                const normal = hit.getNormal(true);
+                if (normal) {
+                    this.beamLight.position = hit.pickedPoint.add(normal.scale(0.2));
+                } else {
+                    this.beamLight.position = hit.pickedPoint.subtract(direction.scale(0.2));
+                }
             } else {
                 this.beamLight.position = origin.add(direction.scale(5.0));
             }
             const isScorpio = (this.currentWeapon === "ScorpioPulsarGun");
-            const bc = isScorpio ? new Color3(0.8, 0.0, 1.0) : new Color3(0.2, 0.8, 1.0);
+            const isThunder = (this.currentWeapon === "ThunderArcGun");
+            
+            let bc;
+            if (isScorpio) {
+                bc = new Color3(0.8, 0.0, 1.0);
+            } else if (isThunder) {
+                bc = new Color3(0.1, 0.6, 1.0); // Thunder Blue
+            } else {
+                bc = new Color3(0.2, 0.8, 1.0);
+            }
+            
             this.beamLight.diffuse = bc;
             // 随时间高频闪烁
             this.beamLight.intensity = 2.0 + Math.random() * 1.5;
@@ -1655,23 +1825,52 @@ export class Player {
 
         // Animation: Scroll Texture (around circumference)
         this.beamTime = (this.beamTime || 0) + dt;
-        if (this.beamShellMat) {
-            const isScorpio = (this.currentWeapon === "ScorpioPulsarGun");
-            const bc = isScorpio ? new Color3(0.8, 0.0, 1.0) : new Color3(0.2, 0.8, 1.0);
+        
+        const isScorpio = (this.currentWeapon === "ScorpioPulsarGun");
+        const isThunder = (this.currentWeapon === "ThunderArcGun");
+
+        if (isThunder && this.thunderShellMat) {
+            this.thunderShellMat.setFloat("time", this.beamTime);
+            this.thunderShellMat.setFloat("jitterAmount", 0.15); // Jitter intensity
+            this.thunderShellMat.setVector3("color1", new Vector3(0.2, 0.9, 1.0)); // Bright Cyan
+            this.thunderShellMat.setVector3("color2", new Vector3(0.0, 0.1, 0.8)); // Deep Blue
+            this.thunderShellMat.setFloat("glowStrength", 2.5);
+        } 
+        else if (this.beamShellMat) {
+            
+            let bc;
+            let flowSpeed = 1.2;
+            let noiseAmp = 0.25;
+            let glowBoost = 1.3;
+
+            if (isScorpio) {
+                bc = new Color3(0.8, 0.0, 1.0);
+                glowBoost = 1.5;
+            } else {
+                bc = new Color3(0.2, 0.8, 1.0);
+            }
+
             this.beamShellMat.setFloat("time", this.beamTime);
             this.beamShellMat.setVector3("baseColor", new Vector3(bc.r, bc.g, bc.b));
             this.beamShellMat.setFloat("alpha", 0.7);
-            this.beamShellMat.setFloat("flowSpeed", 1.2);
+            this.beamShellMat.setFloat("flowSpeed", flowSpeed);
             this.beamShellMat.setFloat("rimPower", 3.0);
             this.beamShellMat.setFloat("rimIntensity", 1.5);
-            this.beamShellMat.setFloat("noiseAmp", 0.25);
-            this.beamShellMat.setFloat("glowBoost", isScorpio ? 1.5 : 1.3);
+            this.beamShellMat.setFloat("noiseAmp", noiseAmp);
+            this.beamShellMat.setFloat("glowBoost", glowBoost);
             this.beamShellMat.setVector3("cameraPosition", new Vector3(this.camera.position.x, this.camera.position.y, this.camera.position.z));
         }
 
         // Keep shell thickness stable to avoid bead-like bulges
-        this.beamShell.scaling.x = 1;
-        this.beamShell.scaling.z = 1;
+        // For Thunder, maybe vary thickness slightly for pulsing effect
+        if (this.currentWeapon === "ThunderArcGun") {
+            const pulse = 1.0 + Math.random() * 0.5;
+            this.beamShell.scaling.x = 0.5 * pulse; // Thinner but pulsing
+            this.beamShell.scaling.z = 0.5 * pulse;
+        } else {
+            this.beamShell.scaling.x = 1;
+            this.beamShell.scaling.z = 1;
+        }
 
         // Core flickers slightly
         const flicker = 1 + Math.random() * 0.03;
@@ -1770,7 +1969,7 @@ export class Player {
                 // Left Click (0)
                 if (pointerInfo.event.button === 0) {
                     this.fireInputPressed = true;
-                    if (this.currentWeapon === "ScorpioPulsarGun") {
+                    if (this.currentWeapon === "ScorpioPulsarGun" || this.currentWeapon === "ThunderArcGun") {
                         this.startBeam();
                     } else {
                         this.shoot();
@@ -1779,7 +1978,7 @@ export class Player {
             } else if (pointerInfo.type === PointerEventTypes.POINTERUP) {
                 if (pointerInfo.event.button === 0) {
                     this.fireInputPressed = false;
-                    if (this.currentWeapon === "ScorpioPulsarGun") {
+                    if (this.currentWeapon === "ScorpioPulsarGun" || this.currentWeapon === "ThunderArcGun") {
                         this.stopBeam();
                     }
                 }

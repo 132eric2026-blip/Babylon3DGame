@@ -36,7 +36,9 @@ async function createScene(engine) {
     // Decorations
     const decorationManager = new DecorationManager(scene);
     decorationManager.generateRandomDecorations();
-    decorationManager.generateStreetLamps(3);
+    if (Config.scene.decorations.streetLampsEnabled) {
+        decorationManager.generateStreetLamps(3);
+    }
 
     // Camera
     const camera = new ArcRotateCamera("camera", -Math.PI / 2.5, Math.PI / 2.5, 20, Vector3.Zero(), scene);
@@ -89,7 +91,9 @@ async function createScene(engine) {
     setupSkillBar(scene, player);
 
     // Create Horse
-    const horse = new Horse(scene, new Vector3(5, 0, 5));
+    if (Config.scene.horseEnabled) {
+        const horse = new Horse(scene, new Vector3(5, 0, 5));
+    }
 
     // Spawn Weapons (based on config)
     spawnWeapons(scene, player);

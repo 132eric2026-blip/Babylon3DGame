@@ -7,6 +7,7 @@ import { spawnScorpioPulsarGun } from "./armory/ScorpioPulsarGun";
 import { spawnQuantumAnnihilator } from "./armory/QuantumAnnihilator";
 import { spawnEmeraldViper } from "./armory/EmeraldViper";
 import { spawnChronoArbalest } from "./armory/ChronoArbalest";
+import { spawnThunderArcGun } from "./armory/ThunderArcGun";
 
 /**
  * 武器注册表 - 武器名称到生成函数的映射
@@ -18,7 +19,8 @@ const WEAPON_REGISTRY = {
     ScorpioPulsarGun: spawnScorpioPulsarGun,
     QuantumAnnihilator: spawnQuantumAnnihilator,
     EmeraldViper: spawnEmeraldViper,
-    ChronoArbalest: spawnChronoArbalest
+    ChronoArbalest: spawnChronoArbalest,
+    ThunderArcGun: spawnThunderArcGun
 };
 
 /**
