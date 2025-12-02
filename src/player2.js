@@ -1,6 +1,6 @@
 import { Vector3, Quaternion, Matrix, ActionManager, KeyboardEventTypes, Ray } from "@babylonjs/core";
 import { BoxMan } from "./characters/boxMan";
-import { CyberpunkMan } from "./characters/cyberpunkMan";
+//import { CyberpunkMan } from "./characters/cyberpunkMan";
 //import { SphereGirl } from "./characters/sphereGirl";
 import { Config } from "./config";
 
