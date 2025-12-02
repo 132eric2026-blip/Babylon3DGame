@@ -1,5 +1,5 @@
 export const Config = {
-    selectCharacters: "cyberpunkMan", // "boxMan" or "cyberpunkMan"
+    selectCharacters: "boxMan", // "boxMan", "cyberpunkMan" or "sphereGirl"
     player: {
         speed: 3,
         sprintMultiplier: 2,
@@ -13,6 +13,16 @@ export const Config = {
         showCollider: false // 是否显示物理胶囊体
     },
     player2: {
+        speed: 3,
+        sprintMultiplier: 2,
+        sprintSpeed: 8,
+        jumpSpeed: 6.5,
+        boosterUpSpeed: 5,
+        boosterSpeed: 10,
+        boosterHoverHeight: 1,
+        showCollider: false
+    },
+    sphereGirl: {
         speed: 3,
         sprintMultiplier: 2,
         sprintSpeed: 8,

@@ -1,8 +1,9 @@
 import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, TransformNode, Texture, Engine, Scalar, Quaternion } from "@babylonjs/core";
 
 export class BoxMan {
-    constructor(scene, position = new Vector3(5, 5, 5)) {
+    constructor(scene, position = new Vector3(5, 5, 5), glowLayer = null) {
         this.scene = scene;
+        this.glowLayer = glowLayer;
         this.mesh = null;
         this.aggregate = null;
         this.modelRoot = null;
@@ -274,6 +275,10 @@ export class BoxMan {
             mesh.material = flameMat;
             mesh.parent = root;
             mesh.position.y = -0.4;
+
+            if (this.glowLayer) {
+                this.glowLayer.addIncludedOnlyMesh(mesh);
+            }
 
             root.scaling = new Vector3(0, 0, 0);
             return root;
