@@ -4,6 +4,7 @@ import HavokPhysics from "@babylonjs/havok";
 import { SagittariusScene } from "./scenes/sagittarius/SagittariusScene";
 import { DefaultScene } from "./scenes/default/DefaultScene";
 import { Player } from "./player";
+import { BoxMan } from "./characters/boxMan/BoxMan";
 import { Config } from "./config";
 import { setupUI } from "./ui";
 import { setupMinimap } from "./minimap";
@@ -68,6 +69,9 @@ async function createScene(engine) {
 
     // 玩家
     const player = new Player(scene, camera);
+
+    // BoxMan
+    const boxMan = new BoxMan(scene, new Vector3(5, 5, 5));
 
     // 相机跟随玩家
     // 注意：player.mesh 是物理胶囊体
