@@ -77,8 +77,11 @@ export class Player2 {
         this.scene.registerBeforeRender(() => {
             this.updateMovement();
 
+            // Check if moving (horizontal or vertical)
+            const isMoving = this.inputMap["w"] || this.inputMap["s"] || this.inputMap["a"] || this.inputMap["d"] || this.inputMap[" "];
+
             if (this.boxMan && this.boxMan.updateBoosterEffect) {
-                this.boxMan.updateBoosterEffect(this.isBoosterActive);
+                this.boxMan.updateBoosterEffect(this.isBoosterActive, isMoving);
             }
 
             this.animate();

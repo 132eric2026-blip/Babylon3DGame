@@ -225,17 +225,17 @@ export class BoxMan {
 
         // 背景渐变 (白 -> 黄 -> 橙 -> 红 -> 透明)
         const grad = ctx.createLinearGradient(0, 0, 0, 128);
-        grad.addColorStop(0, "rgba(255, 255, 255, 0.6)");       // 核心白热 (降低不透明度以减小泛光强度)
-        grad.addColorStop(0.1, "rgba(255, 240, 100, 0.4)");    // 内焰亮黄
-        grad.addColorStop(0.3, "rgba(255, 140, 0, 0.2)");      // 中焰橙红
-        grad.addColorStop(0.6, "rgba(200, 40, 0, 0.1)");       // 外焰深红
-        grad.addColorStop(1, "rgba(100, 0, 0, 0)");            // 尾部烟雾/消散
+        grad.addColorStop(0, "rgba(255, 255, 255, 1)");       // 核心白热
+        grad.addColorStop(0.1, "rgba(255, 240, 100, 0.95)");  // 内焰亮黄
+        grad.addColorStop(0.3, "rgba(255, 140, 0, 0.9)");     // 中焰橙红
+        grad.addColorStop(0.6, "rgba(200, 40, 0, 0.7)");      // 外焰深红
+        grad.addColorStop(1, "rgba(100, 0, 0, 0)");           // 尾部烟雾/消散
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, 64, 128);
 
         // 添加随机的高亮线条
         ctx.globalCompositeOperation = "lighter";
-        ctx.fillStyle = "rgba(255, 255, 200, 0.1)";
+        ctx.fillStyle = "rgba(255, 255, 200, 0.4)";
         for (let i = 0; i < 15; i++) {
             const x = Math.random() * 64;
             const w = Math.random() * 8 + 2;
@@ -252,8 +252,7 @@ export class BoxMan {
         flameMat.diffuseTexture = flameTex;
         flameMat.emissiveTexture = flameTex;
         flameMat.opacityTexture = flameTex;
-        flameMat.emissiveColor = new Color3(0.6, 0.3, 0.0); // 稍微降低发光强度
-
+        flameMat.emissiveColor = new Color3(1.0, 0.5, 0.0);
         flameMat.disableLighting = true;
         flameMat.alphaMode = Engine.ALPHA_ADD;
         flameMat.backFaceCulling = false;
@@ -291,7 +290,7 @@ export class BoxMan {
         ];
     }
 
-    updateBoosterEffect(active, isMoving = false) {
+    updateBoosterEffect(active) {
         const dt = this.scene.getEngine().getDeltaTime();
         
         // 动画纹理
@@ -299,19 +298,14 @@ export class BoxMan {
             this.flameMat.diffuseTexture.vOffset -= 0.005 * dt;
         }
 
-        // 动态调整尾焰长度
-        const targetScaleY = isMoving ? .8 : 0.5; // 运动时更长(1.2)，悬浮时更短(0.5)
+        // 缩放插值
+        const lerpSpeed = 0.1;
 
         this.flameRoots.forEach(root => {
             if (active) {
-                // 使用 Lerp 平滑过渡长度
-                root.scaling.y = Scalar.Lerp(root.scaling.y, targetScaleY, 0.1);
-                root.scaling.x = 1.0;
-                root.scaling.z = 1.0;
+                root.scaling = Vector3.Lerp(root.scaling, new Vector3(1, 0.9, 1), lerpSpeed);
             } else {
-                root.scaling.y = 0;
-                root.scaling.x = 0;
-                root.scaling.z = 0;
+                root.scaling = Vector3.Lerp(root.scaling, Vector3.Zero(), lerpSpeed);
             }
         });
     }
