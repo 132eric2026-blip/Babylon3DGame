@@ -1,5 +1,5 @@
 import { Vector3, Quaternion, Matrix, ActionManager, KeyboardEventTypes, Ray } from "@babylonjs/core";
-import { BoxMan } from "./characters/boxMan/BoxMan";
+import { BoxMan } from "./characters/boxMan";
 import { Config } from "./config";
 
 export class Player2 {
@@ -15,14 +15,7 @@ export class Player2 {
         this.aggregate = this.boxMan.aggregate;
         this.modelRoot = this.boxMan.modelRoot;
         
-        // 动画相关引用
-        this.leftHip = this.boxMan.leftHip;
-        this.rightHip = this.boxMan.rightHip;
-        this.leftShoulder = this.boxMan.leftShoulder;
-        this.rightShoulder = this.boxMan.rightShoulder;
-
         this.inputMap = {};
-        this.walkTime = 0;
         this.isSprinting = false;
         this.isBoosterActive = false;
         this._groundEpsilon = 0.06;
@@ -241,155 +234,28 @@ export class Player2 {
         // Check if moving
         let isMoving = this.inputMap["w"] || this.inputMap["s"] || this.inputMap["a"] || this.inputMap["d"];
 
-        // Update walkTime
+        // Calculate walkTime increment
+        let walkTimeIncrement = 0;
         if (isMoving) {
             const curSpeed = this.isSprinting ? Config.player2.sprintSpeed : Config.player2.speed;
             const dtScale = this.isSprinting ? 0.018 : 0.01;
-            this.walkTime += dt * dtScale * (curSpeed / 5);
+            walkTimeIncrement = dt * dtScale * (curSpeed / 5);
         } else {
             const ds = 0.003;
-            this.walkTime += dt * ds;
-        }
-        
-        const angle = Math.sin(this.walkTime);
-
-        if (this.isBoosterActive) {
-             // 助推器模式动画
-            if (isMoving) {
-                // 飞行姿态
-                this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(1.0, yaw, 0);
-                if (this.rightShoulder) {
-                    this.rightShoulder.rotation.x = -3.1;
-                    this.rightShoulder.rotation.z = 0.0;
-                }
-                if (this.leftShoulder) {
-                    this.leftShoulder.rotation.x = 0.5;
-                    this.leftShoulder.rotation.z = 0.2;
-                }
-                if (this.leftHip) this.leftHip.rotation.x = 0.1 + angle * 0.05;
-                if (this.rightHip) this.rightHip.rotation.x = 0.1 - angle * 0.05;
-            } else {
-                // 悬浮姿态
-                this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(-0.1, yaw, 0);
-                this.modelRoot.position.y = -1.2 + angle * 0.08;
-                if (this.leftShoulder) { this.leftShoulder.rotation.x = 0.0 + angle * 0.05; this.leftShoulder.rotation.z = 0.8 + angle * 0.05; }
-                if (this.rightShoulder) { this.rightShoulder.rotation.x = 0.0 + angle * 0.05; this.rightShoulder.rotation.z = -0.8 - angle * 0.05; }
-                if (this.leftHip) this.leftHip.rotation.x = 0.1 + angle * 0.05;
-                if (this.rightHip) this.rightHip.rotation.x = 0.05 - angle * 0.05;
-            }
-            return;
+            walkTimeIncrement = dt * ds;
         }
 
-        if (!isGrounded) {
-            // Air Animation
-            if (isMoving) {
-                if (this.isSprinting) {
-                    // Superhero Flight
-                    this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(1.0, yaw, 0);
-                    if (this.rightShoulder) {
-                        this.rightShoulder.rotation.x = -3.1;
-                        this.rightShoulder.rotation.z = 0.0;
-                    }
-                    if (this.leftShoulder) {
-                        this.leftShoulder.rotation.x = 0.5;
-                        this.leftShoulder.rotation.z = 0.2;
-                    }
-                    if (this.leftHip) this.leftHip.rotation.x = 0.1 + angle * 0.05;
-                    if (this.rightHip) this.rightHip.rotation.x = 0.1 - angle * 0.05;
-                } else {
-                    // Moving Jump (Standard)
-                    const vy = velocity.y;
-                    if (vy > 0.5) {
-                        // Rising
-                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.2, yaw, 0);
-                        if (this.leftShoulder) { this.leftShoulder.rotation.x = -2.8; this.leftShoulder.rotation.z = -0.2; }
-                        if (this.rightShoulder) { this.rightShoulder.rotation.x = -2.8; this.rightShoulder.rotation.z = 0.2; }
-                        if (this.leftHip) this.leftHip.rotation.x = -1.2;
-                        if (this.rightHip) this.rightHip.rotation.x = 0.2;
-                    } else if (vy < -0.5) {
-                        // Falling
-                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.0, yaw, 0);
-                        if (this.leftShoulder) { this.leftShoulder.rotation.x = -1.5; this.leftShoulder.rotation.z = -0.8; }
-                        if (this.rightShoulder) { this.rightShoulder.rotation.x = -1.5; this.rightShoulder.rotation.z = 0.8; }
-                        if (this.leftHip) this.leftHip.rotation.x = -0.4;
-                        if (this.rightHip) this.rightHip.rotation.x = -0.4;
-                    } else {
-                        // Apex
-                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.1, yaw, 0);
-                        if (this.leftShoulder) { this.leftShoulder.rotation.x = -2.0; this.leftShoulder.rotation.z = -0.4; }
-                        if (this.rightShoulder) { this.rightShoulder.rotation.x = -2.0; this.rightShoulder.rotation.z = 0.4; }
-                        if (this.leftHip) this.leftHip.rotation.x = -0.8;
-                        if (this.rightHip) this.rightHip.rotation.x = -0.8;
-                    }
-                }
-            } else {
-                // Stationary Jump / Hover
-                if (this.isSprinting) {
-                    // Zero Gravity Float
-                    this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(-0.1, yaw, 0);
-                    this.modelRoot.position.y = -1.2 + angle * 0.08;
-                    if (this.leftShoulder) { this.leftShoulder.rotation.x = 0.0 + angle * 0.05; this.leftShoulder.rotation.z = 0.8 + angle * 0.05; }
-                    if (this.rightShoulder) { this.rightShoulder.rotation.x = 0.0 + angle * 0.05; this.rightShoulder.rotation.z = -0.8 - angle * 0.05; }
-                    if (this.leftHip) this.leftHip.rotation.x = 0.1 + angle * 0.05;
-                    if (this.rightHip) this.rightHip.rotation.x = 0.05 - angle * 0.05;
-                } else {
-                    // Standard Stationary Jump
-                    const vy = velocity.y;
-                    this.modelRoot.position.y = -1.2;
-                    
-                    if (vy > 0.5) {
-                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.0, yaw, 0);
-                        if (this.leftShoulder) { this.leftShoulder.rotation.x = -2.8; this.leftShoulder.rotation.z = -0.1; }
-                        if (this.rightShoulder) { this.rightShoulder.rotation.x = -2.8; this.rightShoulder.rotation.z = 0.1; }
-                        if (this.leftHip) this.leftHip.rotation.x = -1.0;
-                        if (this.rightHip) this.rightHip.rotation.x = -1.0;
-                    } else if (vy < -0.5) {
-                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.0, yaw, 0);
-                        if (this.leftShoulder) { this.leftShoulder.rotation.x = -1.8 + angle * 0.1; this.leftShoulder.rotation.z = -0.5; }
-                        if (this.rightShoulder) { this.rightShoulder.rotation.x = -1.8 - angle * 0.1; this.rightShoulder.rotation.z = 0.5; }
-                        if (this.leftHip) this.leftHip.rotation.x = -0.2;
-                        if (this.rightHip) this.rightHip.rotation.x = -0.2;
-                    } else {
-                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.0, yaw, 0);
-                        if (this.leftShoulder) { this.leftShoulder.rotation.x = -2.2; }
-                        if (this.rightShoulder) { this.rightShoulder.rotation.x = -2.2; }
-                        if (this.leftHip) this.leftHip.rotation.x = -0.8;
-                        if (this.rightHip) this.rightHip.rotation.x = -0.8;
-                    }
-                }
-            }
-        } else {
-            // Grounded Logic
-            this.modelRoot.position.y = -1.2;
-            this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0, yaw, 0);
-
-            if (isMoving) {
-                // Walking Animation
-                const amp = this.isSprinting ? 1.2 : 0.8;
-                
-                if (this.leftHip) this.leftHip.rotation.x = -angle * amp;
-                if (this.rightHip) this.rightHip.rotation.x = angle * amp;
-                if (this.leftShoulder) {
-                    this.leftShoulder.rotation.x = angle * amp;
-                    this.leftShoulder.rotation.z = 0;
-                }
-                if (this.rightShoulder) {
-                    this.rightShoulder.rotation.x = -angle * amp;
-                    this.rightShoulder.rotation.z = 0;
-                }
-            } else {
-                // Idle
-                if (this.leftHip) this.leftHip.rotation.x = 0;
-                if (this.rightHip) this.rightHip.rotation.x = 0;
-                if (this.leftShoulder) {
-                    this.leftShoulder.rotation.x = 0;
-                    this.leftShoulder.rotation.z = 0;
-                }
-                if (this.rightShoulder) {
-                    this.rightShoulder.rotation.x = 0;
-                    this.rightShoulder.rotation.z = 0;
-                }
-            }
+        // Call BoxMan animation
+        if (this.boxMan && this.boxMan.updateAnimation) {
+            this.boxMan.updateAnimation(dt, {
+                isMoving,
+                isSprinting: this.isSprinting,
+                isGrounded,
+                isBoosterActive: this.isBoosterActive,
+                velocity,
+                yaw,
+                walkTimeIncrement
+            });
         }
     }
 }

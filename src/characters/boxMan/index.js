@@ -1,4 +1,4 @@
-import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, TransformNode, Texture, Engine, Scalar } from "@babylonjs/core";
+import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, TransformNode, Texture, Engine, Scalar, Quaternion } from "@babylonjs/core";
 
 export class BoxMan {
     constructor(scene, position = new Vector3(5, 5, 5)) {
@@ -7,6 +7,7 @@ export class BoxMan {
         this.aggregate = null;
         this.modelRoot = null;
         this.flameRoots = [];
+        this.walkTime = 0;
 
         this.createBoxManMesh();
         this.createFlameEffects();
@@ -312,5 +313,151 @@ export class BoxMan {
         this.aggregate.body.setMassProperties({
             inertia: new Vector3(0, 0, 0)
         });
+    }
+
+    updateAnimation(dt, state) {
+        const { isMoving, isSprinting, isGrounded, isBoosterActive, velocity, yaw, walkTimeIncrement } = state;
+        
+        this.walkTime += walkTimeIncrement;
+        const angle = Math.sin(this.walkTime);
+
+        if (isBoosterActive) {
+             // 助推器模式动画
+            if (isMoving) {
+                // 飞行姿态
+                this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(1.0, yaw, 0);
+                if (this.rightShoulder) {
+                    this.rightShoulder.rotation.x = -3.1;
+                    this.rightShoulder.rotation.z = 0.0;
+                }
+                if (this.leftShoulder) {
+                    this.leftShoulder.rotation.x = 0.5;
+                    this.leftShoulder.rotation.z = 0.2;
+                }
+                if (this.leftHip) this.leftHip.rotation.x = 0.1 + angle * 0.05;
+                if (this.rightHip) this.rightHip.rotation.x = 0.1 - angle * 0.05;
+            } else {
+                // 悬浮姿态
+                this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(-0.1, yaw, 0);
+                this.modelRoot.position.y = -1.2 + angle * 0.08;
+                if (this.leftShoulder) { this.leftShoulder.rotation.x = 0.0 + angle * 0.05; this.leftShoulder.rotation.z = 0.8 + angle * 0.05; }
+                if (this.rightShoulder) { this.rightShoulder.rotation.x = 0.0 + angle * 0.05; this.rightShoulder.rotation.z = -0.8 - angle * 0.05; }
+                if (this.leftHip) this.leftHip.rotation.x = 0.1 + angle * 0.05;
+                if (this.rightHip) this.rightHip.rotation.x = 0.05 - angle * 0.05;
+            }
+            return;
+        }
+
+        if (!isGrounded) {
+            // Air Animation
+            if (isMoving) {
+                if (isSprinting) {
+                    // Superhero Flight
+                    this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(1.0, yaw, 0);
+                    if (this.rightShoulder) {
+                        this.rightShoulder.rotation.x = -3.1;
+                        this.rightShoulder.rotation.z = 0.0;
+                    }
+                    if (this.leftShoulder) {
+                        this.leftShoulder.rotation.x = 0.5;
+                        this.leftShoulder.rotation.z = 0.2;
+                    }
+                    if (this.leftHip) this.leftHip.rotation.x = 0.1 + angle * 0.05;
+                    if (this.rightHip) this.rightHip.rotation.x = 0.1 - angle * 0.05;
+                } else {
+                    // Moving Jump (Standard)
+                    const vy = velocity.y;
+                    if (vy > 0.5) {
+                        // Rising
+                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.2, yaw, 0);
+                        if (this.leftShoulder) { this.leftShoulder.rotation.x = -2.8; this.leftShoulder.rotation.z = -0.2; }
+                        if (this.rightShoulder) { this.rightShoulder.rotation.x = -2.8; this.rightShoulder.rotation.z = 0.2; }
+                        if (this.leftHip) this.leftHip.rotation.x = -1.2;
+                        if (this.rightHip) this.rightHip.rotation.x = 0.2;
+                    } else if (vy < -0.5) {
+                        // Falling
+                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.0, yaw, 0);
+                        if (this.leftShoulder) { this.leftShoulder.rotation.x = -1.5; this.leftShoulder.rotation.z = -0.8; }
+                        if (this.rightShoulder) { this.rightShoulder.rotation.x = -1.5; this.rightShoulder.rotation.z = 0.8; }
+                        if (this.leftHip) this.leftHip.rotation.x = -0.4;
+                        if (this.rightHip) this.rightHip.rotation.x = -0.4;
+                    } else {
+                        // Apex
+                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.1, yaw, 0);
+                        if (this.leftShoulder) { this.leftShoulder.rotation.x = -2.0; this.leftShoulder.rotation.z = -0.4; }
+                        if (this.rightShoulder) { this.rightShoulder.rotation.x = -2.0; this.rightShoulder.rotation.z = 0.4; }
+                        if (this.leftHip) this.leftHip.rotation.x = -0.8;
+                        if (this.rightHip) this.rightHip.rotation.x = -0.8;
+                    }
+                }
+            } else {
+                // Stationary Jump / Hover
+                if (isSprinting) {
+                    // Zero Gravity Float
+                    this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(-0.1, yaw, 0);
+                    this.modelRoot.position.y = -1.2 + angle * 0.08;
+                    if (this.leftShoulder) { this.leftShoulder.rotation.x = 0.0 + angle * 0.05; this.leftShoulder.rotation.z = 0.8 + angle * 0.05; }
+                    if (this.rightShoulder) { this.rightShoulder.rotation.x = 0.0 + angle * 0.05; this.rightShoulder.rotation.z = -0.8 - angle * 0.05; }
+                    if (this.leftHip) this.leftHip.rotation.x = 0.1 + angle * 0.05;
+                    if (this.rightHip) this.rightHip.rotation.x = 0.05 - angle * 0.05;
+                } else {
+                    // Standard Stationary Jump
+                    const vy = velocity.y;
+                    this.modelRoot.position.y = -1.2;
+                    
+                    if (vy > 0.5) {
+                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.0, yaw, 0);
+                        if (this.leftShoulder) { this.leftShoulder.rotation.x = -2.8; this.leftShoulder.rotation.z = -0.1; }
+                        if (this.rightShoulder) { this.rightShoulder.rotation.x = -2.8; this.rightShoulder.rotation.z = 0.1; }
+                        if (this.leftHip) this.leftHip.rotation.x = -1.0;
+                        if (this.rightHip) this.rightHip.rotation.x = -1.0;
+                    } else if (vy < -0.5) {
+                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.0, yaw, 0);
+                        if (this.leftShoulder) { this.leftShoulder.rotation.x = -1.8 + angle * 0.1; this.leftShoulder.rotation.z = -0.5; }
+                        if (this.rightShoulder) { this.rightShoulder.rotation.x = -1.8 - angle * 0.1; this.rightShoulder.rotation.z = 0.5; }
+                        if (this.leftHip) this.leftHip.rotation.x = -0.2;
+                        if (this.rightHip) this.rightHip.rotation.x = -0.2;
+                    } else {
+                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.0, yaw, 0);
+                        if (this.leftShoulder) { this.leftShoulder.rotation.x = -2.2; }
+                        if (this.rightShoulder) { this.rightShoulder.rotation.x = -2.2; }
+                        if (this.leftHip) this.leftHip.rotation.x = -0.8;
+                        if (this.rightHip) this.rightHip.rotation.x = -0.8;
+                    }
+                }
+            }
+        } else {
+            // Grounded Logic
+            this.modelRoot.position.y = -1.2;
+            this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0, yaw, 0);
+
+            if (isMoving) {
+                // Walking Animation
+                const amp = isSprinting ? 1.2 : 0.8;
+                
+                if (this.leftHip) this.leftHip.rotation.x = -angle * amp;
+                if (this.rightHip) this.rightHip.rotation.x = angle * amp;
+                if (this.leftShoulder) {
+                    this.leftShoulder.rotation.x = angle * amp;
+                    this.leftShoulder.rotation.z = 0;
+                }
+                if (this.rightShoulder) {
+                    this.rightShoulder.rotation.x = -angle * amp;
+                    this.rightShoulder.rotation.z = 0;
+                }
+            } else {
+                // Idle
+                if (this.leftHip) this.leftHip.rotation.x = 0;
+                if (this.rightHip) this.rightHip.rotation.x = 0;
+                if (this.leftShoulder) {
+                    this.leftShoulder.rotation.x = 0;
+                    this.leftShoulder.rotation.z = 0;
+                }
+                if (this.rightShoulder) {
+                    this.rightShoulder.rotation.x = 0;
+                    this.rightShoulder.rotation.z = 0;
+                }
+            }
+        }
     }
 }

@@ -5,7 +5,7 @@ import { SagittariusScene } from "./scenes/sagittarius/SagittariusScene";
 import { DefaultScene } from "./scenes/default/DefaultScene";
 import { Player } from "./player";
 import { Player2 } from "./player2";
-import { BoxMan } from "./characters/boxMan/BoxMan";
+import { BoxMan } from "./characters/boxMan";
 import { Config } from "./config";
 import { setupUI } from "./ui";
 import { setupMinimap } from "./minimap";
