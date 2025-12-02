@@ -17,6 +17,9 @@ export const Config = {
         sprintMultiplier: 2,
         sprintSpeed: 8,
         jumpSpeed: 6.5,
+        boosterUpSpeed: 5,
+        boosterSpeed: 10,
+        boosterHoverHeight: 1,
         showCollider: false
     },
     shield: {

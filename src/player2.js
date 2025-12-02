@@ -24,6 +24,7 @@ export class Player2 {
         this.inputMap = {};
         this.walkTime = 0;
         this.isSprinting = false;
+        this.isBoosterActive = false;
         this._groundEpsilon = 0.06;
         
         this.setupInputs();
@@ -39,6 +40,17 @@ export class Player2 {
         this.scene.onKeyboardObservable.add((kbInfo) => {
             const evt = kbInfo.event;
             if (kbInfo.type === KeyboardEventTypes.KEYDOWN) {
+                if (evt.key.toLowerCase() === "q" && !this.inputMap["q"]) {
+                    this.isBoosterActive = !this.isBoosterActive;
+                    if (this.isBoosterActive) {
+                        if (this.isGrounded()) {
+                            this.boosterMode = "ground";
+                        } else {
+                            this.boosterMode = "air";
+                            this.holdY = this.mesh.position.y;
+                        }
+                    }
+                }
                 this.inputMap[evt.key.toLowerCase()] = true;
                 if (evt.key.toLowerCase() === "shift") {
                     this.isSprinting = true;
@@ -55,6 +67,11 @@ export class Player2 {
     registerBeforeRender() {
         this.scene.registerBeforeRender(() => {
             this.updateMovement();
+
+            if (this.boxMan && this.boxMan.updateBoosterEffect) {
+                this.boxMan.updateBoosterEffect(this.isBoosterActive);
+            }
+
             this.animate();
         });
     }
@@ -62,7 +79,11 @@ export class Player2 {
     updateMovement() {
         if (!this.mesh || !this.aggregate) return;
 
-        const speed = this.isSprinting ? Config.player2.sprintSpeed : Config.player2.speed;
+        let speed = this.isSprinting ? Config.player2.sprintSpeed : Config.player2.speed;
+        if (this.isBoosterActive) {
+            speed = Config.player2.boosterSpeed;
+        }
+        
         const velocity = this.aggregate.body.getLinearVelocity();
         
         // 获取相机方向（忽略Y轴）
@@ -110,10 +131,76 @@ export class Player2 {
             this.aggregate.body.setLinearVelocity(new Vector3(0, velocity.y, 0));
         }
 
-        // 跳跃
-        if (this.inputMap[" "] && this.isGrounded()) {
-            const v = this.aggregate.body.getLinearVelocity();
-            this.aggregate.body.setLinearVelocity(new Vector3(v.x, Config.player2.jumpSpeed, v.z));
+        // 跳跃 / 飞行 / 悬浮
+        if (this.inputMap[" "]) {
+            if (this.isBoosterActive) {
+                // 助推器飞行模式
+                const v = this.aggregate.body.getLinearVelocity();
+                // 限制上升速度，避免无限加速
+                const upSpeed = Config.player2.boosterUpSpeed; 
+                if (v.y < upSpeed) {
+                    this.aggregate.body.setLinearVelocity(new Vector3(v.x, upSpeed, v.z));
+                }
+                // 飞行时，如果是air模式，更新holdY，以便松开空格时悬停在当前高度
+                if (this.boosterMode === "air") {
+                    this.holdY = this.mesh.position.y;
+                }
+            } else if (this.isGrounded()) {
+                // 普通跳跃
+                const v = this.aggregate.body.getLinearVelocity();
+                this.aggregate.body.setLinearVelocity(new Vector3(v.x, Config.player2.jumpSpeed, v.z));
+            }
+        } else if (this.isBoosterActive) {
+            // 助推器悬浮 (未按跳跃键时)
+            
+            if (this.boosterMode === "air") {
+                // 空中启动模式：在当前高度悬浮 (抵消重力 + 维持高度)
+                const v = this.aggregate.body.getLinearVelocity();
+                const currentY = this.mesh.position.y;
+                
+                // 如果当前Y低于目标Y太多，施加向上速度
+                // 如果当前Y高于目标Y，我们也可以施加向下速度或者让重力起作用，
+                // 但为了"悬浮"，最好是双向控制
+                const error = this.holdY - currentY;
+                
+                // P控制
+                let vy = error * 5; 
+                
+                // 限制最大垂直修正速度
+                vy = Math.max(-5, Math.min(vy, 5));
+
+                // 设置速度，覆盖重力
+                this.aggregate.body.setLinearVelocity(new Vector3(v.x, vy, v.z));
+
+            } else {
+                // 地面启动模式：维持相对地面高度 (现有逻辑)
+                const hoverHeight = Config.player2.boosterHoverHeight;
+                // 射线检测下方距离
+                const ray = new Ray(this.mesh.position, new Vector3(0, -1, 0), hoverHeight + 5);
+                const pick = this.scene.pickWithRay(ray, (mesh) => {
+                    return mesh !== this.mesh && !mesh.isDescendantOf(this.mesh) && mesh.isPickable;
+                });
+    
+                if (pick.hit) {
+                    // 计算离地高度 (mesh中心到地面的距离)
+                    const currentDist = pick.distance;
+                    // 目标距离 = 悬浮高度 + 1 (假设中心高度为1)
+                    const targetDist = hoverHeight + 1;
+                    
+                    if (currentDist < targetDist) {
+                        // 低于悬浮高度，施加向上速度
+                        const v = this.aggregate.body.getLinearVelocity();
+                        const error = targetDist - currentDist;
+                        // 简单的P控制
+                        const liftSpeed = error * 3; 
+                        const finalUpSpeed = Math.min(liftSpeed, 5);
+                        
+                        if (v.y < finalUpSpeed) {
+                             this.aggregate.body.setLinearVelocity(new Vector3(v.x, finalUpSpeed, v.z));
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -165,6 +252,33 @@ export class Player2 {
         }
         
         const angle = Math.sin(this.walkTime);
+
+        if (this.isBoosterActive) {
+             // 助推器模式动画
+            if (isMoving) {
+                // 飞行姿态
+                this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(1.0, yaw, 0);
+                if (this.rightShoulder) {
+                    this.rightShoulder.rotation.x = -3.1;
+                    this.rightShoulder.rotation.z = 0.0;
+                }
+                if (this.leftShoulder) {
+                    this.leftShoulder.rotation.x = 0.5;
+                    this.leftShoulder.rotation.z = 0.2;
+                }
+                if (this.leftHip) this.leftHip.rotation.x = 0.1 + angle * 0.05;
+                if (this.rightHip) this.rightHip.rotation.x = 0.1 - angle * 0.05;
+            } else {
+                // 悬浮姿态
+                this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(-0.1, yaw, 0);
+                this.modelRoot.position.y = -1.2 + angle * 0.08;
+                if (this.leftShoulder) { this.leftShoulder.rotation.x = 0.0 + angle * 0.05; this.leftShoulder.rotation.z = 0.8 + angle * 0.05; }
+                if (this.rightShoulder) { this.rightShoulder.rotation.x = 0.0 + angle * 0.05; this.rightShoulder.rotation.z = -0.8 - angle * 0.05; }
+                if (this.leftHip) this.leftHip.rotation.x = 0.1 + angle * 0.05;
+                if (this.rightHip) this.rightHip.rotation.x = 0.05 - angle * 0.05;
+            }
+            return;
+        }
 
         if (!isGrounded) {
             // Air Animation

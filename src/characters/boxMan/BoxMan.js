@@ -1,4 +1,4 @@
-import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, TransformNode } from "@babylonjs/core";
+import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, TransformNode, Texture, Engine, Scalar } from "@babylonjs/core";
 
 export class BoxMan {
     constructor(scene, position = new Vector3(5, 5, 5)) {
@@ -6,8 +6,10 @@ export class BoxMan {
         this.mesh = null;
         this.aggregate = null;
         this.modelRoot = null;
+        this.flameRoots = [];
 
         this.createBoxManMesh();
+        this.createFlameEffects();
         
         if (this.mesh) {
             this.mesh.position = position;
@@ -140,11 +142,13 @@ export class BoxMan {
         nozzleMeshL.material = boosterMat;
         nozzleMeshL.parent = pipeL;
         nozzleMeshL.position.y = -pipeHeight / 2 - nozzleHeight / 2;
+        this.nozzleMeshL = nozzleMeshL;
 
         const nozzleMeshR = MeshBuilder.CreateCylinder("nozzleMeshR", { diameter: nozzleDiameter, height: nozzleHeight }, this.scene);
         nozzleMeshR.material = boosterMat;
         nozzleMeshR.parent = pipeR;
         nozzleMeshR.position.y = -pipeHeight / 2 - nozzleHeight / 2;
+        this.nozzleMeshR = nozzleMeshR;
 
         // 手臂参数
         const armWidth = 0.15;
@@ -207,6 +211,97 @@ export class BoxMan {
         rightLeg.material = pantsMat;
         rightLeg.parent = this.rightHip;
         rightLeg.position.y = -legHeight / 2;
+    }
+
+    createFlameEffects() {
+        if (!this.nozzleMeshL || !this.nozzleMeshR) return;
+
+        // 1. 生成光束纹理 (线性渐变 + 噪声线条)
+        const canvas = document.createElement("canvas");
+        canvas.width = 64; canvas.height = 128;
+        const ctx = canvas.getContext("2d");
+
+        // 背景渐变 (白 -> 黄 -> 橙 -> 红 -> 透明)
+        const grad = ctx.createLinearGradient(0, 0, 0, 128);
+        grad.addColorStop(0, "rgba(255, 255, 255, 1)");       // 核心白热
+        grad.addColorStop(0.1, "rgba(255, 240, 100, 0.95)");  // 内焰亮黄
+        grad.addColorStop(0.3, "rgba(255, 140, 0, 0.9)");     // 中焰橙红
+        grad.addColorStop(0.6, "rgba(200, 40, 0, 0.7)");      // 外焰深红
+        grad.addColorStop(1, "rgba(100, 0, 0, 0)");           // 尾部烟雾/消散
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 64, 128);
+
+        // 添加随机的高亮线条
+        ctx.globalCompositeOperation = "lighter";
+        ctx.fillStyle = "rgba(255, 255, 200, 0.4)";
+        for (let i = 0; i < 15; i++) {
+            const x = Math.random() * 64;
+            const w = Math.random() * 8 + 2;
+            ctx.fillRect(x, 0, w, 128);
+        }
+
+        const texUrl = canvas.toDataURL();
+        const flameTex = Texture.CreateFromBase64String(texUrl, "flame_beam.png", this.scene);
+        flameTex.hasAlpha = true;
+        flameTex.vScale = 1.0;
+
+        // 2. 创建发光材质
+        const flameMat = new StandardMaterial("flameMat", this.scene);
+        flameMat.diffuseTexture = flameTex;
+        flameMat.emissiveTexture = flameTex;
+        flameMat.opacityTexture = flameTex;
+        flameMat.emissiveColor = new Color3(1.0, 0.5, 0.0);
+        flameMat.disableLighting = true;
+        flameMat.alphaMode = Engine.ALPHA_ADD;
+        flameMat.backFaceCulling = false;
+
+        this.flameMat = flameMat;
+
+        // 3. 创建光束网格
+        const createFlameMesh = (parent) => {
+            const root = new TransformNode("flameRoot", this.scene);
+            root.parent = parent;
+            root.position = new Vector3(0, 0, 0);
+
+            const mesh = MeshBuilder.CreateCylinder("flameMesh", {
+                height: 0.8,
+                diameterTop: 0.16,
+                diameterBottom: 0.02,
+                tessellation: 16
+            }, this.scene);
+
+            mesh.material = flameMat;
+            mesh.parent = root;
+            mesh.position.y = -0.4;
+
+            root.scaling = new Vector3(0, 0, 0);
+            return root;
+        };
+
+        this.flameRoots = [
+            createFlameMesh(this.nozzleMeshL),
+            createFlameMesh(this.nozzleMeshR)
+        ];
+    }
+
+    updateBoosterEffect(active) {
+        const dt = this.scene.getEngine().getDeltaTime();
+        
+        // 动画纹理
+        if (this.flameMat && this.flameMat.diffuseTexture) {
+            this.flameMat.diffuseTexture.vOffset -= 0.005 * dt;
+        }
+
+        // 缩放插值
+        const lerpSpeed = 0.1;
+
+        this.flameRoots.forEach(root => {
+            if (active) {
+                root.scaling = Vector3.Lerp(root.scaling, new Vector3(1, 0.9, 1), lerpSpeed);
+            } else {
+                root.scaling = Vector3.Lerp(root.scaling, Vector3.Zero(), lerpSpeed);
+            }
+        });
     }
 
     setupPhysics() {
