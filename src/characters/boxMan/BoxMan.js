@@ -8,11 +8,12 @@ export class BoxMan {
         this.modelRoot = null;
 
         this.createBoxManMesh();
-        this.setupPhysics();
-
+        
         if (this.mesh) {
             this.mesh.position = position;
         }
+
+        this.setupPhysics();
     }
 
     createBoxManMesh() {
@@ -26,7 +27,7 @@ export class BoxMan {
         skinMat.specularColor = new Color3(0, 0, 0);
 
         const hairMat = new StandardMaterial("hairMat", this.scene);
-        hairMat.diffuseColor = new Color3(0.4, 0.2, 0.1);
+        hairMat.diffuseColor = new Color3(0.4, 0.2, 0.5);
         hairMat.specularColor = new Color3(0, 0, 0);
 
         const clothesMat = new StandardMaterial("clothesMat", this.scene);

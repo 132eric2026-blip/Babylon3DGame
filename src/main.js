@@ -4,6 +4,7 @@ import HavokPhysics from "@babylonjs/havok";
 import { SagittariusScene } from "./scenes/sagittarius/SagittariusScene";
 import { DefaultScene } from "./scenes/default/DefaultScene";
 import { Player } from "./player";
+import { Player2 } from "./player2";
 import { BoxMan } from "./characters/boxMan/BoxMan";
 import { Config } from "./config";
 import { setupUI } from "./ui";
@@ -68,17 +69,21 @@ async function createScene(engine) {
     // glowLayer.intensity = 1.0;
 
     // 玩家
-    const player = new Player(scene, camera);
-
-    // BoxMan
-    const boxMan = new BoxMan(scene, new Vector3(5, 5, 5));
+    let player;
+    if (Config.selectedPlayer === "player2") {
+        player = new Player2(scene, camera);
+    } else {
+        player = new Player(scene, camera);
+        // BoxMan 仅在 player1 模式下作为独立实体出现
+        const boxMan = new BoxMan(scene, new Vector3(5, 5, 5));
+    }
 
     // 相机跟随玩家
     // 注意：player.mesh 是物理胶囊体
     camera.lockedTarget = player.mesh;
 
     // 将玩家网格添加到阴影生成器
-    if (scene.shadowGenerator) {
+    if (scene.shadowGenerator && player.mesh) {
         player.mesh.getChildMeshes().forEach(m => {
             scene.shadowGenerator.addShadowCaster(m);
         });

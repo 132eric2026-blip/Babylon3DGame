@@ -1,4 +1,5 @@
 export const Config = {
+    selectedPlayer: "player2", // "player1" or "player2"
     player: {
         speed: 3,
         sprintMultiplier: 2,
@@ -10,6 +11,13 @@ export const Config = {
         width: 1,
         depth: 1,
         showCollider: false // 是否显示物理胶囊体
+    },
+    player2: {
+        speed: 3,
+        sprintMultiplier: 2,
+        sprintSpeed: 8,
+        jumpSpeed: 6.5,
+        showCollider: false
     },
     shield: {
         particlesEnabled: true // 是否开启护盾粒子效果
