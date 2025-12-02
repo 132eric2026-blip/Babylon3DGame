@@ -1,4 +1,4 @@
-﻿import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, Quaternion, Matrix, ActionManager, ParticleSystem, Texture, Color4, TransformNode, Ray, Engine, Scalar, TrailMesh, PointLight, PointerEventTypes, GlowLayer, Space, DynamicTexture, ShaderMaterial, Effect } from "@babylonjs/core";
+import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, Quaternion, Matrix, ActionManager, ParticleSystem, Texture, Color4, TransformNode, Ray, Engine, Scalar, TrailMesh, PointLight, PointerEventTypes, GlowLayer, Space, DynamicTexture, ShaderMaterial, Effect } from "@babylonjs/core";
 import { Config } from "./config";
 import { Shield } from "./shield";
 import { spawnAlphaParticleCannon } from "./armory/AlphaParticleCannon";
@@ -10,11 +10,13 @@ import { createQuantumAnnihilatorMesh, spawnQuantumAnnihilator } from "./armory/
 import { createEmeraldViperMesh, spawnEmeraldViper } from "./armory/EmeraldViper";
 import { createChronoArbalestMesh, spawnChronoArbalest } from "./armory/ChronoArbalest";
 import { createThunderArcGunMesh, spawnThunderArcGun } from "./armory/ThunderArcGun";
+import { CyberpunkMan } from "./characters/cyberpunkMan";
 
 export class Player {
-    constructor(scene, camera) {
+    constructor(scene, camera, glowLayer = null) {
         this.scene = scene;
         this.camera = camera;
+        this.glowLayer = glowLayer;
         this.mesh = null;
         this.aggregate = null;
         this.inputMap = {};
@@ -46,6 +48,32 @@ export class Player {
     }
 
     createPlayerMesh() {
+        if (Config.selectedPlayer === "cyberpunk") {
+            this.cyberpunkMan = new CyberpunkMan(this.scene, undefined, this.glowLayer);
+            this.mesh = this.cyberpunkMan.mesh;
+            this.modelRoot = this.cyberpunkMan.modelRoot;
+            this.aggregate = this.cyberpunkMan.aggregate; // Use existing physics
+
+            // Map limbs for compatibility with Player.js animation/logic
+            this.head = this.cyberpunkMan.head;
+            this.leftShoulder = this.cyberpunkMan.leftArmGroup;
+            this.rightShoulder = this.cyberpunkMan.rightArmGroup;
+            this.leftLeg = this.cyberpunkMan.leftLegGroup; // Player.js uses leftLeg or leftHip?
+            this.rightLeg = this.cyberpunkMan.rightLegGroup;
+            
+            // Player.js uses leftHip/rightHip in animation loop (lines 2533 etc)
+            // It defined leftHip as parent of leg.
+            this.leftHip = this.cyberpunkMan.leftLegGroup;
+            this.rightHip = this.cyberpunkMan.rightLegGroup;
+
+            // Fix for gun attachment:
+            // Player.js tries to find rightArm from rightShoulder children.
+            // We need to ensure it finds something valid or we manually set it.
+            // For now, let it find the first child (shoulder armor).
+            
+            return;
+        }
+
         // 玩家容器
         this.mesh = MeshBuilder.CreateCapsule("player", { height: 2, radius: 0.5 }, this.scene);
         this.mesh.position.y = 1;
@@ -1899,6 +1927,8 @@ export class Player {
     }
 
     setupPhysics() {
+        if (this.aggregate) return; // Already created (e.g. by CyberpunkMan)
+
         // 胶囊体物理聚合体
         // mass: 1, friction: 0.2, restitution: 0
         this.aggregate = new PhysicsAggregate(this.mesh, PhysicsShapeType.CAPSULE, { mass: 1, friction: 0.5, restitution: 0 }, this.scene);
@@ -2515,7 +2545,23 @@ export class Player {
                 moveDirection.z * curSpeed
             ));
             const dtScale = this.isSprinting ? 0.018 : 0.01;
-            this.walkTime += this.scene.getEngine().getDeltaTime() * dtScale * (curSpeed / 5);
+            const dt = this.scene.getEngine().getDeltaTime();
+            const walkTimeInc = dt * dtScale * (curSpeed / 5);
+            
+            if (this.cyberpunkMan) {
+                this.cyberpunkMan.updateAnimation(dtMs, {
+                    isMoving: true,
+                    isSprinting: this.isSprinting,
+                    isGrounded: this.isGrounded(),
+                    isBoosterActive: this.hoverActive,
+                    velocity: this.aggregate.body.getLinearVelocity(),
+                    yaw: Math.atan2(cameraForward.x, cameraForward.z),
+                    walkTimeIncrement: walkTimeInc
+                });
+            }
+            
+            if (!this.cyberpunkMan) {
+            this.walkTime += walkTimeInc;
             const amp = this.isSprinting ? 1.2 : 0.8;
             const angle = Math.sin(this.walkTime);
 
@@ -2574,6 +2620,7 @@ export class Player {
                 this.leftShoulder.rotation.z = 0;
                 this.rightShoulder.rotation.z = 0;
             }
+            }
 
 
 
@@ -2588,7 +2635,17 @@ export class Player {
             }
             this.aggregate.body.setLinearVelocity(new Vector3(0, vyIdle, 0));
 
-            if (!this.isGrounded()) {
+            if (this.cyberpunkMan) {
+                this.cyberpunkMan.updateAnimation(dtMs, {
+                    isMoving: false,
+                    isSprinting: this.isSprinting,
+                    isGrounded: this.isGrounded(),
+                    isBoosterActive: this.hoverActive,
+                    velocity: currentVel,
+                    yaw: this.modelRoot.rotationQuaternion ? this.modelRoot.rotationQuaternion.toEulerAngles().y : this.modelRoot.rotation.y,
+                    walkTimeIncrement: dtMs * 0.003
+                });
+            } else if (!this.isGrounded()) {
                 const ds = 0.003;
                 this.walkTime += this.scene.getEngine().getDeltaTime() * ds;
                 const ang = Math.sin(this.walkTime);

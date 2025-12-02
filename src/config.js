@@ -1,5 +1,5 @@
 export const Config = {
-    selectedPlayer: "player2", // "player1" or "player2"
+    selectCharacters: "cyberpunkMan", // "boxMan" or "cyberpunkMan"
     player: {
         speed: 3,
         sprintMultiplier: 2,
@@ -20,6 +20,16 @@ export const Config = {
         boosterUpSpeed: 5,
         boosterSpeed: 10,
         boosterHoverHeight: 1,
+        showCollider: false
+    },
+    cyberpunk: {
+        speed: 3,
+        sprintMultiplier: 2,
+        sprintSpeed: 8,
+        jumpSpeed: 6.5,
+        boosterUpSpeed: 5,
+        boosterSpeed: 12,
+        boosterHoverHeight: 1.5,
         showCollider: false
     },
     shield: {
@@ -86,7 +96,7 @@ export const Config = {
         },
         ThunderArcGun: { // 雷霆电弧枪 (特斯拉电弧)
             enabled: true,
-            spawnWeight:.5
+            spawnWeight: .5
         }
     }
 };

@@ -65,18 +65,13 @@ async function createScene(engine) {
     pipeline.bloomScale = 0.5;
 
     // 发光层（可选）：用于对特定网格增强泛光
-    // const glowLayer = new GlowLayer("glowLayer", scene);
-    // glowLayer.intensity = 1.0;
+    const glowLayer = new GlowLayer("glowLayer", scene);
+    glowLayer.intensity = 1.2;
 
-    // 玩家
-    let player;
-    if (Config.selectedPlayer === "player2") {
-        player = new Player2(scene, camera);
-    } else {
-        player = new Player(scene, camera);
-        // BoxMan 仅在 player1 模式下作为独立实体出现
-        const boxMan = new BoxMan(scene, new Vector3(5, 5, 5));
-    }
+    // 玩家 (默认使用 Player2 逻辑，通过配置选择具体角色)
+    let player = new Player2(scene, camera, glowLayer);
+    // 如果需要兼容旧的 player1 逻辑，可以在这里保留，但根据需求默认场景使用 player2.js
+
 
     // 相机跟随玩家
     // 注意：player.mesh 是物理胶囊体

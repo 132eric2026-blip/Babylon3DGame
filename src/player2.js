@@ -1,28 +1,41 @@
 import { Vector3, Quaternion, Matrix, ActionManager, KeyboardEventTypes, Ray } from "@babylonjs/core";
 import { BoxMan } from "./characters/boxMan";
+import { CyberpunkMan } from "./characters/cyberpunkMan";
 import { Config } from "./config";
 
 export class Player2 {
-    constructor(scene, camera) {
+    constructor(scene, camera, glowLayer = null) {
         this.scene = scene;
         this.camera = camera;
-        
-        // 实例化 BoxMan
-        this.boxMan = new BoxMan(scene, new Vector3(5, 5, 5));
-        
-        // 引用 BoxMan 的组件
+        this.glowLayer = glowLayer;
+
+        // 实例化角色，根据配置选择
+        if (Config.selectCharacters === "cyberpunkMan") {
+            this.boxMan = new CyberpunkMan(scene, new Vector3(5, 5, 5), this.glowLayer);
+        } else {
+            this.boxMan = new BoxMan(scene, new Vector3(5, 5, 5));
+        }
+
+        // 引用角色的组件
         this.mesh = this.boxMan.mesh;
         this.aggregate = this.boxMan.aggregate;
         this.modelRoot = this.boxMan.modelRoot;
-        
+
+        // 确保boxMan已经准备好
+        if (this.boxMan.mesh) {
+            this.mesh = this.boxMan.mesh;
+            this.aggregate = this.boxMan.aggregate;
+            this.modelRoot = this.boxMan.modelRoot;
+        }
+
         this.inputMap = {};
         this.isSprinting = false;
         this.isBoosterActive = false;
         this._groundEpsilon = 0.06;
-        
+
         this.setupInputs();
         this.registerBeforeRender();
-        
+
         // 让相机跟随
         this.camera.lockedTarget = this.mesh;
     }
@@ -76,14 +89,14 @@ export class Player2 {
         if (this.isBoosterActive) {
             speed = Config.player2.boosterSpeed;
         }
-        
+
         const velocity = this.aggregate.body.getLinearVelocity();
-        
+
         // 获取相机方向（忽略Y轴）
         const cameraForward = this.camera.getDirection(Vector3.Forward());
         cameraForward.y = 0;
         cameraForward.normalize();
-        
+
         const cameraRight = this.camera.getDirection(Vector3.Right());
         cameraRight.y = 0;
         cameraRight.normalize();
@@ -105,7 +118,7 @@ export class Player2 {
 
         if (moveDir.length() > 0) {
             moveDir.normalize();
-            
+
             // 设置速度
             this.aggregate.body.setLinearVelocity(new Vector3(
                 moveDir.x * speed,
@@ -130,7 +143,7 @@ export class Player2 {
                 // 助推器飞行模式
                 const v = this.aggregate.body.getLinearVelocity();
                 // 限制上升速度，避免无限加速
-                const upSpeed = Config.player2.boosterUpSpeed; 
+                const upSpeed = Config.player2.boosterUpSpeed;
                 if (v.y < upSpeed) {
                     this.aggregate.body.setLinearVelocity(new Vector3(v.x, upSpeed, v.z));
                 }
@@ -145,20 +158,20 @@ export class Player2 {
             }
         } else if (this.isBoosterActive) {
             // 助推器悬浮 (未按跳跃键时)
-            
+
             if (this.boosterMode === "air") {
                 // 空中启动模式：在当前高度悬浮 (抵消重力 + 维持高度)
                 const v = this.aggregate.body.getLinearVelocity();
                 const currentY = this.mesh.position.y;
-                
+
                 // 如果当前Y低于目标Y太多，施加向上速度
                 // 如果当前Y高于目标Y，我们也可以施加向下速度或者让重力起作用，
                 // 但为了"悬浮"，最好是双向控制
                 const error = this.holdY - currentY;
-                
+
                 // P控制
-                let vy = error * 5; 
-                
+                let vy = error * 5;
+
                 // 限制最大垂直修正速度
                 vy = Math.max(-5, Math.min(vy, 5));
 
@@ -173,23 +186,23 @@ export class Player2 {
                 const pick = this.scene.pickWithRay(ray, (mesh) => {
                     return mesh !== this.mesh && !mesh.isDescendantOf(this.mesh) && mesh.isPickable;
                 });
-    
+
                 if (pick.hit) {
                     // 计算离地高度 (mesh中心到地面的距离)
                     const currentDist = pick.distance;
                     // 目标距离 = 悬浮高度 + 1 (假设中心高度为1)
                     const targetDist = hoverHeight + 1;
-                    
+
                     if (currentDist < targetDist) {
                         // 低于悬浮高度，施加向上速度
                         const v = this.aggregate.body.getLinearVelocity();
                         const error = targetDist - currentDist;
                         // 简单的P控制
-                        const liftSpeed = error * 3; 
+                        const liftSpeed = error * 3;
                         const finalUpSpeed = Math.min(liftSpeed, 5);
-                        
+
                         if (v.y < finalUpSpeed) {
-                             this.aggregate.body.setLinearVelocity(new Vector3(v.x, finalUpSpeed, v.z));
+                            this.aggregate.body.setLinearVelocity(new Vector3(v.x, finalUpSpeed, v.z));
                         }
                     }
                 }
@@ -203,11 +216,11 @@ export class Player2 {
         // 我们投射一条长度为 1.1 的射线，以允许小的浮点误差（epsilon）
         const rayLength = 1.1;
         const ray = new Ray(this.mesh.position, new Vector3(0, -1, 0), rayLength);
-        
+
         const pick = this.scene.pickWithRay(ray, (mesh) => {
             return mesh !== this.mesh && !mesh.isDescendantOf(this.mesh) && mesh.isPickable;
         });
-        
+
         // 也保留 Y=0 检查，以防地面网格缺失或不可拾取
         let minY = 0;
         if (this.mesh.getBoundingInfo()) {
@@ -218,11 +231,11 @@ export class Player2 {
 
     animate() {
         if (!this.mesh || !this.aggregate) return;
-        
+
         const velocity = this.aggregate.body.getLinearVelocity();
         const isGrounded = this.isGrounded();
         const dt = this.scene.getEngine().getDeltaTime();
-        
+
         // Get current yaw
         let yaw = 0;
         if (this.modelRoot.rotationQuaternion) {
