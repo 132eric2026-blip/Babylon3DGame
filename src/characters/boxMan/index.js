@@ -300,7 +300,16 @@ export class BoxMan {
         }
 
         // 动态调整尾焰长度
-        const targetScaleY = isMoving ? .8 : 0.5; // 运动时更长(1.2)，悬浮时更短(0.5)
+        const targetScaleY = isMoving ? 1.2 : 0.5; // 运动时更长(1.2)，悬浮时更短(0.5)
+        
+        // 动态调整泛光强度
+        // 悬浮时: (0.6, 0.3, 0.0) 
+        // 飞行时: (1.0, 0.6, 0.2) - 更亮，泛光更强
+        const targetEmissive = isMoving ? new Color3(1.0, 0.6, 0.2) : new Color3(0.6, 0.3, 0.0);
+
+        if (this.flameMat) {
+             Color3.LerpToRef(this.flameMat.emissiveColor, targetEmissive, 0.1, this.flameMat.emissiveColor);
+        }
 
         this.flameRoots.forEach(root => {
             if (active) {
