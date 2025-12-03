@@ -152,10 +152,10 @@ export class Player2 {
                 if (v.y < upSpeed) {
                     this.aggregate.body.setLinearVelocity(new Vector3(v.x, upSpeed, v.z));
                 }
-                // 飞行时，如果是air模式，更新holdY，以便松开空格时悬停在当前高度
-                if (this.boosterMode === "air") {
-                    this.holdY = this.mesh.position.y;
-                }
+                
+                // 只要按住空格上升，就切换到空中悬停模式，并记录当前高度
+                this.boosterMode = "air";
+                this.holdY = this.mesh.position.y;
             } else if (this.isGrounded()) {
                 // 普通跳跃
                 const v = this.aggregate.body.getLinearVelocity();

@@ -5,8 +5,8 @@
 export const DefaultSceneConfig = {
     horseEnabled: false, // 是否生成马
     groundColor: { r: 0.2, g: 0.2, b: 0.2 },
-    hemiLightIntensity: 0.5,
-    dirLightIntensity: 0.4,
+    hemiLightIntensity: 1,
+    dirLightIntensity: 0.2,
     dirLightPosition: { x: 20, y: 40, z: -20 },
     // 环境设置
     ambientColor: { r: 0.3, g: 0.3, b: 0.3 }, // 环境光颜色

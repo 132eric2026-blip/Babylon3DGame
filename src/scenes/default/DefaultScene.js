@@ -104,7 +104,7 @@ export class DefaultScene {
             dirLight.position = new Vector3(20, 40, 20);
         }
         dirLight.diffuse = new Color3(1.0, 0.9, 0.8); // 温暖的太阳色
-        dirLight.specular = new Color3(1.0, 1.0, 1.0);
+        dirLight.specular = new Color3(0, 0, 0);
         dirLight.intensity = DefaultSceneConfig.dirLightIntensity;
 
         // 阴影
@@ -134,7 +134,7 @@ export class DefaultScene {
             DefaultSceneConfig.groundColor.g,
             DefaultSceneConfig.groundColor.b
         ); // 灰色地面
-        groundMat.specularColor = new Color3(0.1, 0.1, 0.1); // 低高光
+        groundMat.specularColor = new Color3(0, 0, 0); // 去掉高光
         
         // 可选：网格纹理，默认场景使用纯色即可
         

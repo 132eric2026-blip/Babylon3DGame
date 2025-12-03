@@ -87,8 +87,8 @@ export class VoxelKnight {
         this.plumeLight = new PointLight("plumeLight", new Vector3(0, 0, 0), this.scene);
         this.plumeLight.parent = plumeBase;
         this.plumeLight.diffuse = new Color3(1.0, 0.6, 0.1); // 橘黄色光
-        this.plumeLight.intensity = 0.5;
-        this.plumeLight.range = 5; // 照明范围
+        this.plumeLight.intensity = 2.5;
+        this.plumeLight.range = 25; // 照明范围
 
         const plumeTop = MeshBuilder.CreateBox("plumeTop", { width: 0.1, height: 0.2, depth: 0.3 }, this.scene);
         plumeTop.material = plumeMat;

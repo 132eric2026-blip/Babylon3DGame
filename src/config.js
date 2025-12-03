@@ -1,5 +1,5 @@
 export const Config = {
-    selectCharacters: "voxelKnight", // "boxMan", "cyberpunkMan", "sphereGirl" or "voxelKnight"
+    selectCharacters: "boxMan", // "boxMan", "cyberpunkMan", "sphereGirl" or "voxelKnight"
     player: {
         speed: 3,
         sprintMultiplier: 2,
