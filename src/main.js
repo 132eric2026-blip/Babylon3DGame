@@ -22,7 +22,11 @@ async function createEngine() {
     await engine.initAsync();
     return engine;
 }
-
+// 监听鼠标按键状态，检测旋转操作
+    let isMouseDown = false;
+    let currentButton = -1;
+    let lastX = 0;
+    let lastY = 0;
 /**
  * 创建并配置场景
  * 初始化物理、相机、后处理、UI、武器等模块
@@ -51,8 +55,91 @@ async function createScene(engine) {
     // 相机
     const camera = new ArcRotateCamera("camera", -Math.PI / 2.5, Math.PI / 2.5, 20, Vector3.Zero(), scene);
     camera.wheelPrecision = 20;
+    camera.inputs.attached.pointers.buttons = [0,2];
+    camera.useCtrlForPanning = true;
     camera.attachControl(engine.getRenderingCanvas(), true);
     scene.activeCameras = [camera];
+    camera.panningSensibility = 0; // 禁用平移（避免意外拖动）
+
+    const canvasEl = engine.getRenderingCanvas();
+    if (canvasEl) {
+        // 阻止右键菜单，允许使用右键控制相机旋转
+        canvasEl.oncontextmenu = function (e) {
+            e.preventDefault();
+        };
+        // canvasEl.addEventListener("contextmenu", (e) => {
+        //     e.preventDefault();
+        //     console.log("CanvasRightClick", e);
+        // });
+        // canvasEl.addEventListener("mousedown", (evt) => {
+        //     if (evt.button === 2) {
+        //         console.log("CanvasRightMouseDown", evt);
+        //     }
+        // });
+
+        // const rightDragState = { active: false, lastX: 0, lastY: 0 };
+
+        // canvasEl.addEventListener("mousedown", (evt) => {
+        //     if (evt.button === 2) {
+        //         rightDragState.active = true;
+        //         rightDragState.lastX = evt.clientX;
+        //         rightDragState.lastY = evt.clientY;
+        //     }
+        // });
+
+        // canvasEl.addEventListener("mousemove", (evt) => {
+        //     if (!rightDragState.active) return;
+        //     const dx = evt.clientX - rightDragState.lastX;
+        //     const dy = evt.clientY - rightDragState.lastY;
+        //     rightDragState.lastX = evt.clientX;
+        //     rightDragState.lastY = evt.clientY;
+        //     console.log("CanvasRightDrag", { dx, dy, x: evt.clientX, y: evt.clientY });
+        // });
+
+        // const endRightDrag = () => { rightDragState.active = false; };
+        // canvasEl.addEventListener("mouseup", (evt) => { if (evt.button === 2) endRightDrag(); });
+        // canvasEl.addEventListener("mouseleave", endRightDrag);
+        // window.addEventListener("mouseup", (evt) => { if (evt.button === 2) endRightDrag(); });
+
+
+
+        canvasEl.addEventListener('mousedown', (evt) => {
+            console.log('Mouse down, button:', evt.button);
+            if (evt.button === 2) {
+                isMouseDown = true;
+                currentButton = evt.button;
+                lastX = evt.clientX;
+                lastY = evt.clientY;
+            }
+        });
+
+    // canvasEl.addEventListener('mousemove', (evt) => {
+    //     if (isMouseDown && currentButton !== -1) {
+    //         // 检测鼠标是否真的移动了
+    //         if (Math.abs(evt.clientX - lastX) > 1 || Math.abs(evt.clientY - lastY) > 1) {
+    //             if (currentButton === 2) {
+    //                 console.log(1); // 右键旋转
+    //             } else if (currentButton === 0) {
+    //                 console.log(2); // 左键旋转
+    //             }
+    //             lastX = evt.clientX;
+    //             lastY = evt.clientY;
+    //         }
+    //     }
+    // });
+
+    // canvasEl.addEventListener('mouseup', (evt) => {
+    //     console.log('Mouse up');
+    //     isMouseDown = false;
+    //     currentButton = -1;
+    // });
+    }
+
+    // window.addEventListener("mousedown", (evt) => {
+    //     if (evt.button === 2) {
+    //         console.log("RightMouseDown", evt);
+    //     }
+    // });
 
     // 抗锯齿与泛光：开启 FXAA 与多重采样，同时启用泛光
     const pipeline = new DefaultRenderingPipeline("defaultPipeline", true, scene, [camera]);
