@@ -77,6 +77,15 @@ async function createScene(engine) {
     // 注意：player.mesh 是物理胶囊体
     camera.lockedTarget = player.mesh;
 
+    // 关键修复：
+    // BoxMan 会自动将自己添加到 glowLayer (IncludedOnly模式)，从而屏蔽场景其他元素(如路灯)的泛光。
+    // VoxelKnight 没有发光部件，导致 glowLayer 保持默认模式(影响全场景)。
+    // 这里手动将 player.mesh 加入 glowLayer，强制切换到 IncludedOnly 模式。
+    // 因为 VoxelKnight 本身不发光，这样既保持了角色正常，又消除了场景污染。
+    if (player.mesh) {
+        glowLayer.addIncludedOnlyMesh(player.mesh);
+    }
+
     // 将玩家网格添加到阴影生成器
     if (scene.shadowGenerator && player.mesh) {
         player.mesh.getChildMeshes().forEach(m => {
