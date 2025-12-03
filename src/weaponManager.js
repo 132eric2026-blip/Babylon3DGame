@@ -2,7 +2,7 @@ import { Vector3 } from "@babylonjs/core";
 import { Config } from "./config";
 // import { spawnAlphaParticleCannon } from "./props/guns/AlphaParticleCannon";
 // import { spawnPegasusParticleCannon } from "./props/guns/PegasusParticleCannon";
-import { spawnSolarPlasmaCannon } from "./equipment/guns/SolarPlasmaCannon";
+import { spawnSolarPlasmaCannon } from "./equipment/weapons/ranged/SolarPlasmaCannon";
 // import { spawnScorpioPulsarGun } from "./props/guns/ScorpioPulsarGun";
 // import { spawnQuantumAnnihilator } from "./props/guns/QuantumAnnihilator";
 // import { spawnEmeraldViper } from "./props/guns/EmeraldViper";

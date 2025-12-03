@@ -4,7 +4,8 @@ import { BoxMan } from "./characters/boxMan";
 //import { SphereGirl } from "./characters/sphereGirl";
 import { VoxelKnight } from "./characters/voxelKnight";
 import { Config } from "./config";
-import { createSolarPlasmaCannonMesh, spawnSolarPlasmaCannon } from "./equipment/guns/SolarPlasmaCannon";
+import { createSolarPlasmaCannonMesh, spawnSolarPlasmaCannon } from "./equipment/weapons/ranged/SolarPlasmaCannon";
+import { BackpackUI } from "./ui/BackpackUI";
 
 export class Player2 {
     constructor(scene, camera, glowLayer = null) {
@@ -47,6 +48,21 @@ export class Player2 {
         this.isSprinting = false;
         this.isBoosterActive = false;
         this._groundEpsilon = 0.06;
+        // Z键按压状态
+        this.isZPressed = false;
+        
+        // 初始化背包数据
+        this.inventory = new Array(20).fill(null);
+        // 第一个格子放入 SolarPlasmaCannon
+        this.inventory[0] = {
+            id: "SolarPlasmaCannon",
+            name: "SolarPlasmaCannon",
+            type: "gun",
+            // icon: "path/to/icon.png" // 暂时没有图标
+        };
+
+        this.backpackUI = new BackpackUI(scene, this);
+        this.backpackUI.updateDisplay(this.inventory);
 
         this.setupInputs();
         this.setupGun(); // 初始化武器系统
@@ -54,6 +70,31 @@ export class Player2 {
 
         // 让相机跟随
         this.camera.lockedTarget = this.mesh;
+    }
+
+    // 装备物品的方法 (供 BackpackUI 调用)
+    equipItem(item) {
+        if (item.type === "gun") {
+            if (this.currentWeapon === item.id) {
+                // 如果已经装备，则卸下 (可选逻辑，这里暂不卸下)
+                // this.unequipWeapon(); 
+                return;
+            }
+            this.equipWeaponVisuals(item.id);
+            this.setGunVisibility(true);
+            this.isHoldingGun = true;
+            this.currentWeapon = item.id;
+        }
+    }
+
+    unequipWeapon() {
+        this.setGunVisibility(false);
+        this.isHoldingGun = false;
+        this.currentWeapon = null;
+        if (this.currentGunModel) {
+            this.currentGunModel.dispose();
+            this.currentGunModel = null;
+        }
     }
 
     setupGun() {
@@ -87,11 +128,11 @@ export class Player2 {
         // Setup Persistent Muzzle Flash System
         this.setupMuzzleFlash();
 
-        // Initialize with SolarPlasmaCannon
-        this.equipWeaponVisuals("SolarPlasmaCannon");
-        this.setGunVisibility(true); // 默认显示武器
-        this.isHoldingGun = true;
-        this.currentWeapon = "SolarPlasmaCannon";
+        // Initialize with NO weapon (User request)
+        // this.equipWeaponVisuals("SolarPlasmaCannon");
+        this.setGunVisibility(false); // 默认不显示
+        this.isHoldingGun = false;
+        this.currentWeapon = null;
     }
 
     equipWeaponVisuals(weaponName) {
@@ -369,15 +410,30 @@ export class Player2 {
                 if (evt.key.toLowerCase() === "shift") {
                     this.isSprinting = true;
                 }
+                // Z: 切换背包显示/隐藏（不切换指针锁状态）
+                if (evt.key.toLowerCase() === "z") {
+                    if (!this.isZPressed) {
+                        this.isZPressed = true;
+                        if (this.backpackUI.isVisible) {
+                            this.backpackUI.hide();
+                        } else {
+                            this.backpackUI.show();
+                        }
+                    }
+                }
             } else {
                 this.inputMap[evt.key.toLowerCase()] = false;
                 if (evt.key.toLowerCase() === "shift") {
                     this.isSprinting = false;
                 }
+                // Z Release: Reset flag only
+                if (evt.key.toLowerCase() === "z") {
+                    this.isZPressed = false;
+                }
             }
         });
 
-        // Mouse Input for Firing
+        // 鼠标输入（射击）
         this.scene.onPointerObservable.add((pointerInfo) => {
             if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
                 // Left Click (0)

@@ -4,7 +4,7 @@ import { Shield } from "./shield";
 // import { spawnAlphaParticleCannon } from "./props/guns/AlphaParticleCannon";
 // import { spawnPegasusParticleCannon, createPegasusGunMesh } from "./props/guns/PegasusParticleCannon";
 // import { createLightSpearMesh, spawnLightSpear } from "./props/guns/LightSpear";
-import { createSolarPlasmaCannonMesh, spawnSolarPlasmaCannon } from "./equipment/guns/SolarPlasmaCannon";
+import { createSolarPlasmaCannonMesh, spawnSolarPlasmaCannon } from "./equipment/weapons/ranged/SolarPlasmaCannon";
 // import { createScorpioPulsarGunMesh, spawnScorpioPulsarGun } from "./props/guns/ScorpioPulsarGun";
 // import { createQuantumAnnihilatorMesh, spawnQuantumAnnihilator } from "./props/guns/QuantumAnnihilator";
 // import { createEmeraldViperMesh, spawnEmeraldViper } from "./props/guns/EmeraldViper";
