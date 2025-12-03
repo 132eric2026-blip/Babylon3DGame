@@ -437,6 +437,11 @@ export class Player2 {
         this.scene.onPointerObservable.add((pointerInfo) => {
             if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
                 if (pointerInfo.event.button === 0) {
+                    // 如果点击在背包UI内，则不触发射击
+                    if (this.backpackUI && this.backpackUI.isInsideUI(this.scene.pointerX, this.scene.pointerY)) {
+                        return;
+                    }
+
                     // 允许在背包打开时射击
                     this.fireInputPressed = true;
                     this.fireWeapon();

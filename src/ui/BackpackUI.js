@@ -156,6 +156,16 @@ export class BackpackUI {
         return -1;
     }
 
+    /**
+     * 检查指定坐标是否在背包UI范围内
+     * @param {number} x 屏幕 X 坐标
+     * @param {number} y 屏幕 Y 坐标
+     * @returns {boolean}
+     */
+    isInsideUI(x, y) {
+        return this.isVisible && this.container && this.container.contains(x, y);
+    }
+
     createCursor() {
         const cur = new Rectangle("uiCursor");
         cur.width = "12px";
@@ -307,8 +317,8 @@ export class BackpackUI {
             // 重新更新背包显示，以显示高亮
             this.updateDisplay(this.player.inventory);
 
-            // 装备武器后不再自动关闭背包，允许玩家继续操作
-            // this.hide();
+            // 装备武器后自动关闭背包
+            this.hide();
 
             // 恢复相机控制，确保装备武器后可以正常射击
             if (this.player.camera) {
