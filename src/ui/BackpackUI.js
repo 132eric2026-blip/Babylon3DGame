@@ -52,7 +52,7 @@ export class BackpackUI {
                                 this.clearHighlight(this.highlightIndex);
                             }
                             this.setHighlight(foundSlot);
-                            console.log("Hovering over slot index: " + foundSlot);
+                            // console.log("Hovering over slot index: " + foundSlot);
                         }
                     } else {
                         if (this.highlightIndex !== -1) {
@@ -62,17 +62,17 @@ export class BackpackUI {
                     }
                 }
             } else if (pointerInfo.type === PointerEventTypes.POINTERUP) {
-                console.log("🖱️ 全局 POINTERUP 事件触发，当前 dragging 状态:", this.dragging);
+                // console.log("🖱️ 全局 POINTERUP 事件触发，当前 dragging 状态:", this.dragging);
                 if (this.dragging) {
-                    console.log("🖱️ 全局鼠标松开，拖拽状态: true");
-                    console.log("🎯 当前高亮的槽位:", this.highlightIndex);
+                    // console.log("🖱️ 全局鼠标松开，拖拽状态: true");
+                    // console.log("🎯 当前高亮的槽位:", this.highlightIndex);
 
                     if (this.highlightIndex !== -1) {
                         // 使用拖拽过程中高亮的槽位作为目标
                         this.handleSlotLeftUp(this.highlightIndex);
                     } else {
                         // 没有高亮槽位，取消拖拽
-                        console.log("❌ 未在槽位上松开，取消拖拽");
+                        // console.log("❌ 未在槽位上松开，取消拖拽");
                         this.cancelDrag();
                     }
                 }
@@ -182,16 +182,16 @@ export class BackpackUI {
 
         // 鼠标交互
         slotContainer.onPointerEnterObservable.add(() => {
-            console.log("🖱️ 鼠标进入槽位:", index, "拖拽状态:", this.dragging);
+            // console.log("🖱️ 鼠标进入槽位:", index, "拖拽状态:", this.dragging);
             if (this.dragging) {
                 this.setHighlight(index);
-                console.log("✨ 高亮槽位: " + index);
+                // console.log("✨ 高亮槽位: " + index);
             } else {
                 slotContainer.background = "rgba(255, 255, 255, 0.3)";
             }
         });
         slotContainer.onPointerOutObservable.add(() => {
-            console.log("🖱️ 鼠标离开槽位:", index);
+            // console.log("🖱️ 鼠标离开槽位:", index);
             if (this.dragging && this.highlightIndex === index) {
                 this.clearHighlight(index);
             }
@@ -240,12 +240,31 @@ export class BackpackUI {
      * @param {Array} inventoryItems 物品列表
      */
     updateDisplay(inventoryItems) {
+        console.log("🎒 更新背包显示，当前装备的武器:", this.player.currentWeapon);
+
         for (let i = 0; i < 20; i++) {
             const slot = this.slots[i];
             const item = inventoryItems[i];
 
             if (item) {
                 slot.item = item;
+
+                // 检查是否是当前装备的武器
+                const isEquipped = (item.type === "gun" && item.id === this.player.currentWeapon);
+                console.log(`槽位 ${i}: ${item.name} (id: ${item.id}, type: ${item.type}), 是否装备: ${isEquipped}`);
+
+                // 高亮当前装备的武器
+                if (isEquipped) {
+                    slot.container.color = "#00ff00"; // 绿色边框
+                    slot.container.background = "rgba(0, 255, 0, 0.2)"; // 绿色半透明背景
+                    slot.container.thickness = 2;
+                    console.log(`✅ 高亮槽位 ${i}`);
+                } else {
+                    slot.container.color = "grey";
+                    slot.container.background = "rgba(255, 255, 255, 0.1)";
+                    slot.container.thickness = 1;
+                }
+
                 // 如果有 icon 路径则设置 source
                 if (item.icon) {
                     slot.icon.source = item.icon;
@@ -267,6 +286,11 @@ export class BackpackUI {
                 slot.item = null;
                 slot.icon.isVisible = false;
                 if (slot.textBlock) slot.textBlock.isVisible = false;
+
+                // 恢复空槽位的默认样式
+                slot.container.color = "grey";
+                slot.container.background = "rgba(255, 255, 255, 0.1)";
+                slot.container.thickness = 1;
             }
         }
     }
@@ -274,42 +298,58 @@ export class BackpackUI {
     handleSlotRightClick(index) {
         const slot = this.slots[index];
         if (slot && slot.item) {
+            console.log("🖱️ 右键装备物品:", slot.item);
+            console.log("装备前 currentWeapon:", this.player.currentWeapon);
+
             // 触发玩家装备逻辑
             this.player.equipItem(slot.item);
-            console.log("Equipped: " + slot.item.name);
+
+            console.log("装备后 currentWeapon:", this.player.currentWeapon);
+
+            // 重新更新背包显示，以显示高亮
+            this.updateDisplay(this.player.inventory);
+
+            // 装备武器后自动关闭背包，以便可以立即射击
+            // 因为 player2.js 的射击逻辑要求背包必须隐藏才能射击
+            this.hide();
+
+            // 恢复相机控制，确保装备武器后可以正常射击
+            if (this.player.camera) {
+                this.player.camera.attachControl(this.scene.getEngine().getRenderingCanvas(), true);
+            }
         }
     }
 
     handleSlotLeftDown(index) {
-        console.log("=== handleSlotLeftDown 被调用 ===", index);
-        console.log("背包可见性 isVisible:", this.isVisible);
+        // console.log("=== handleSlotLeftDown 被调用 ===", index);
+        // console.log("背包可见性 isVisible:", this.isVisible);
 
         if (!this.isVisible) {
-            console.log("❌ 背包不可见，退出拖拽");
+            // console.log("❌ 背包不可见，退出拖拽");
             return;
         }
 
         const slot = this.slots[index];
-        console.log("槽位对象 slot:", slot);
-        console.log("槽位物品 slot.item:", slot?.item);
+        // console.log("槽位对象 slot:", slot);
+        // console.log("槽位物品 slot.item:", slot?.item);
 
         if (!slot || !slot.item) {
-            console.log("❌ 槽位为空或无物品，退出拖拽");
+            // console.log("❌ 槽位为空或无物品，退出拖拽");
             return;
         }
 
-        console.log("✅ 开始拖拽物品:", slot.item.name);
+        // console.log("✅ 开始拖拽物品:", slot.item.name);
 
         // 禁用相机控制，防止拖拽时视角旋转
         if (this.player.camera) {
             this.player.camera.detachControl();
-            console.log("📷 相机控制已禁用");
+            // console.log("📷 相机控制已禁用");
         }
 
         this.dragging = true;
         this.dragIndex = index;
         this.dragItem = slot.item;
-        console.log("🎯 拖拽状态设置完成 - dragging:", this.dragging, "dragIndex:", this.dragIndex);
+        // console.log("🎯 拖拽状态设置完成 - dragging:", this.dragging, "dragIndex:", this.dragIndex);
 
         // 创建拖拽图标容器
         const dragContainer = new Rectangle("dragContainer");
@@ -352,21 +392,21 @@ export class BackpackUI {
     }
 
     handleSlotLeftUp(targetIndex) {
-        console.log("=== handleSlotLeftUp 被调用 ===");
-        console.log("当前拖拽状态:", this.dragging);
+        // console.log("=== handleSlotLeftUp 被调用 ===");
+        // console.log("当前拖拽状态:", this.dragging);
 
         if (!this.dragging) {
-            console.log("❌ 拖拽状态为 false，退出");
+            // console.log("❌ 拖拽状态为 false，退出");
             return;
         }
 
         const fromIndex = this.dragIndex;
         const toIndex = targetIndex;
 
-        console.log("📦 放置到槽位:", targetIndex, "来自槽位:", fromIndex);
+        // console.log("📦 放置到槽位:", targetIndex, "来自槽位:", fromIndex);
 
         if (fromIndex === toIndex) {
-            console.log("⚠️ 放置到同一槽位，取消拖拽");
+            // console.log("⚠️ 放置到同一槽位，取消拖拽");
             this.cancelDrag();
             this._dropCompleted = true;
             return;
@@ -374,20 +414,20 @@ export class BackpackUI {
 
         const fromItem = this.player.inventory[fromIndex];
         const toItem = this.player.inventory[toIndex];
-        console.log("📦 交换物品 - 从:", fromItem?.name, "到:", toItem?.name);
-        console.log("交换前 inventory:", this.player.inventory.map((item, i) => `[${i}]:${item?.name || 'empty'}`));
+        // console.log("📦 交换物品 - 从:", fromItem?.name, "到:", toItem?.name);
+        // console.log("交换前 inventory:", this.player.inventory.map((item, i) => `[${i}]:${item?.name || 'empty'}`));
 
         if (fromItem && toItem) {
-            console.log("✅ 执行交换：两个槽位都有物品");
+            // console.log("✅ 执行交换：两个槽位都有物品");
             this.player.inventory[fromIndex] = toItem;
             this.player.inventory[toIndex] = fromItem;
         } else if (fromItem && !toItem) {
-            console.log("✅ 执行移动：从有物品的槽位移到空槽位");
+            // console.log("✅ 执行移动：从有物品的槽位移到空槽位");
             this.player.inventory[toIndex] = fromItem;
             this.player.inventory[fromIndex] = null;
         }
 
-        console.log("交换后 inventory:", this.player.inventory.map((item, i) => `[${i}]:${item?.name || 'empty'}`));
+        // console.log("交换后 inventory:", this.player.inventory.map((item, i) => `[${i}]:${item?.name || 'empty'}`));
 
         this.updateDisplay(this.player.inventory);
 
