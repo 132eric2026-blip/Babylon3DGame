@@ -1,4 +1,4 @@
-import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, TransformNode, Texture, Engine, Scalar, Quaternion } from "@babylonjs/core";
+import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, TransformNode, Texture, Engine, Scalar, Quaternion, PointLight } from "@babylonjs/core";
 
 export class VoxelKnight {
     constructor(scene, position = new Vector3(5, 5, 5), glowLayer = null) {
@@ -9,6 +9,7 @@ export class VoxelKnight {
         this.modelRoot = null;
         this.flameRoots = [];
         this.walkTime = 0;
+        this.time = 0;
 
         this.createKnightMesh();
         this.createFlameEffects();
@@ -37,6 +38,14 @@ export class VoxelKnight {
         const accentMat = new StandardMaterial("accentMat", this.scene);
         accentMat.diffuseColor = new Color3(0.8, 0.1, 0.1); // 红色装饰
         accentMat.specularColor = new Color3(0.1, 0.1, 0.1);
+
+        // 专门给头盔顶饰的材质，用于呼吸灯效果
+        const plumeMat = new StandardMaterial("plumeMat", this.scene);
+        // [COLOR] 头顶羽毛颜色 (橘黄色)
+        plumeMat.diffuseColor = new Color3(1.0, 0.6, 0.1);
+        plumeMat.specularColor = new Color3(0.1, 0.1, 0.1);
+        plumeMat.emissiveColor = new Color3(0.2, 0.1, 0); // 初始微弱发光
+        this.plumeMat = plumeMat;
 
         const skinMat = new StandardMaterial("skinMat", this.scene);
         skinMat.diffuseColor = new Color3(1, 0.8, 0.6); // 皮肤
@@ -70,15 +79,28 @@ export class VoxelKnight {
 
         // 头盔顶饰 (羽毛/装饰)
         const plumeBase = MeshBuilder.CreateBox("plumeBase", { width: 0.1, height: 0.1, depth: 0.4 }, this.scene);
-        plumeBase.material = accentMat;
+        plumeBase.material = plumeMat;
         plumeBase.parent = helmet;
         plumeBase.position.y = 0.3;
 
+        // [LIGHT] 添加点光源，照亮周围
+        this.plumeLight = new PointLight("plumeLight", new Vector3(0, 0, 0), this.scene);
+        this.plumeLight.parent = plumeBase;
+        this.plumeLight.diffuse = new Color3(1.0, 0.6, 0.1); // 橘黄色光
+        this.plumeLight.intensity = 0.5;
+        this.plumeLight.range = 5; // 照明范围
+
         const plumeTop = MeshBuilder.CreateBox("plumeTop", { width: 0.1, height: 0.2, depth: 0.3 }, this.scene);
-        plumeTop.material = accentMat;
+        plumeTop.material = plumeMat;
         plumeTop.parent = helmet;
         plumeTop.position.y = 0.4;
         plumeTop.position.z = -0.05;
+
+        // 添加到发光层
+        if (this.glowLayer) {
+            this.glowLayer.addIncludedOnlyMesh(plumeBase);
+            this.glowLayer.addIncludedOnlyMesh(plumeTop);
+        }
 
         // --- 身体 ---
         const body = MeshBuilder.CreateBox("body", { width: 0.5, height: 0.6, depth: 0.3 }, this.scene);
@@ -383,6 +405,23 @@ export class VoxelKnight {
         const { isMoving, isSprinting, isGrounded, isBoosterActive, velocity, yaw, walkTimeIncrement } = state;
 
         this.walkTime += walkTimeIncrement;
+        this.time += dt * 0.001; // 转换为秒
+
+        // 呼吸灯效果
+        if (this.plumeMat) {
+            // 0.5 到 1.5 之间波动，周期约 2 秒
+            const intensity = 0.8 + Math.sin(this.time * 3) * 0.4;
+            // [COLOR] 呼吸灯颜色变化 (保持橘黄色比例)
+            this.plumeMat.emissiveColor.r = 1.0 * intensity;
+            this.plumeMat.emissiveColor.g = 0.6 * intensity;
+            this.plumeMat.emissiveColor.b = 0.1 * intensity;
+
+            // [LIGHT] 同步更新点光源强度
+            if (this.plumeLight) {
+                this.plumeLight.intensity = 0.5 * intensity;
+            }
+        }
+
         const angle = Math.sin(this.walkTime);
 
         if (isBoosterActive) {

@@ -17,13 +17,13 @@ export const DefaultSceneConfig = {
         color: { r: 0.5, g: 0.8, b: 1.0 } // 雾的颜色
     },
     decorations: {
-        count: 50, // 装饰物总数
+        count: 20, // 装饰物总数
         areaSize: 80, // 分布范围（-40 到 40）
         stoneColor: { r: 0.5, g: 0.5, b: 0.5 },
         treeTrunkColor: { r: 0.4, g: 0.2, b: 0.1 },
         treeLeavesColor: { r: 0.1, g: 0.6, b: 0.1 },
-        treesEnabled: false, // 是否生成树木
-        rocksEnabled: false,  // 是否生成岩石
-        streetLampsEnabled: true // 是否生成路灯
+        treesEnabled: true, // 是否生成树木
+        rocksEnabled: true,  // 是否生成岩石
+        streetLampsEnabled: false // 是否生成路灯
     }
 };
