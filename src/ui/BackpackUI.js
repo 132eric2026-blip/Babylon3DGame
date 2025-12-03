@@ -192,10 +192,8 @@ export class BackpackUI {
         });
         slotContainer.onPointerOutObservable.add(() => {
             // console.log("🖱️ 鼠标离开槽位:", index);
-            if (this.dragging && this.highlightIndex === index) {
-                this.clearHighlight(index);
-            }
-            slotContainer.background = "rgba(255, 255, 255, 0.1)";
+            // 统一使用 clearHighlight 恢复样式，这样可以正确处理装备高亮的恢复
+            this.clearHighlight(index);
         });
 
         // 右键点击装备/卸下
@@ -309,9 +307,8 @@ export class BackpackUI {
             // 重新更新背包显示，以显示高亮
             this.updateDisplay(this.player.inventory);
 
-            // 装备武器后自动关闭背包，以便可以立即射击
-            // 因为 player2.js 的射击逻辑要求背包必须隐藏才能射击
-            this.hide();
+            // 装备武器后不再自动关闭背包，允许玩家继续操作
+            // this.hide();
 
             // 恢复相机控制，确保装备武器后可以正常射击
             if (this.player.camera) {
@@ -486,9 +483,22 @@ export class BackpackUI {
     clearHighlight(index) {
         const slot = this.slots[index];
         if (!slot) return;
-        slot.container.background = "rgba(255, 255, 255, 0.1)";
-        slot.container.color = "grey";
-        slot.container.thickness = 1;
+
+        // 检查是否是当前装备的武器，如果是则恢复装备高亮样式
+        let isEquipped = false;
+        if (slot.item && slot.item.type === "gun" && this.player && this.player.currentWeapon === slot.item.id) {
+            isEquipped = true;
+        }
+
+        if (isEquipped) {
+            slot.container.color = "#00ff00"; // 绿色边框
+            slot.container.background = "rgba(0, 255, 0, 0.2)"; // 绿色半透明背景
+            slot.container.thickness = 2;
+        } else {
+            slot.container.background = "rgba(255, 255, 255, 0.1)";
+            slot.container.color = "grey";
+            slot.container.thickness = 1;
+        }
     }
 
     toggle() {

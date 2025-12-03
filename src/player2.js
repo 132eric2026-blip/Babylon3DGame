@@ -437,10 +437,9 @@ export class Player2 {
         this.scene.onPointerObservable.add((pointerInfo) => {
             if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
                 if (pointerInfo.event.button === 0) {
-                    if (!this.backpackUI || !this.backpackUI.isVisible) {
-                        this.fireInputPressed = true;
-                        this.fireWeapon();
-                    }
+                    // 允许在背包打开时射击
+                    this.fireInputPressed = true;
+                    this.fireWeapon();
                 }
             } else if (pointerInfo.type === PointerEventTypes.POINTERUP) {
                 if (pointerInfo.event.button === 0) {
