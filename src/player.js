@@ -10,7 +10,8 @@ import { createQuantumAnnihilatorMesh, spawnQuantumAnnihilator } from "./armory/
 import { createEmeraldViperMesh, spawnEmeraldViper } from "./armory/EmeraldViper";
 import { createChronoArbalestMesh, spawnChronoArbalest } from "./armory/ChronoArbalest";
 import { createThunderArcGunMesh, spawnThunderArcGun } from "./armory/ThunderArcGun";
-import { CyberpunkMan } from "./characters/cyberpunkMan";
+//import { CyberpunkMan } from "./characters/cyberpunkMan";
+import { VoxelKnight } from "./characters/voxelKnight";
 
 export class Player {
     constructor(scene, camera, glowLayer = null) {
@@ -35,53 +36,9 @@ export class Player {
         this.altHoldMinY = 0;
         this.mountedHorse = null;
 
-        this.createPlayerMesh();
-        this.setupAttackEffect();
-        this.setupGun();
-
-        // 创建护盾
-        this.shield = new Shield(this.scene, this.modelRoot);
-
-        this.setupPhysics();
-        this.setupInputs();
-        this.registerBeforeRender();
-    }
-
-    createPlayerMesh() {
-        if (Config.selectedPlayer === "cyberpunk") {
-            this.cyberpunkMan = new CyberpunkMan(this.scene, undefined, this.glowLayer);
-            this.mesh = this.cyberpunkMan.mesh;
-            this.modelRoot = this.cyberpunkMan.modelRoot;
-            this.aggregate = this.cyberpunkMan.aggregate; // Use existing physics
-
-            // Map limbs for compatibility with Player.js animation/logic
-            this.head = this.cyberpunkMan.head;
-            this.leftShoulder = this.cyberpunkMan.leftArmGroup;
-            this.rightShoulder = this.cyberpunkMan.rightArmGroup;
-            this.leftLeg = this.cyberpunkMan.leftLegGroup; // Player.js uses leftLeg or leftHip?
-            this.rightLeg = this.cyberpunkMan.rightLegGroup;
-            
-            // Player.js uses leftHip/rightHip in animation loop (lines 2533 etc)
-            // It defined leftHip as parent of leg.
-            this.leftHip = this.cyberpunkMan.leftLegGroup;
-            this.rightHip = this.cyberpunkMan.rightLegGroup;
-
-            // Fix for gun attachment:
-            // Player.js tries to find rightArm from rightShoulder children.
-            // We need to ensure it finds something valid or we manually set it.
-            // For now, let it find the first child (shoulder armor).
-            
-            return;
-        }
-
-        // 玩家容器
-        this.mesh = MeshBuilder.CreateCapsule("player", { height: 2, radius: 0.5 }, this.scene);
-        this.mesh.position.y = 1;
-        this.mesh.visibility = Config.player.showCollider ? 0.5 : 0; // 根据配置显示或隐藏胶囊体
-
         // 材质
         const skinMat = new StandardMaterial("skinMat", this.scene);
-        skinMat.diffuseColor = new Color3(1, 0.8, 0.6);
+        skinMat.diffuseColor = new Color3(1, 0.9, 0.8); // 更自然的肤色
         skinMat.specularColor = new Color3(0, 0, 0); // 去掉高光
 
         const hairMat = new StandardMaterial("hairMat", this.scene);
@@ -1832,7 +1789,7 @@ export class Player {
             }
             const isScorpio = (this.currentWeapon === "ScorpioPulsarGun");
             const isThunder = (this.currentWeapon === "ThunderArcGun");
-            
+
             let bc;
             if (isScorpio) {
                 bc = new Color3(0.8, 0.0, 1.0);
@@ -1841,7 +1798,7 @@ export class Player {
             } else {
                 bc = new Color3(0.2, 0.8, 1.0);
             }
-            
+
             this.beamLight.diffuse = bc;
             // 随时间高频闪烁
             this.beamLight.intensity = 2.0 + Math.random() * 1.5;
@@ -1853,7 +1810,7 @@ export class Player {
 
         // Animation: Scroll Texture (around circumference)
         this.beamTime = (this.beamTime || 0) + dt;
-        
+
         const isScorpio = (this.currentWeapon === "ScorpioPulsarGun");
         const isThunder = (this.currentWeapon === "ThunderArcGun");
 
@@ -1863,9 +1820,9 @@ export class Player {
             this.thunderShellMat.setVector3("color1", new Vector3(0.2, 0.9, 1.0)); // Bright Cyan
             this.thunderShellMat.setVector3("color2", new Vector3(0.0, 0.1, 0.8)); // Deep Blue
             this.thunderShellMat.setFloat("glowStrength", 2.5);
-        } 
+        }
         else if (this.beamShellMat) {
-            
+
             let bc;
             let flowSpeed = 1.2;
             let noiseAmp = 0.25;
@@ -2547,7 +2504,7 @@ export class Player {
             const dtScale = this.isSprinting ? 0.018 : 0.01;
             const dt = this.scene.getEngine().getDeltaTime();
             const walkTimeInc = dt * dtScale * (curSpeed / 5);
-            
+
             if (this.cyberpunkMan) {
                 this.cyberpunkMan.updateAnimation(dtMs, {
                     isMoving: true,
@@ -2559,67 +2516,67 @@ export class Player {
                     walkTimeIncrement: walkTimeInc
                 });
             }
-            
+
             if (!this.cyberpunkMan) {
-            this.walkTime += walkTimeInc;
-            const amp = this.isSprinting ? 1.2 : 0.8;
-            const angle = Math.sin(this.walkTime);
+                this.walkTime += walkTimeInc;
+                const amp = this.isSprinting ? 1.2 : 0.8;
+                const angle = Math.sin(this.walkTime);
 
-            if (!this.isGrounded()) {
-                // 在空中将角色朝向与相机前方对齐（横向移动飞行）
-                const yaw = Math.atan2(cameraForward.x, cameraForward.z);
+                if (!this.isGrounded()) {
+                    // 在空中将角色朝向与相机前方对齐（横向移动飞行）
+                    const yaw = Math.atan2(cameraForward.x, cameraForward.z);
 
-                if (this.isSprinting) {
-                    // 空中移动：超级英雄飞行
-                    this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(1.0, yaw, 0);
-                    this.rightShoulder.rotation.x = -3.1;
-                    this.rightShoulder.rotation.z = 0.0;
-                    this.leftShoulder.rotation.x = 0.5;
-                    this.leftShoulder.rotation.z = 0.2;
-                    this.leftHip.rotation.x = 0.1 + angle * 0.05;
-                    this.rightHip.rotation.x = 0.1 - angle * 0.05;
-                } else {
-                    // 普通跳跃（移动） - 速度依赖
-                    const vy = velocity.y;
-
-                    if (vy > 0.5) {
-                        // 上升（发射姿势）
-                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.2, yaw, 0);
-                        this.leftShoulder.rotation.x = -2.8;
-                        this.rightShoulder.rotation.x = -2.8;
-                        this.leftShoulder.rotation.z = -0.2;
-                        this.rightShoulder.rotation.z = 0.2;
-                        this.leftHip.rotation.x = -1.2;
-                        this.rightHip.rotation.x = 0.2;
-                    } else if (vy < -0.5) {
-                        // 下落
-                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.0, yaw, 0);
-                        this.leftShoulder.rotation.x = -1.5;
-                        this.rightShoulder.rotation.x = -1.5;
-                        this.leftShoulder.rotation.z = -0.8;
-                        this.rightShoulder.rotation.z = 0.8;
-                        this.leftHip.rotation.x = -0.4;
-                        this.rightHip.rotation.x = -0.4;
+                    if (this.isSprinting) {
+                        // 空中移动：超级英雄飞行
+                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(1.0, yaw, 0);
+                        this.rightShoulder.rotation.x = -3.1;
+                        this.rightShoulder.rotation.z = 0.0;
+                        this.leftShoulder.rotation.x = 0.5;
+                        this.leftShoulder.rotation.z = 0.2;
+                        this.leftHip.rotation.x = 0.1 + angle * 0.05;
+                        this.rightHip.rotation.x = 0.1 - angle * 0.05;
                     } else {
-                        // 顶点 / 过渡
-                        this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.1, yaw, 0);
-                        this.leftShoulder.rotation.x = -2.0;
-                        this.rightShoulder.rotation.x = -2.0;
-                        this.leftShoulder.rotation.z = -0.4;
-                        this.rightShoulder.rotation.z = 0.4;
-                        this.leftHip.rotation.x = -0.8;
-                        this.rightHip.rotation.x = -0.8;
+                        // 普通跳跃（移动） - 速度依赖
+                        const vy = velocity.y;
+
+                        if (vy > 0.5) {
+                            // 上升（发射姿势）
+                            this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.2, yaw, 0);
+                            this.leftShoulder.rotation.x = -2.8;
+                            this.rightShoulder.rotation.x = -2.8;
+                            this.leftShoulder.rotation.z = -0.2;
+                            this.rightShoulder.rotation.z = 0.2;
+                            this.leftHip.rotation.x = -1.2;
+                            this.rightHip.rotation.x = 0.2;
+                        } else if (vy < -0.5) {
+                            // 下落
+                            this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.0, yaw, 0);
+                            this.leftShoulder.rotation.x = -1.5;
+                            this.rightShoulder.rotation.x = -1.5;
+                            this.leftShoulder.rotation.z = -0.8;
+                            this.rightShoulder.rotation.z = 0.8;
+                            this.leftHip.rotation.x = -0.4;
+                            this.rightHip.rotation.x = -0.4;
+                        } else {
+                            // 顶点 / 过渡
+                            this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0.1, yaw, 0);
+                            this.leftShoulder.rotation.x = -2.0;
+                            this.rightShoulder.rotation.x = -2.0;
+                            this.leftShoulder.rotation.z = -0.4;
+                            this.rightShoulder.rotation.z = 0.4;
+                            this.leftHip.rotation.x = -0.8;
+                            this.rightHip.rotation.x = -0.8;
+                        }
                     }
+                } else {
+                    this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0, this.modelRoot.rotationQuaternion ? this.modelRoot.rotationQuaternion.toEulerAngles().y : this.modelRoot.rotation.y, 0);
+                    this.leftShoulder.rotation.x = angle * amp;
+                    this.rightShoulder.rotation.x = -angle * amp;
+                    this.leftHip.rotation.x = -angle * amp;
+                    this.rightHip.rotation.x = angle * amp;
+                    this.leftShoulder.rotation.z = 0;
+                    this.rightShoulder.rotation.z = 0;
                 }
-            } else {
-                this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0, this.modelRoot.rotationQuaternion ? this.modelRoot.rotationQuaternion.toEulerAngles().y : this.modelRoot.rotation.y, 0);
-                this.leftShoulder.rotation.x = angle * amp;
-                this.rightShoulder.rotation.x = -angle * amp;
-                this.leftHip.rotation.x = -angle * amp;
-                this.rightHip.rotation.x = angle * amp;
-                this.leftShoulder.rotation.z = 0;
-                this.rightShoulder.rotation.z = 0;
-            }
             }
 
 

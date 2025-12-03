@@ -1,5 +1,5 @@
 export const Config = {
-    selectCharacters: "boxMan", // "boxMan", "cyberpunkMan" or "sphereGirl"
+    selectCharacters: "voxelKnight", // "boxMan", "cyberpunkMan", "sphereGirl" or "voxelKnight"
     player: {
         speed: 3,
         sprintMultiplier: 2,
@@ -40,6 +40,16 @@ export const Config = {
         boosterUpSpeed: 5,
         boosterSpeed: 12,
         boosterHoverHeight: 1.5,
+        showCollider: false
+    },
+    voxelKnight: {
+        speed: 3,
+        sprintMultiplier: 2,
+        sprintSpeed: 8,
+        jumpSpeed: 6.5,
+        boosterUpSpeed: 5,
+        boosterSpeed: 10,
+        boosterHoverHeight: 1,
         showCollider: false
     },
     shield: {

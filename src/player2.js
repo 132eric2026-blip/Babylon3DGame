@@ -2,6 +2,7 @@ import { Vector3, Quaternion, Matrix, ActionManager, KeyboardEventTypes, Ray } f
 import { BoxMan } from "./characters/boxMan";
 //import { CyberpunkMan } from "./characters/cyberpunkMan";
 //import { SphereGirl } from "./characters/sphereGirl";
+import { VoxelKnight } from "./characters/voxelKnight";
 import { Config } from "./config";
 
 export class Player2 {
@@ -11,10 +12,8 @@ export class Player2 {
         this.glowLayer = glowLayer;
 
         // 实例化角色，根据配置选择
-        if (Config.selectCharacters === "cyberpunkMan") {
-            this.boxMan = new CyberpunkMan(scene, new Vector3(5, 5, 5), this.glowLayer);
-        } else if (Config.selectCharacters === "sphereGirl") {
-            this.boxMan = new SphereGirl(scene, new Vector3(5, 5, 5), this.glowLayer);
+        if (Config.selectCharacters === "voxelKnight") {
+            this.boxMan = new VoxelKnight(scene, new Vector3(5, 5, 5), this.glowLayer);
         } else {
             this.boxMan = new BoxMan(scene, new Vector3(5, 5, 5), this.glowLayer);
         }
