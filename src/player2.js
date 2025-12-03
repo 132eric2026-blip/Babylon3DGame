@@ -1,9 +1,10 @@
-import { Vector3, Quaternion, Matrix, ActionManager, KeyboardEventTypes, Ray } from "@babylonjs/core";
+import { Vector3, Quaternion, Matrix, ActionManager, KeyboardEventTypes, Ray, TransformNode, MeshBuilder, StandardMaterial, Color3, Texture, ParticleSystem, Color4, PointerEventTypes, TrailMesh, GlowLayer } from "@babylonjs/core";
 import { BoxMan } from "./characters/boxMan";
 //import { CyberpunkMan } from "./characters/cyberpunkMan";
 //import { SphereGirl } from "./characters/sphereGirl";
 import { VoxelKnight } from "./characters/voxelKnight";
 import { Config } from "./config";
+import { createSolarPlasmaCannonMesh, spawnSolarPlasmaCannon } from "./armory/SolarPlasmaCannon";
 
 export class Player2 {
     constructor(scene, camera, glowLayer = null) {
@@ -22,6 +23,18 @@ export class Player2 {
         this.mesh = this.boxMan.mesh;
         this.aggregate = this.boxMan.aggregate;
         this.modelRoot = this.boxMan.modelRoot;
+        // 需要获取右臂来挂载武器，这里假设 boxMan 和 voxelKnight 都有 rightArm 或者 rightShoulder 结构
+        // 如果没有直接暴露，可能需要 traverse 或者在 character 类中暴露
+        // BoxMan 中有 rightShoulder, rightArm 挂在下面
+        // VoxelKnight 结构可能不同，先尝试兼容 BoxMan
+        if (this.boxMan.rightShoulder) {
+             this.rightArm = this.boxMan.rightShoulder.getChildMeshes()[0];
+        }
+        // 如果找不到，就挂在 modelRoot 下作为备选
+        if (!this.rightArm) {
+            this.rightArm = this.modelRoot;
+        }
+
 
         // 确保boxMan已经准备好
         if (this.boxMan.mesh) {
@@ -36,10 +49,303 @@ export class Player2 {
         this._groundEpsilon = 0.06;
 
         this.setupInputs();
+        this.setupGun(); // 初始化武器系统
         this.registerBeforeRender();
 
         // 让相机跟随
         this.camera.lockedTarget = this.mesh;
+    }
+
+    setupGun() {
+        this.currentWeapon = null;
+        this.isHoldingGun = false;
+        this.bullets = [];
+        this.currentGunModel = null;
+
+        // Beam Weapon State
+        this.isBeamActive = false;
+        this.beamMesh = null;
+        this.fireInputPressed = false;
+
+        // Gun Root attached to Right Arm
+        this.gunRoot = new TransformNode("gunRoot", this.scene);
+        this.gunRoot.parent = this.rightArm;
+
+        // Adjust position to be in hand
+        this.gunRoot.position = new Vector3(0, -0.3, 0.1);
+        this.gunRoot.rotation.x = Math.PI / 2; // Point forward (Aligned with raised arm)
+        this.gunRoot.isVisible = false;
+
+        // Muzzle Point (Placeholder, updated in equipWeaponVisuals)
+        this.gunMuzzle = new TransformNode("gunMuzzle", this.scene);
+        this.gunMuzzle.parent = this.gunRoot;
+        this.gunMuzzle.position.z = 0.8;
+
+        // Setup Particle Texture for Muzzle Flash
+        this.particleTexture = this.createParticleTexture();
+
+        // Setup Persistent Muzzle Flash System
+        this.setupMuzzleFlash();
+
+        // Initialize with SolarPlasmaCannon
+        this.equipWeaponVisuals("SolarPlasmaCannon");
+        this.setGunVisibility(true); // 默认显示武器
+        this.isHoldingGun = true;
+        this.currentWeapon = "SolarPlasmaCannon";
+    }
+
+    equipWeaponVisuals(weaponName) {
+        // Dispose old model
+        if (this.currentGunModel) {
+            this.currentGunModel.dispose();
+            this.currentGunModel = null;
+        }
+
+        // Create new model based on weapon
+        if (weaponName === "SolarPlasmaCannon") {
+            this.currentGunModel = createSolarPlasmaCannonMesh(this.scene);
+            this.currentGunModel.parent = this.gunRoot;
+            this.currentGunModel.rotation = Vector3.Zero();
+
+            // Adjust position for holding
+            // Gun is stout.
+            this.gunMuzzle.position = new Vector3(0, 0, 0.8);
+        }
+        
+        // Re-attach muzzle flash to new muzzle position (it follows transform node)
+        if (this.muzzleFlashPS) {
+            this.muzzleFlashPS.emitter = this.gunMuzzle;
+        }
+    }
+
+    setGunVisibility(visible) {
+        if (this.gunRoot) {
+            this.gunRoot.setEnabled(visible);
+        }
+    }
+
+    createParticleTexture() {
+        const canvas = document.createElement("canvas");
+        canvas.width = 64; canvas.height = 64;
+        const ctx = canvas.getContext("2d");
+
+        // Star/Spark shape
+        ctx.beginPath();
+        const cx = 32, cy = 32, spikes = 8, outerRadius = 30, innerRadius = 10;
+        let rot = Math.PI / 2 * 3;
+        let x = cx, y = cy;
+        const step = Math.PI / spikes;
+
+        ctx.moveTo(cx, cy - outerRadius);
+        for (let i = 0; i < spikes; i++) {
+            x = cx + Math.cos(rot) * outerRadius;
+            y = cy + Math.sin(rot) * outerRadius;
+            ctx.lineTo(x, y);
+            rot += step;
+
+            x = cx + Math.cos(rot) * innerRadius;
+            y = cy + Math.sin(rot) * innerRadius;
+            ctx.lineTo(x, y);
+            rot += step;
+        }
+        ctx.lineTo(cx, cy - outerRadius);
+        ctx.closePath();
+
+        const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+        grad.addColorStop(0, "rgba(255, 255, 255, 1)");
+        grad.addColorStop(0.5, "rgba(0, 255, 255, 0.8)");
+        grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        return Texture.CreateFromBase64String(canvas.toDataURL(), "particleStar", this.scene);
+    }
+
+    setupMuzzleFlash() {
+        if (this.muzzleFlashPS) {
+            this.muzzleFlashPS.dispose();
+        }
+        // Create persistent particle system
+        const ps = new ParticleSystem("muzzleFlash", 50, this.scene);
+        ps.particleTexture = this.particleTexture;
+        ps.emitter = this.gunMuzzle;
+
+        ps.minEmitBox = new Vector3(0, 0, 0);
+        ps.maxEmitBox = new Vector3(0, 0, 0);
+
+        ps.color1 = new Color4(1, 1, 1, 1.0);
+        ps.color2 = new Color4(0, 1, 1, 1.0);
+        ps.colorDead = new Color4(0, 0, 0, 0.0);
+
+        ps.minSize = 0.1;
+        ps.maxSize = 0.4;
+        ps.minLifeTime = 0.1;
+        ps.maxLifeTime = 0.2;
+
+        ps.emitRate = 0; // Manual emit only
+        ps.targetStopDuration = 0; // Continuous
+        ps.disposeOnStop = false; // Keep alive
+
+        ps.isLocal = true;
+        ps.minEmitPower = 2;
+        ps.maxEmitPower = 6;
+        ps.updateSpeed = 0.02;
+        
+        this.muzzleFlashPS = ps;
+        this.muzzleFlashPS.start();
+    }
+
+    updateBullets(dt) {
+        for (let i = this.bullets.length - 1; i >= 0; i--) {
+            const b = this.bullets[i];
+            b.life -= dt;
+
+            if (b.hasGravity) {
+                b.velocity.y -= 9.81 * dt;
+            }
+
+            b.mesh.position.addInPlace(b.velocity.scale(dt));
+
+            if (b.mesh.position.y < -10 || b.life <= 0) {
+                b.mesh.dispose();
+                if (b.trail) b.trail.dispose();
+                if (b.particleSystem) {
+                    b.particleSystem.stop();
+                    b.particleSystem.dispose();
+                }
+                if (b.particleSystems) {
+                    b.particleSystems.forEach(ps => {
+                        ps.stop();
+                        ps.dispose();
+                    });
+                }
+                if (b.glowLayer) {
+                    b.glowLayer.dispose();
+                }
+                this.bullets.splice(i, 1);
+            }
+        }
+    }
+
+    fireWeapon() {
+        if (!this.currentWeapon) return;
+
+        // Muzzle Flash
+        if (this.muzzleFlashPS) {
+            this.muzzleFlashPS.manualEmitCount = 15;
+            // Solar Plasma Cannon colors
+            this.muzzleFlashPS.color1 = new Color4(1, 0.5, 0, 1); // Orange
+            this.muzzleFlashPS.color2 = new Color4(1, 0, 1, 1); // Purple
+            this.muzzleFlashPS.start();
+        }
+
+        const origin = this.gunMuzzle.getAbsolutePosition();
+        const direction = origin.subtract(this.gunRoot.getAbsolutePosition()).normalize();
+
+        if (this.currentWeapon === "SolarPlasmaCannon") {
+            let bulletMesh;
+            let bulletData = {
+                life: 2.0,
+                velocity: direction.scale(60)
+            };
+
+            // --- SOLAR PLASMA CANNON (MAGIC ORB) ---
+            // 1. Projectile: Purple Magic Orb
+            bulletMesh = MeshBuilder.CreateSphere("plasmaBall", { diameter: 0.8, segments: 32 }, this.scene);
+            bulletMesh.position = origin.clone();
+
+            const plasmaMat = new StandardMaterial("plasmaMat", this.scene);
+            plasmaMat.emissiveColor = new Color3(0.7, 0.2, 1.0); // Bright Purple Core
+            plasmaMat.diffuseColor = new Color3(0.5, 0.1, 0.8); // Deep Purple
+            plasmaMat.specularColor = new Color3(0.9, 0.5, 1.0); // Purple specular
+            plasmaMat.emissiveIntensity = 1.5; // Boost emissive
+            plasmaMat.disableLighting = true;
+            bulletMesh.material = plasmaMat;
+
+            // 2. Glow Effect
+            const glowLayer = new GlowLayer("plasmaGlow_" + Date.now(), this.scene);
+            glowLayer.intensity = 1.2;
+            glowLayer.addIncludedOnlyMesh(bulletMesh);
+            bulletData.glowLayer = glowLayer;
+
+            // 3. Particle Systems
+            bulletData.particleSystems = [];
+
+            // A. Inner Core
+            const psCore = new ParticleSystem("plasmaCore", 500, this.scene);
+            psCore.particleTexture = this.particleTexture;
+            psCore.emitter = bulletMesh;
+            psCore.createSphereEmitter(0.3);
+            psCore.color1 = new Color4(0.8, 0.3, 1.0, 1.0);
+            psCore.color2 = new Color4(0.6, 0.1, 0.9, 1.0);
+            psCore.colorDead = new Color4(0.3, 0.0, 0.5, 0.0);
+            psCore.minSize = 0.2;
+            psCore.maxSize = 0.5;
+            psCore.minLifeTime = 0.15;
+            psCore.maxLifeTime = 0.35;
+            psCore.emitRate = 400;
+            psCore.blendMode = ParticleSystem.BLENDMODE_ADD;
+            psCore.start();
+            bulletData.particleSystems.push(psCore);
+
+            // B. Outer Magic Vortex
+            const psVortex = new ParticleSystem("plasmaVortex", 350, this.scene);
+            psVortex.particleTexture = new Texture("https://www.babylonjs-playground.com/textures/flare.png", this.scene);
+            psVortex.emitter = bulletMesh;
+            psVortex.createSphereEmitter(0.5);
+            psVortex.color1 = new Color4(1.0, 0.2, 1.0, 0.9);
+            psVortex.color2 = new Color4(0.7, 0.4, 1.0, 0.8);
+            psVortex.colorDead = new Color4(0.2, 0.0, 0.4, 0.0);
+            psVortex.minSize = 0.4;
+            psVortex.maxSize = 0.9;
+            psVortex.minLifeTime = 0.25;
+            psVortex.maxLifeTime = 0.6;
+            psVortex.emitRate = 250;
+            psVortex.blendMode = ParticleSystem.BLENDMODE_ADD;
+            psVortex.minAngularSpeed = -Math.PI * 6;
+            psVortex.maxAngularSpeed = Math.PI * 6;
+            psVortex.start();
+            bulletData.particleSystems.push(psVortex);
+
+            // C. Magic Arcs
+            const psArcs = new ParticleSystem("plasmaArcs", 200, this.scene);
+            psArcs.particleTexture = this.particleTexture;
+            psArcs.emitter = bulletMesh;
+            psArcs.createSphereEmitter(0.6);
+            psArcs.color1 = new Color4(0.8, 0.2, 1.0, 1.0);
+            psArcs.color2 = new Color4(1.0, 0.8, 1.0, 0.9);
+            psArcs.colorDead = new Color4(0.4, 0.0, 0.7, 0.0);
+            psArcs.minSize = 0.15;
+            psArcs.maxSize = 0.35;
+            psArcs.minLifeTime = 0.1;
+            psArcs.maxLifeTime = 0.3;
+            psArcs.emitRate = 150;
+            psArcs.blendMode = ParticleSystem.BLENDMODE_ADD;
+            psArcs.start();
+            bulletData.particleSystems.push(psArcs);
+
+             // D. Trailing Magic Sparks
+            const psSparks = new ParticleSystem("plasmaSparks", 250, this.scene);
+            psSparks.particleTexture = this.particleTexture;
+            psSparks.emitter = bulletMesh;
+            psSparks.minEmitBox = new Vector3(-0.2, -0.2, -0.2);
+            psSparks.maxEmitBox = new Vector3(0.2, 0.2, 0.2);
+            psSparks.color1 = new Color4(0.9, 0.5, 1.0, 1.0);
+            psSparks.color2 = new Color4(0.5, 0.2, 0.8, 1.0);
+            psSparks.colorDead = new Color4(0.2, 0.0, 0.3, 0.0);
+            psSparks.minSize = 0.08;
+            psSparks.maxSize = 0.25;
+            psSparks.minLifeTime = 0.3;
+            psSparks.maxLifeTime = 0.7;
+            psSparks.emitRate = 180;
+            psSparks.blendMode = ParticleSystem.BLENDMODE_ADD;
+            psSparks.gravity = new Vector3(0, -1, 0);
+            psSparks.start();
+            bulletData.particleSystems.push(psSparks);
+
+            bulletData.mesh = bulletMesh;
+            this.bullets.push(bulletData);
+        }
     }
 
     setupInputs() {
@@ -70,10 +376,28 @@ export class Player2 {
                 }
             }
         });
+
+        // Mouse Input for Firing
+        this.scene.onPointerObservable.add((pointerInfo) => {
+            if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
+                // Left Click (0)
+                if (pointerInfo.event.button === 0) {
+                    this.fireInputPressed = true;
+                    this.fireWeapon();
+                }
+            } else if (pointerInfo.type === PointerEventTypes.POINTERUP) {
+                if (pointerInfo.event.button === 0) {
+                    this.fireInputPressed = false;
+                }
+            }
+        });
     }
 
     registerBeforeRender() {
         this.scene.registerBeforeRender(() => {
+            const dt = this.scene.getEngine().getDeltaTime() / 1000.0;
+            this.updateBullets(dt);
+
             this.updateMovement();
 
             // Check if moving (horizontal or vertical)
@@ -274,6 +598,13 @@ export class Player2 {
                 yaw,
                 walkTimeIncrement
             });
+
+            // Override arm rotation if holding gun
+            if (this.isHoldingGun && this.boxMan && this.boxMan.rightShoulder) {
+                this.boxMan.rightShoulder.rotation.x = -Math.PI / 2;
+                this.boxMan.rightShoulder.rotation.z = 0;
+                this.boxMan.rightShoulder.rotation.y = 0;
+            }
         }
     }
 }

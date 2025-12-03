@@ -78,7 +78,7 @@ export const Config = {
     },
     weapons: {
         // 武器生成配置
-        spawnCount: 2, // 游戏中生成的武器数量
+        spawnCount: 1, // 游戏中生成的武器数量
         spawnAreaSize: 40, // 生成范围 (-20 到 20)
 
         // 各武器配置
@@ -115,7 +115,7 @@ export const Config = {
             spawnWeight: 1.0
         },
         ThunderArcGun: { // 雷霆电弧枪 (特斯拉电弧)
-            enabled: true,
+            enabled: false,
             spawnWeight: .5
         }
     }
