@@ -407,6 +407,7 @@ export class Player2 {
                     }
                 }
                 this.inputMap[evt.key.toLowerCase()] = true;
+                this.updateCameraDragButtons();
                 if (evt.key.toLowerCase() === "shift") {
                     this.isSprinting = true;
                 }
@@ -423,6 +424,7 @@ export class Player2 {
                 }
             } else {
                 this.inputMap[evt.key.toLowerCase()] = false;
+                this.updateCameraDragButtons();
                 if (evt.key.toLowerCase() === "shift") {
                     this.isSprinting = false;
                 }
@@ -472,6 +474,13 @@ export class Player2 {
         });
     }
 
+    updateCameraDragButtons() {
+        const moving = this.inputMap["w"] || this.inputMap["a"] || this.inputMap["s"] || this.inputMap["d"];
+        const pointers = this.camera && this.camera.inputs && this.camera.inputs.attached && this.camera.inputs.attached.pointers;
+        if (!pointers) return;
+        pointers.buttons = moving ? [2] : [0, 2];
+    }
+
     updateMovement() {
         if (!this.mesh || !this.aggregate) return;
 
@@ -482,7 +491,6 @@ export class Player2 {
 
         const velocity = this.aggregate.body.getLinearVelocity();
 
-        // 获取相机方向（忽略Y轴）
         const cameraForward = this.camera.getDirection(Vector3.Forward());
         cameraForward.y = 0;
         cameraForward.normalize();
@@ -509,85 +517,57 @@ export class Player2 {
         if (moveDir.length() > 0) {
             moveDir.normalize();
 
-            // 设置速度
             this.aggregate.body.setLinearVelocity(new Vector3(
                 moveDir.x * speed,
-                velocity.y, // 保持原有的垂直速度（重力）
+                velocity.y,
                 moveDir.z * speed
             ));
 
-            // 旋转模型朝向移动方向
             const targetRotation = Math.atan2(moveDir.x, moveDir.z);
-            // 平滑旋转
             const currentRotationQuaternion = this.modelRoot.rotationQuaternion || Quaternion.FromEulerVector(this.modelRoot.rotation);
             const targetRotationQuaternion = Quaternion.FromEulerAngles(0, targetRotation, 0);
             this.modelRoot.rotationQuaternion = Quaternion.Slerp(currentRotationQuaternion, targetRotationQuaternion, 0.1);
         } else {
-            // 停止水平移动
             this.aggregate.body.setLinearVelocity(new Vector3(0, velocity.y, 0));
         }
 
-        // 跳跃 / 飞行 / 悬浮
         if (this.inputMap[" "]) {
             if (this.isBoosterActive) {
-                // 助推器飞行模式
                 const v = this.aggregate.body.getLinearVelocity();
-                // 限制上升速度，避免无限加速
                 const upSpeed = Config.player2.boosterUpSpeed;
                 if (v.y < upSpeed) {
                     this.aggregate.body.setLinearVelocity(new Vector3(v.x, upSpeed, v.z));
                 }
-                
-                // 只要按住空格上升，就切换到空中悬停模式，并记录当前高度
                 this.boosterMode = "air";
                 this.holdY = this.mesh.position.y;
             } else if (this.isGrounded()) {
-                // 普通跳跃
                 const v = this.aggregate.body.getLinearVelocity();
                 this.aggregate.body.setLinearVelocity(new Vector3(v.x, Config.player2.jumpSpeed, v.z));
             }
         } else if (this.isBoosterActive) {
-            // 助推器悬浮 (未按跳跃键时)
-
             if (this.boosterMode === "air") {
-                // 空中启动模式：在当前高度悬浮 (抵消重力 + 维持高度)
                 const v = this.aggregate.body.getLinearVelocity();
                 const currentY = this.mesh.position.y;
 
-                // 如果当前Y低于目标Y太多，施加向上速度
-                // 如果当前Y高于目标Y，我们也可以施加向下速度或者让重力起作用，
-                // 但为了"悬浮"，最好是双向控制
                 const error = this.holdY - currentY;
-
-                // P控制
                 let vy = error * 5;
-
-                // 限制最大垂直修正速度
                 vy = Math.max(-5, Math.min(vy, 5));
 
-                // 设置速度，覆盖重力
                 this.aggregate.body.setLinearVelocity(new Vector3(v.x, vy, v.z));
-
             } else {
-                // 地面启动模式：维持相对地面高度 (现有逻辑)
                 const hoverHeight = Config.player2.boosterHoverHeight;
-                // 射线检测下方距离
                 const ray = new Ray(this.mesh.position, new Vector3(0, -1, 0), hoverHeight + 5);
                 const pick = this.scene.pickWithRay(ray, (mesh) => {
                     return mesh !== this.mesh && !mesh.isDescendantOf(this.mesh) && mesh.isPickable;
                 });
 
                 if (pick.hit) {
-                    // 计算离地高度 (mesh中心到地面的距离)
                     const currentDist = pick.distance;
-                    // 目标距离 = 悬浮高度 + 1 (假设中心高度为1)
                     const targetDist = hoverHeight + 1;
 
                     if (currentDist < targetDist) {
-                        // 低于悬浮高度，施加向上速度
                         const v = this.aggregate.body.getLinearVelocity();
                         const error = targetDist - currentDist;
-                        // 简单的P控制
                         const liftSpeed = error * 3;
                         const finalUpSpeed = Math.min(liftSpeed, 5);
 
