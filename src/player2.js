@@ -4,7 +4,7 @@ import { BoxMan } from "./characters/boxMan";
 //import { SphereGirl } from "./characters/sphereGirl";
 import { VoxelKnight } from "./characters/voxelKnight";
 import { Config } from "./config";
-import { createSolarPlasmaCannonMesh, spawnSolarPlasmaCannon } from "./equipment/weapons/ranged/SolarPlasmaCannon";
+import { createSolarPlasmaCannonMesh, spawnSolarPlasmaCannon, getSolarPlasmaCannonIcon } from "./equipment/weapons/ranged/SolarPlasmaCannon";
 import { BackpackUI } from "./ui/BackpackUI";
 
 export class Player2 {
@@ -58,7 +58,7 @@ export class Player2 {
             id: "SolarPlasmaCannon",
             name: "SolarPlasmaCannon",
             type: "gun",
-            // icon: "path/to/icon.png" // 暂时没有图标
+            icon: getSolarPlasmaCannonIcon()
         };
 
         this.backpackUI = new BackpackUI(scene, this);
@@ -411,7 +411,7 @@ export class Player2 {
                     this.isSprinting = true;
                 }
                 // Z: 切换背包显示/隐藏（不切换指针锁状态）
-                if (evt.key.toLowerCase() === "z") {
+                if (evt.key.toLowerCase() === "tab") {
                     if (!this.isZPressed) {
                         this.isZPressed = true;
                         if (this.backpackUI.isVisible) {
@@ -427,7 +427,7 @@ export class Player2 {
                     this.isSprinting = false;
                 }
                 // Z Release: Reset flag only
-                if (evt.key.toLowerCase() === "z") {
+                if (evt.key.toLowerCase() === "tab") {
                     this.isZPressed = false;
                 }
             }
@@ -436,10 +436,11 @@ export class Player2 {
         // 鼠标输入（射击）
         this.scene.onPointerObservable.add((pointerInfo) => {
             if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
-                // Left Click (0)
                 if (pointerInfo.event.button === 0) {
-                    this.fireInputPressed = true;
-                    this.fireWeapon();
+                    if (!this.backpackUI || !this.backpackUI.isVisible) {
+                        this.fireInputPressed = true;
+                        this.fireWeapon();
+                    }
                 }
             } else if (pointerInfo.type === PointerEventTypes.POINTERUP) {
                 if (pointerInfo.event.button === 0) {

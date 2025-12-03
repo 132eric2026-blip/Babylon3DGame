@@ -11,8 +11,7 @@ export class SolarPlasmaCannon extends Equipment {
      * @param {Scene} scene - BabylonJS 场景
      */
     constructor(scene) {
-        // 调用基类构造函数，指定名称和类型
-        super(scene, "SolarPlasmaCannon", "weapon");
+        super(scene, "SolarPlasmaCannon", "gun");
         this.init();
     }
 
@@ -144,4 +143,101 @@ export function spawnSolarPlasmaCannon(scene, position) {
 export function createSolarPlasmaCannonMesh(scene) {
     const weapon = new SolarPlasmaCannon(scene);
     return weapon.mesh;
+}
+
+/**
+ * 获取“日耀等离子炮”背包图标（DataURL）
+ * 图标风格与模型一致：主体紫色、尾部暗紫反应炉、橙红熔岩核心、前端发光炮口环与散热片
+ * @returns {string} DataURL
+ */
+export function getSolarPlasmaCannonIcon() {
+    const size = 64;
+    const c = document.createElement("canvas");
+    c.width = size; c.height = size;
+    const ctx = c.getContext("2d");
+
+    ctx.clearRect(0, 0, size, size);
+    ctx.translate(0.5, 0.5);
+
+    // 颜色定义
+    const purpleGrad = ctx.createLinearGradient(22, 26, 50, 38);
+    purpleGrad.addColorStop(0, "#7a3bb3");
+    purpleGrad.addColorStop(0.5, "#612a8f");
+    purpleGrad.addColorStop(1, "#4c1f72");
+
+    const darkPurple = "#3a155c";
+    const lavaCoreOuter = ctx.createRadialGradient(16, 32, 0, 16, 32, 9);
+    lavaCoreOuter.addColorStop(0, "rgba(255,160,70,1)");
+    lavaCoreOuter.addColorStop(0.6, "rgba(255,110,30,0.9)");
+    lavaCoreOuter.addColorStop(1, "rgba(255,80,20,0.0)");
+
+    // 背景微光
+    ctx.fillStyle = "rgba(0,0,0,0)";
+    ctx.fillRect(0, 0, size, size);
+
+    // 1) 反应炉主体（暗紫圆）
+    ctx.beginPath();
+    ctx.arc(16, 32, 10, 0, Math.PI * 2);
+    ctx.fillStyle = darkPurple;
+    ctx.fill();
+
+    // 2) 熔岩核心（橙红发光）
+    ctx.beginPath();
+    ctx.arc(16, 32, 9, 0, Math.PI * 2);
+    ctx.fillStyle = lavaCoreOuter;
+    ctx.fill();
+
+    // 3) 粗壮炮身（紫色渐变，圆角矩形）
+    ctx.beginPath();
+    const x = 22, y = 26, w = 28, h = 12, r = 6;
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+    ctx.fillStyle = purpleGrad;
+    ctx.fill();
+
+    // 4) 装饰散热片（四片）
+    const fins = [
+        {px: 30, py: 24}, {px: 34, py: 24}, {px: 30, py: 40}, {px: 34, py: 40}
+    ];
+    ctx.fillStyle = darkPurple;
+    fins.forEach(f => {
+        ctx.beginPath();
+        ctx.roundRect(f.px, f.py, 6, 6, 2);
+        ctx.fill();
+    });
+
+    // 5) 炮口发光环（橙红描边与外圈柔光）
+    // 外圈柔光
+    const glowGrad = ctx.createRadialGradient(52, 32, 2, 52, 32, 9);
+    glowGrad.addColorStop(0, "rgba(255,160,70,0.6)");
+    glowGrad.addColorStop(1, "rgba(255,160,70,0)");
+    ctx.beginPath();
+    ctx.arc(52, 32, 9, 0, Math.PI * 2);
+    ctx.fillStyle = glowGrad;
+    ctx.fill();
+
+    // 内圈亮环
+    ctx.beginPath();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = "#ff7a2a";
+    ctx.arc(52, 32, 6, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 细节高光线（炮身顶部）
+    ctx.beginPath();
+    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    ctx.lineWidth = 2;
+    ctx.moveTo(26, 27);
+    ctx.lineTo(46, 27);
+    ctx.stroke();
+
+    return c.toDataURL();
 }
