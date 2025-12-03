@@ -1,15 +1,15 @@
 import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, Quaternion, Matrix, ActionManager, ParticleSystem, Texture, Color4, TransformNode, Ray, Engine, Scalar, TrailMesh, PointLight, PointerEventTypes, GlowLayer, Space, DynamicTexture, ShaderMaterial, Effect } from "@babylonjs/core";
 import { Config } from "./config";
 import { Shield } from "./shield";
-import { spawnAlphaParticleCannon } from "./armory/AlphaParticleCannon";
-import { spawnPegasusParticleCannon, createPegasusGunMesh } from "./armory/PegasusParticleCannon";
-import { createLightSpearMesh, spawnLightSpear } from "./armory/LightSpear";
-import { createSolarPlasmaCannonMesh, spawnSolarPlasmaCannon } from "./armory/SolarPlasmaCannon";
-import { createScorpioPulsarGunMesh, spawnScorpioPulsarGun } from "./armory/ScorpioPulsarGun";
-import { createQuantumAnnihilatorMesh, spawnQuantumAnnihilator } from "./armory/QuantumAnnihilator";
-import { createEmeraldViperMesh, spawnEmeraldViper } from "./armory/EmeraldViper";
-import { createChronoArbalestMesh, spawnChronoArbalest } from "./armory/ChronoArbalest";
-import { createThunderArcGunMesh, spawnThunderArcGun } from "./armory/ThunderArcGun";
+// import { spawnAlphaParticleCannon } from "./props/guns/AlphaParticleCannon";
+// import { spawnPegasusParticleCannon, createPegasusGunMesh } from "./props/guns/PegasusParticleCannon";
+// import { createLightSpearMesh, spawnLightSpear } from "./props/guns/LightSpear";
+import { createSolarPlasmaCannonMesh, spawnSolarPlasmaCannon } from "./equipment/guns/SolarPlasmaCannon";
+// import { createScorpioPulsarGunMesh, spawnScorpioPulsarGun } from "./props/guns/ScorpioPulsarGun";
+// import { createQuantumAnnihilatorMesh, spawnQuantumAnnihilator } from "./props/guns/QuantumAnnihilator";
+// import { createEmeraldViperMesh, spawnEmeraldViper } from "./props/guns/EmeraldViper";
+// import { createChronoArbalestMesh, spawnChronoArbalest } from "./props/guns/ChronoArbalest";
+// import { createThunderArcGunMesh, spawnThunderArcGun } from "./props/guns/ThunderArcGun";
 //import { CyberpunkMan } from "./characters/cyberpunkMan";
 import { VoxelKnight } from "./characters/voxelKnight";
 

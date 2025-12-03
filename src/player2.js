@@ -4,7 +4,7 @@ import { BoxMan } from "./characters/boxMan";
 //import { SphereGirl } from "./characters/sphereGirl";
 import { VoxelKnight } from "./characters/voxelKnight";
 import { Config } from "./config";
-import { createSolarPlasmaCannonMesh, spawnSolarPlasmaCannon } from "./armory/SolarPlasmaCannon";
+import { createSolarPlasmaCannonMesh, spawnSolarPlasmaCannon } from "./equipment/guns/SolarPlasmaCannon";
 
 export class Player2 {
     constructor(scene, camera, glowLayer = null) {

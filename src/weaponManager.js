@@ -1,26 +1,26 @@
 import { Vector3 } from "@babylonjs/core";
 import { Config } from "./config";
-import { spawnAlphaParticleCannon } from "./armory/AlphaParticleCannon";
-import { spawnPegasusParticleCannon } from "./armory/PegasusParticleCannon";
-import { spawnSolarPlasmaCannon } from "./armory/SolarPlasmaCannon";
-import { spawnScorpioPulsarGun } from "./armory/ScorpioPulsarGun";
-import { spawnQuantumAnnihilator } from "./armory/QuantumAnnihilator";
-import { spawnEmeraldViper } from "./armory/EmeraldViper";
-import { spawnChronoArbalest } from "./armory/ChronoArbalest";
-import { spawnThunderArcGun } from "./armory/ThunderArcGun";
+// import { spawnAlphaParticleCannon } from "./props/guns/AlphaParticleCannon";
+// import { spawnPegasusParticleCannon } from "./props/guns/PegasusParticleCannon";
+import { spawnSolarPlasmaCannon } from "./equipment/guns/SolarPlasmaCannon";
+// import { spawnScorpioPulsarGun } from "./props/guns/ScorpioPulsarGun";
+// import { spawnQuantumAnnihilator } from "./props/guns/QuantumAnnihilator";
+// import { spawnEmeraldViper } from "./props/guns/EmeraldViper";
+// import { spawnChronoArbalest } from "./props/guns/ChronoArbalest";
+// import { spawnThunderArcGun } from "./props/guns/ThunderArcGun";
 
 /**
  * 武器注册表 - 武器名称到生成函数的映射
  */
 const WEAPON_REGISTRY = {
-    AlphaParticleCannon: spawnAlphaParticleCannon,
-    PegasusParticleCannon: spawnPegasusParticleCannon,
+    // AlphaParticleCannon: spawnAlphaParticleCannon,
+    // PegasusParticleCannon: spawnPegasusParticleCannon,
     SolarPlasmaCannon: spawnSolarPlasmaCannon,
-    ScorpioPulsarGun: spawnScorpioPulsarGun,
-    QuantumAnnihilator: spawnQuantumAnnihilator,
-    EmeraldViper: spawnEmeraldViper,
-    ChronoArbalest: spawnChronoArbalest,
-    ThunderArcGun: spawnThunderArcGun
+    // ScorpioPulsarGun: spawnScorpioPulsarGun,
+    // QuantumAnnihilator: spawnQuantumAnnihilator,
+    // EmeraldViper: spawnEmeraldViper,
+    // ChronoArbalest: spawnChronoArbalest,
+    // ThunderArcGun: spawnThunderArcGun
 };
 
 /**
