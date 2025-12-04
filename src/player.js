@@ -231,16 +231,11 @@ export class Player2 {
             // Adjust Position
             this.currentGunModel.position = new Vector3(0, 0, 0);
 
+            // ... existing code ...
             // Arm is lowered.
-            // We want the sword to point forward-ish or resting?
-            // Let's point it forward for now like a ready stance.
-            // GunRoot defaults to (PI/2, 0, 0) which points Forward (Z+) relative to Arm (Y-).
-            // Sword Z+ is the blade tip.
-            // So default GunRoot rotation should make the sword point forward.
-            
-            // However, the arm is angled down.
-            // Let's angle the sword up a bit.
-            this.gunRoot.rotation = new Vector3(Math.PI / 2 + 0.5, 0, 0);
+            // We want the sword to be parallel to the ground.
+            // GunRoot rotation to make sword horizontal
+            this.gunRoot.rotation = new Vector3(Math.PI / 2, 0, 0);
             
             // Position in hand
             this.gunRoot.position = new Vector3(0, -0.4, 0.1);
