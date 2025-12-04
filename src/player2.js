@@ -6,6 +6,7 @@ import { VoxelKnight } from "./characters/voxelKnight";
 import { Config } from "./config";
 import { createSolarPlasmaCannonMesh, spawnSolarPlasmaCannon, getSolarPlasmaCannonIcon } from "./equipment/weapons/ranged/SolarPlasmaCannon";
 import { createCrystalVoidWandMesh, getCrystalVoidWandIcon } from "./equipment/weapons/ranged/CrystalVoidWand";
+import { createForestStaffMesh, getForestStaffIcon } from "./equipment/weapons/ranged/ForestStaff";
 import { BackpackUI } from "./ui/BackpackUI";
 
 export class Player2 {
@@ -67,6 +68,13 @@ export class Player2 {
             name: "CrystalVoidWand",
             type: "gun",
             icon: getCrystalVoidWandIcon()
+        };
+        // 第三个格子放入 ForestStaff
+        this.inventory[2] = {
+            id: "ForestStaff",
+            name: "ForestStaff",
+            type: "gun",
+            icon: getForestStaffIcon()
         };
 
         this.backpackUI = new BackpackUI(scene, this);
@@ -150,6 +158,11 @@ export class Player2 {
             this.currentGunModel = null;
         }
 
+        // Reset gunRoot transform to default (Gun pose) before applying specific weapon overrides
+        // This ensures we have a clean slate
+        this.gunRoot.position = new Vector3(0, -0.3, 0.1);
+        this.gunRoot.rotation = new Vector3(Math.PI / 2, 0, 0);
+
         // Create new model based on weapon
         if (weaponName === "SolarPlasmaCannon") {
             this.currentGunModel = createSolarPlasmaCannonMesh(this.scene);
@@ -164,11 +177,41 @@ export class Player2 {
             this.currentGunModel.parent = this.gunRoot;
             this.currentGunModel.rotation = Vector3.Zero();
             
-            // 魔杖比较长，调整位置
-            this.currentGunModel.position = new Vector3(0, 0, 0.2);
+            // 魔杖调整：稍微靠前一点
+            this.currentGunModel.position = new Vector3(0, 0, 0.4);
             
             // 调整枪口位置到水晶处
-            this.gunMuzzle.position = new Vector3(0, 0, 1.0);
+            this.gunMuzzle.position = new Vector3(0, 0, 1.2);
+
+            // 魔杖专属 Grip 调整 (相对于手掌)
+             // 我们希望魔杖看起来是被握在手里，但角度可以稍微不同
+             // 配合向右斜伸的手臂，我们需要让魔杖指回前方 (修正 Y 旋转)
+             // Arm Y rotation is approx 0.6, so we need to counter that.
+             // GunRoot default rotation is (PI/2, 0, 0). 
+             // adding Y rotation:
+             this.gunRoot.rotation = new Vector3(Math.PI / 2, -0.6, 0);
+             
+             // 位置微调：因为手臂向右了，魔杖需要稍微往左(手臂本地坐标的?)移一点，或者保持在右侧
+             // Arm local coords: Y is down (along arm), X/Z are cross section.
+             // Actually Arm geometry is Box.
+             this.gunRoot.position = new Vector3(-0.1, -0.4, 0.2); 
+        } else if (weaponName === "ForestStaff") {
+            this.currentGunModel = createForestStaffMesh(this.scene);
+            this.currentGunModel.parent = this.gunRoot;
+            
+            // Forest Staff Pose: Vertical Hold (Walking Stick style)
+            // We align Model Y with GunRoot Y to stand vertical
+            this.currentGunModel.rotation = Vector3.Zero();
+            
+            // Adjust Position: Hand holds the middle
+            this.currentGunModel.position = new Vector3(0, 0, 0); 
+            
+            // Arm is lowered to -1.0 (approx 60 deg). We rotate GunRoot to 1.0 to keep staff vertical.
+            this.gunRoot.rotation = new Vector3(1.0, 0, 0);
+            this.gunRoot.position = new Vector3(0.1, -0.4, 0.2); // Hold in hand
+            
+            // Muzzle: Top of the staff (Magic comes from the tip)
+            this.gunMuzzle.position = new Vector3(0, 1.2, 0); 
         }
         
         // Re-attach muzzle flash to new muzzle position (it follows transform node)
@@ -296,6 +339,10 @@ export class Player2 {
                 // Cyan/Blue for Wand
                 this.muzzleFlashPS.color1 = new Color4(0, 1, 1, 1); 
                 this.muzzleFlashPS.color2 = new Color4(0, 0.5, 1, 1);
+            } else if (this.currentWeapon === "ForestStaff") {
+                // Green/Yellow for Forest Staff
+                this.muzzleFlashPS.color1 = new Color4(0.2, 1, 0.2, 1);
+                this.muzzleFlashPS.color2 = new Color4(1, 1, 0.5, 1);
             } else {
                 // Default (Solar Plasma Cannon) colors
                 this.muzzleFlashPS.color1 = new Color4(1, 0.5, 0, 1); // Orange
@@ -305,15 +352,34 @@ export class Player2 {
         }
 
         const origin = this.gunMuzzle.getAbsolutePosition();
-        const direction = origin.subtract(this.gunRoot.getAbsolutePosition()).normalize();
+        
+        // 计算射击方向：从枪口指向准星瞄准的目标
+        // 1. 获取摄像机准星射线 (屏幕中心)
+        const ray = this.camera.getForwardRay(100);
+        
+        // 2. 检测射线击中点 (排除玩家自己)
+        const pickInfo = this.scene.pickWithRay(ray, (mesh) => {
+            return mesh.isPickable && mesh.isVisible && mesh !== this.mesh && !mesh.isDescendantOf(this.mesh);
+        });
+
+        let targetPoint;
+        if (pickInfo.hit) {
+            targetPoint = pickInfo.pickedPoint;
+        } else {
+            // 如果没击中，目标点就是射线终点
+            targetPoint = ray.origin.add(ray.direction.scale(100));
+        }
+
+        // 3. 计算从枪口到目标点的方向
+        const direction = targetPoint.subtract(origin).normalize();
+
+        let bulletMesh;
+        let bulletData = {
+            life: 2.0,
+            velocity: direction.scale(60)
+        };
 
         if (this.currentWeapon === "SolarPlasmaCannon") {
-            let bulletMesh;
-            let bulletData = {
-                life: 2.0,
-                velocity: direction.scale(60)
-            };
-
             // --- SOLAR PLASMA CANNON (MAGIC ORB) ---
             // 1. Projectile: Purple Magic Orb
             bulletMesh = MeshBuilder.CreateSphere("plasmaBall", { diameter: 0.8, segments: 32 }, this.scene);
@@ -410,13 +476,11 @@ export class Player2 {
 
             bulletData.mesh = bulletMesh;
             this.bullets.push(bulletData);
+
         } else if (this.currentWeapon === "CrystalVoidWand") {
-             // Crystal Void Wand Logic
-             let bulletMesh;
-             let bulletData = {
-                 life: 3.0, // 射程更远
-                 velocity: direction.scale(40) // 速度稍慢
-             };
+             // --- CRYSTAL VOID WAND (CRYSTAL SHARDS) ---
+             bulletData.life = 3.0; // 射程更远
+             bulletData.velocity = direction.scale(40); // 速度稍慢
  
              // 1. Projectile: Cyan Crystal Shard
              bulletMesh = MeshBuilder.CreatePolyhedron("crystalShard", { type: 2, size: 0.3 }, this.scene);
@@ -456,6 +520,62 @@ export class Player2 {
  
              bulletData.mesh = bulletMesh;
              this.bullets.push(bulletData);
+        } else if (this.currentWeapon === "ForestStaff") {
+            // --- FOREST STAFF (NATURE ORB) ---
+            // Projectile: Green glowing sphere
+            bulletMesh = MeshBuilder.CreateSphere("natureOrb", { diameter: 0.6 }, this.scene);
+            bulletMesh.position = origin.clone();
+            
+            const natureMat = new StandardMaterial("natureMat", this.scene);
+            natureMat.emissiveColor = new Color3(0.2, 1.0, 0.2);
+            natureMat.disableLighting = true;
+            bulletMesh.material = natureMat;
+            
+            bulletData.particleSystems = [];
+            
+            // 1. Core Glow
+            const psGlow = new ParticleSystem("natureGlow", 100, this.scene);
+            psGlow.particleTexture = this.particleTexture;
+            psGlow.emitter = bulletMesh;
+            psGlow.createSphereEmitter(0.4);
+            psGlow.color1 = new Color4(0.2, 1.0, 0.2, 1.0);
+            psGlow.color2 = new Color4(0.8, 1.0, 0.4, 1.0);
+            psGlow.colorDead = new Color4(0, 0.5, 0, 0);
+            psGlow.minSize = 0.2;
+            psGlow.maxSize = 0.5;
+            psGlow.minLifeTime = 0.2;
+            psGlow.maxLifeTime = 0.4;
+            psGlow.emitRate = 100;
+            psGlow.blendMode = ParticleSystem.BLENDMODE_ADD;
+            psGlow.start();
+            bulletData.particleSystems.push(psGlow);
+            
+            // 2. Leaf Trail (Falling particles)
+            const psLeaves = new ParticleSystem("natureLeaves", 200, this.scene);
+            // Use cloud texture if available or default with color
+            psLeaves.particleTexture = new Texture("https://www.babylonjs-playground.com/textures/flare.png", this.scene); 
+            psLeaves.emitter = bulletMesh;
+            psLeaves.minEmitBox = new Vector3(-0.2, -0.2, -0.2);
+            psLeaves.maxEmitBox = new Vector3(0.2, 0.2, 0.2);
+            
+            psLeaves.color1 = new Color4(0.2, 0.8, 0.2, 1.0); // Green
+            psLeaves.color2 = new Color4(0.8, 0.8, 0.2, 1.0); // Yellow-Green
+            psLeaves.colorDead = new Color4(0.2, 0.4, 0.1, 0);
+            
+            psLeaves.minSize = 0.1;
+            psLeaves.maxSize = 0.2;
+            psLeaves.minLifeTime = 0.5;
+            psLeaves.maxLifeTime = 1.0;
+            psLeaves.emitRate = 80;
+            psLeaves.gravity = new Vector3(0, -2, 0); // Leaves fall
+            psLeaves.minAngularSpeed = 0;
+            psLeaves.maxAngularSpeed = Math.PI;
+            psLeaves.blendMode = ParticleSystem.BLENDMODE_STANDARD;
+            psLeaves.start();
+            bulletData.particleSystems.push(psLeaves);
+            
+            bulletData.mesh = bulletMesh;
+            this.bullets.push(bulletData);
         }
     }
 
@@ -712,9 +832,38 @@ export class Player2 {
 
             // Override arm rotation if holding gun
             if (this.isHoldingGun && this.boxMan && this.boxMan.rightShoulder) {
-                this.boxMan.rightShoulder.rotation.x = -Math.PI / 2;
-                this.boxMan.rightShoulder.rotation.z = 0;
-                this.boxMan.rightShoulder.rotation.y = 0;
+                if (this.currentWeapon === "CrystalVoidWand") {
+                    // 魔杖姿势：更自然的战斗法师姿态
+                    // 手臂不完全平举，而是稍微向右打开 (Y轴旋转)，显得更自信/随意
+                    // x: -1.5 (接近水平，指向前方)
+                    // y: 0.6 (向右偏约 35 度)
+                    // z: 0.0
+                    this.boxMan.rightShoulder.rotation.x = -1.5;
+                    this.boxMan.rightShoulder.rotation.y = 0.6;
+                    this.boxMan.rightShoulder.rotation.z = 0.0;
+                } else if (this.currentWeapon === "ForestStaff") {
+                    // 森林法杖姿势：手持手杖
+                    // 基础角度 x: -1.0 (约60度下垂)
+                    let baseRotX = -1.0;
+
+                    // 如果在移动，添加摆动效果 (跟随身体自然的摆动节奏)
+                    if (isMoving) {
+                         const angle = Math.sin(this.boxMan.walkTime);
+                         // 摆动幅度：跑动时更大
+                         const swingAmp = this.isSprinting ? 0.6 : 0.4; 
+                         // 叠加摆动 (-angle 与默认行走动画的相位一致)
+                         baseRotX += (-angle * swingAmp);
+                    }
+
+                    this.boxMan.rightShoulder.rotation.x = baseRotX;
+                    this.boxMan.rightShoulder.rotation.y = 0.0;
+                    this.boxMan.rightShoulder.rotation.z = 0.0;
+                } else {
+                    // 默认枪械姿势：平举
+                    this.boxMan.rightShoulder.rotation.x = -Math.PI / 2;
+                    this.boxMan.rightShoulder.rotation.z = 0;
+                    this.boxMan.rightShoulder.rotation.y = 0;
+                }
             }
         }
     }
