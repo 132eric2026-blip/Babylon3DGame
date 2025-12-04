@@ -20,16 +20,6 @@ export class DecorationManager {
      * 初始化装饰所用材质
      */
     initMaterials() {
-        // 石头材质
-        const stoneMat = new StandardMaterial("stoneMat", this.scene);
-        stoneMat.diffuseColor = new Color3(
-            DefaultSceneConfig.decorations.stoneColor.r,
-            DefaultSceneConfig.decorations.stoneColor.g,
-            DefaultSceneConfig.decorations.stoneColor.b
-        );
-        stoneMat.specularColor = new Color3(0, 0, 0);
-        this.materials.stone = stoneMat;
-
         // 路灯材质 - 木杆
         const lampWood = new StandardMaterial("lampWood", this.scene);
         lampWood.diffuseColor = new Color3(0.35, 0.22, 0.12);
@@ -46,50 +36,10 @@ export class DecorationManager {
     }
 
     /**
-     * 随机生成装饰（石头）
+     * 随机生成装饰（已禁用）
      */
     generateRandomDecorations() {
-        const count = DefaultSceneConfig.decorations.count;
-        const areaSize = DefaultSceneConfig.decorations.areaSize;
-        const halfSize = areaSize / 2;
-        const rocksEnabled = DefaultSceneConfig.decorations.rocksEnabled;
-
-        if (!rocksEnabled) return;
-
-        for (let i = 0; i < count; i++) {
-            const x = (Math.random() * areaSize) - halfSize;
-            const z = (Math.random() * areaSize) - halfSize;
-            
-            // 避免在出生点附近生成
-            if (Math.abs(x) < 5 && Math.abs(z) < 5) continue;
-
-            this.createStone(x, z);
-        }
-    }
-
-    /**
-     * 创建石头
-     * @param {number} x X 坐标
-     * @param {number} z Z 坐标
-     */
-    createStone(x, z) {
-        const scale = 0.5 + Math.random() * 1.5; // 随机大小
-        const stone = MeshBuilder.CreateBox("stone", { size: 1 }, this.scene);
-        stone.scaling = new Vector3(scale, scale * 0.6, scale); // 稍微压扁一点
-        stone.position = new Vector3(x, (scale * 0.6) / 2, z);
-        stone.material = this.materials.stone;
-        
-        // 随机旋转
-        stone.rotation.y = Math.random() * Math.PI * 2;
-
-        // 物理
-        new PhysicsAggregate(stone, PhysicsShapeType.BOX, { mass: 0, restitution: 0.1 }, this.scene);
-        
-        // 阴影
-        if (this.scene.shadowGenerator) {
-            this.scene.shadowGenerator.addShadowCaster(stone);
-            stone.receiveShadows = true;
-        }
+        // 已移除岩石生成
     }
 
     // --- 我的世界风格路灯 ---
