@@ -127,6 +127,8 @@ export class Player2 {
         this.bullets = [];
         this.currentGunModel = null;
         this.swordSlashAnimating = false; // 追踪剑的挥砍动画状态
+        this.lastSlashTime = 0; // 上次挥砍时间
+        this.slashCooldown = 500; // 挥砍冷却时间（毫秒）
 
         // Beam Weapon State
         this.isBeamActive = false;
@@ -360,6 +362,166 @@ export class Player2 {
         }
     }
 
+    /**
+     * 创建剑气特效（刀尖拖尾效果）
+     */
+    createSlashEffect() {
+        if (!this.gunMuzzle) return;
+
+        // 创建拖尾路径记录数组
+        const trailPositions = [];
+        const trailMaxLength = 40; // 增加拖尾最大点数，使轨迹更平滑
+        let frameCount = 0;
+        const totalFrames = 25; // 拖尾持续帧数
+        
+        // 创建拖尾网格（初始为空）
+        let trailMesh = null;
+        
+        // 发光材质
+        const trailMat = new StandardMaterial("slashTrailMat", this.scene);
+        trailMat.emissiveColor = new Color3(0.4, 0.9, 1.0); // 更亮的青白色
+        trailMat.diffuseColor = new Color3(0.6, 1.0, 1.0);
+        trailMat.specularColor = new Color3(0.8, 1.0, 1.0);
+        trailMat.alpha = 0.9;
+        trailMat.disableLighting = true;
+        trailMat.backFaceCulling = false;
+        
+        // 创建粒子系统（跟随刀尖）
+        const trailParticles = new ParticleSystem("slashTrailParticles", 300, this.scene);
+        trailParticles.particleTexture = this.particleTexture;
+        
+        trailParticles.color1 = new Color4(0.4, 0.9, 1.0, 1.0);
+        trailParticles.color2 = new Color4(0.9, 1.0, 1.0, 1.0);
+        trailParticles.colorDead = new Color4(0.2, 0.6, 1.0, 0.0);
+        
+        trailParticles.minSize = 0.06;
+        trailParticles.maxSize = 0.18;
+        trailParticles.minLifeTime = 0.15;
+        trailParticles.maxLifeTime = 0.35;
+        
+        trailParticles.emitRate = 600;
+        trailParticles.blendMode = ParticleSystem.BLENDMODE_ADD;
+        
+        trailParticles.minEmitPower = 0.3;
+        trailParticles.maxEmitPower = 1.5;
+        trailParticles.updateSpeed = 0.008;
+        
+        // 每帧更新拖尾效果
+        const updateTrail = () => {
+            if (frameCount >= totalFrames) {
+                // 拖尾完成，开始淡出
+                if (trailMesh) {
+                    const fadeAnim = new Animation(
+                        "trailFade",
+                        "material.alpha",
+                        60,
+                        Animation.ANIMATIONTYPE_FLOAT,
+                        Animation.ANIMATIONLOOPMODE_CONSTANT
+                    );
+                    fadeAnim.setKeys([
+                        { frame: 0, value: 0.9 },
+                        { frame: 15, value: 0.0 }
+                    ]);
+                    
+                    const animatable = this.scene.beginDirectAnimation(trailMesh, [fadeAnim], 0, 15, false);
+                    animatable.onAnimationEnd = () => {
+                        if (trailMesh) {
+                            trailMesh.dispose();
+                            trailMesh = null;
+                        }
+                    };
+                }
+                
+                trailParticles.stop();
+                setTimeout(() => {
+                    trailParticles.dispose();
+                }, 400);
+                
+                this.scene.onBeforeRenderObservable.remove(observer);
+                return;
+            }
+            
+            // 获取当前刀尖位置
+            const tipPos = this.gunMuzzle.getAbsolutePosition().clone();
+            trailPositions.push(tipPos);
+            
+            // 限制拖尾长度
+            if (trailPositions.length > trailMaxLength) {
+                trailPositions.shift();
+            }
+            
+            // 粒子发射位置跟随刀尖
+            trailParticles.emitter = tipPos;
+            if (frameCount === 0) {
+                trailParticles.start();
+            }
+            
+            // 创建/更新拖尾网格
+            if (trailPositions.length >= 3) { // 至少3个点才能形成平滑轨迹
+                // 销毁旧网格
+                if (trailMesh) {
+                    trailMesh.dispose();
+                }
+                
+                // 创建拖尾带（使用Ribbon）
+                const ribbonPaths = [];
+                const baseWidth = 0.18; // 基础拖尾宽度
+                
+                // 为每个位置创建两个边缘点（形成带状）
+                const path1 = [];
+                const path2 = [];
+                
+                for (let i = 0; i < trailPositions.length; i++) {
+                    const pos = trailPositions[i];
+                    
+                    // 计算拖尾宽度渐变（尾部更细）
+                    const widthFactor = i / (trailPositions.length - 1);
+                    const width = baseWidth * (0.3 + widthFactor * 0.7);
+                    
+                    // 计算垂直于运动方向的偏移
+                    let offset;
+                    if (i < trailPositions.length - 1) {
+                        // 计算运动方向
+                        const dir = trailPositions[i + 1].subtract(pos).normalize();
+                        // 计算垂直方向（在XZ平面上）
+                        const perpendicular = new Vector3(-dir.z, dir.y, dir.x).normalize();
+                        offset = perpendicular.scale(width / 2);
+                    } else if (i > 0) {
+                        const dir = pos.subtract(trailPositions[i - 1]).normalize();
+                        const perpendicular = new Vector3(-dir.z, dir.y, dir.x).normalize();
+                        offset = perpendicular.scale(width / 2);
+                    } else {
+                        offset = new Vector3(0, width / 2, 0);
+                    }
+                    
+                    path1.push(pos.add(offset));
+                    path2.push(pos.subtract(offset));
+                }
+                
+                ribbonPaths.push(path1, path2);
+                
+                trailMesh = MeshBuilder.CreateRibbon("slashTrail", {
+                    pathArray: ribbonPaths,
+                    closeArray: false,
+                    closePath: false,
+                    updatable: false
+                }, this.scene);
+                
+                trailMesh.material = trailMat;
+                
+                // 添加到发光层
+                if (this.glowLayer) {
+                    this.glowLayer.addIncludedOnlyMesh(trailMesh);
+                }
+            }
+            
+            frameCount++;
+        };
+        
+        // 注册每帧更新
+        const observer = this.scene.onBeforeRenderObservable.add(updateTrail);
+    }
+
     fireWeapon() {
         if (!this.currentWeapon) return;
 
@@ -395,27 +557,52 @@ export class Player2 {
 
         if (this.currentWeapon === "ThunderStormBlade") {
             // Melee Attack Animation (Slash)
-            // 挥砍动画：基于肩膀旋转的自然挥砍
+            // 挥砍动画：横向挥砍（手臂横向运动+旋转）
+            
+            // 检查冷却时间和动画状态
+            const currentTime = Date.now();
+            if (this.swordSlashAnimating || currentTime - this.lastSlashTime < this.slashCooldown) {
+                return; // 动画正在播放或冷却中，忽略此次攻击
+            }
+            
+            this.lastSlashTime = currentTime;
             
             if (this.boxMan && this.boxMan.rightShoulder) {
-                const startRot = this.boxMan.rightShoulder.rotation.x;
+                const startRotX = this.boxMan.rightShoulder.rotation.x;
+                const startRotY = this.boxMan.rightShoulder.rotation.y;
                 
-                const attackAnim = new Animation(
-                    "swordSlash",
-                    "rotation.x",
-                    60, // 60 fps
+                // Y轴旋转动画（横向转动）
+                const attackAnimY = new Animation(
+                    "swordSlashY",
+                    "rotation.y",
+                    60,
                     Animation.ANIMATIONTYPE_FLOAT,
                     Animation.ANIMATIONLOOPMODE_CONSTANT
                 );
                 
-                // 挥砍序列：蓄力 -> 挥砍 -> 回收
-                const keys = [];
-                keys.push({ frame: 0, value: startRot });           // 初始位置
-                keys.push({ frame: 5, value: startRot + 0.8 });    // 快速向后蓄力
-                keys.push({ frame: 15, value: startRot - 1.2 });   // 向前挥砍
-                keys.push({ frame: 30, value: startRot });         // 回到初始位置
+                const keysY = [];
+                keysY.push({ frame: 0, value: startRotY });              // 初始位置
+                keysY.push({ frame: 5, value: startRotY + 1.2 });       // 向右后蓄力（幅度加大）
+                keysY.push({ frame: 15, value: startRotY - 1.4 });      // 向左挥砍（从外向里横扫）
+                keysY.push({ frame: 30, value: startRotY });            // 回到初始位置
+                attackAnimY.setKeys(keysY);
                 
-                attackAnim.setKeys(keys);
+                // X轴旋转动画（手臂抬起横扫）
+                const attackAnimX = new Animation(
+                    "swordSlashX",
+                    "rotation.x",
+                    60,
+                    Animation.ANIMATIONTYPE_FLOAT,
+                    Animation.ANIMATIONLOOPMODE_CONSTANT
+                );
+                
+                const keysX = [];
+                keysX.push({ frame: 0, value: startRotX });             // 初始位置
+                keysX.push({ frame: 5, value: startRotX - 0.5 });      // 稍微下沉蓄力
+                keysX.push({ frame: 10, value: startRotX - 1.4 });     // 手臂向前平举（幅度加大）
+                keysX.push({ frame: 18, value: startRotX - 1.2 });     // 横扫过程保持高度
+                keysX.push({ frame: 30, value: startRotX });           // 回到初始位置
+                attackAnimX.setKeys(keysX);
                 
                 // 停止任何正在进行的动画
                 this.scene.stopAnimation(this.boxMan.rightShoulder);
@@ -423,17 +610,19 @@ export class Player2 {
                 this.swordSlashAnimating = true;
                 const animatable = this.scene.beginDirectAnimation(
                     this.boxMan.rightShoulder, 
-                    [attackAnim], 
-                    0,      // from frame
-                    30,     // to frame 
-                    false,  // loop
-                    1.0     // speed ratio
+                    [attackAnimY, attackAnimX],  // 同时播放两个轴的动画
+                    0,
+                    30,
+                    false,
+                    1.0
                 );
+                
+                // 创建剑气特效
+                this.createSlashEffect();
                 
                 // 监听动画完成
                 animatable.onAnimationEnd = () => {
                     this.swordSlashAnimating = false;
-                    console.log("Slash animation finished!");
                 };
             }
 

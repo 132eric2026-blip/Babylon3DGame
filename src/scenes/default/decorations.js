@@ -30,31 +30,6 @@ export class DecorationManager {
         stoneMat.specularColor = new Color3(0, 0, 0);
         this.materials.stone = stoneMat;
 
-        // 树干材质
-        const trunkMat = new StandardMaterial("trunkMat", this.scene);
-        trunkMat.diffuseColor = new Color3(
-            DefaultSceneConfig.decorations.treeTrunkColor.r,
-            DefaultSceneConfig.decorations.treeTrunkColor.g,
-            DefaultSceneConfig.decorations.treeTrunkColor.b
-        );
-        trunkMat.specularColor = new Color3(0, 0, 0);
-        this.materials.trunk = trunkMat;
-
-        // 树叶材质
-        const leavesMat = new StandardMaterial("leavesMat", this.scene);
-        leavesMat.diffuseColor = new Color3(
-            DefaultSceneConfig.decorations.treeLeavesColor.r,
-            DefaultSceneConfig.decorations.treeLeavesColor.g,
-            DefaultSceneConfig.decorations.treeLeavesColor.b
-        );
-        leavesMat.specularColor = new Color3(0, 0, 0);
-        this.materials.leaves = leavesMat;
-
-        const sakuraLeaves = new StandardMaterial("sakuraLeaves", this.scene);
-        sakuraLeaves.diffuseColor = new Color3(1.0, 0.75, 0.9);
-        sakuraLeaves.specularColor = new Color3(0, 0, 0);
-        this.materials.sakuraLeaves = sakuraLeaves;
-
         // 路灯材质 - 木杆
         const lampWood = new StandardMaterial("lampWood", this.scene);
         lampWood.diffuseColor = new Color3(0.35, 0.22, 0.12);
@@ -71,16 +46,15 @@ export class DecorationManager {
     }
 
     /**
-     * 随机生成装饰（石头/树）
+     * 随机生成装饰（石头）
      */
     generateRandomDecorations() {
         const count = DefaultSceneConfig.decorations.count;
         const areaSize = DefaultSceneConfig.decorations.areaSize;
         const halfSize = areaSize / 2;
         const rocksEnabled = DefaultSceneConfig.decorations.rocksEnabled;
-        const treesEnabled = DefaultSceneConfig.decorations.treesEnabled;
 
-        if (!rocksEnabled && !treesEnabled) return;
+        if (!rocksEnabled) return;
 
         for (let i = 0; i < count; i++) {
             const x = (Math.random() * areaSize) - halfSize;
@@ -89,18 +63,7 @@ export class DecorationManager {
             // 避免在出生点附近生成
             if (Math.abs(x) < 5 && Math.abs(z) < 5) continue;
 
-            if (rocksEnabled && treesEnabled) {
-                const type = Math.random();
-                if (type < 0.6) {
-                    this.createStone(x, z);
-                } else {
-                    this.createTree(x, z);
-                }
-            } else if (rocksEnabled) {
-                this.createStone(x, z);
-            } else if (treesEnabled) {
-                this.createTree(x, z);
-            }
+            this.createStone(x, z);
         }
     }
 
@@ -126,114 +89,6 @@ export class DecorationManager {
         if (this.scene.shadowGenerator) {
             this.scene.shadowGenerator.addShadowCaster(stone);
             stone.receiveShadows = true;
-        }
-    }
-
-    /**
-     * 创建树
-     * @param {number} x X 坐标
-     * @param {number} z Z 坐标
-     */
-    createTree(x, z) {
-        const trunkHeight = 1.5 + Math.random();
-        const variant = Math.floor(Math.random() * 7);
-        let trunk;
-        let leafParts = [];
-
-        if (variant === 0) {
-            const trunkWidth = 0.4;
-            trunk = MeshBuilder.CreateBox("trunk", { width: trunkWidth, depth: trunkWidth, height: trunkHeight }, this.scene);
-            trunk.position = new Vector3(x, trunkHeight / 2, z);
-            const leavesSize = 1.2 + Math.random() * 0.5;
-            const leaves = MeshBuilder.CreateBox("leaves", { size: leavesSize }, this.scene);
-            leaves.position = new Vector3(x, trunkHeight + leavesSize / 2 - 0.2, z);
-            leafParts.push(leaves);
-        } else if (variant === 1) {
-            trunk = MeshBuilder.CreateCylinder("trunk", { diameter: 0.35, height: trunkHeight }, this.scene);
-            trunk.position = new Vector3(x, trunkHeight / 2, z);
-            const r = 0.8 + Math.random() * 0.6;
-            const leaves = MeshBuilder.CreateSphere("leaves", { diameter: r * 2, segments: 16 }, this.scene);
-            leaves.position = new Vector3(x, trunkHeight + r * 0.7, z);
-            leafParts.push(leaves);
-        } else if (variant === 2) {
-            trunk = MeshBuilder.CreateCylinder("trunk", { diameter: 0.35, height: trunkHeight }, this.scene);
-            trunk.position = new Vector3(x, trunkHeight / 2, z);
-            const cone1 = MeshBuilder.CreateCylinder("leavesTop", { diameterTop: 0, diameterBottom: 1.2, height: 1.0, tessellation: 16 }, this.scene);
-            const cone2 = MeshBuilder.CreateCylinder("leavesMid", { diameterTop: 0, diameterBottom: 1.6, height: 1.0, tessellation: 16 }, this.scene);
-            const cone3 = MeshBuilder.CreateCylinder("leavesLow", { diameterTop: 0, diameterBottom: 2.0, height: 1.0, tessellation: 16 }, this.scene);
-            cone1.position = new Vector3(x, trunkHeight + 1.2, z);
-            cone2.position = new Vector3(x, trunkHeight + 0.6, z);
-            cone3.position = new Vector3(x, trunkHeight, z);
-            leafParts.push(cone1, cone2, cone3);
-        } else {
-            trunk = MeshBuilder.CreateCylinder("trunk", { diameter: 0.35, height: trunkHeight }, this.scene);
-            trunk.position = new Vector3(x, trunkHeight / 2, z);
-            const dome = MeshBuilder.CreateSphere("leaves", { diameter: 1.8, segments: 14 }, this.scene);
-            dome.scaling.y = 0.6;
-            dome.position = new Vector3(x, trunkHeight + 0.6, z);
-            leafParts.push(dome);
-        }
-
-        if (variant === 4) {
-            trunk = MeshBuilder.CreateCylinder("trunk", { diameter: 0.35, height: trunkHeight }, this.scene);
-            trunk.position = new Vector3(x, trunkHeight / 2, z);
-            const crown = MeshBuilder.CreateSphere("leaves", { diameter: 1.6, segments: 12 }, this.scene);
-            crown.scaling.y = 0.9;
-            crown.position = new Vector3(x, trunkHeight + 0.8, z);
-            leafParts.push(crown);
-            const strands = 8;
-            for (let i = 0; i < strands; i++) {
-                const angle = (i / strands) * Math.PI * 2;
-                const sx = x + Math.cos(angle) * 0.6;
-                const sz = z + Math.sin(angle) * 0.6;
-                const s = MeshBuilder.CreateCylinder("leafStrand", { diameter: 0.08, height: 1.2 }, this.scene);
-                s.position = new Vector3(sx, trunkHeight + 0.2, sz);
-                leafParts.push(s);
-            }
-        }
-
-        if (variant === 5) {
-            trunk = MeshBuilder.CreateCylinder("trunk", { diameter: 0.35, height: trunkHeight }, this.scene);
-            trunk.position = new Vector3(x, trunkHeight / 2, z);
-            const clusters = 5;
-            for (let i = 0; i < clusters; i++) {
-                const r = 0.7 + Math.random() * 0.5;
-                const dx = (Math.random() - 0.5) * 1.0;
-                const dz = (Math.random() - 0.5) * 1.0;
-                const dy = trunkHeight + 0.6 + (Math.random() - 0.5) * 0.6;
-                const b = MeshBuilder.CreateSphere("sakuraCluster", { diameter: r * 2, segments: 12 }, this.scene);
-                b.position = new Vector3(x + dx, dy, z + dz);
-                leafParts.push(b);
-            }
-        }
-
-        if (variant === 6) {
-            trunk = MeshBuilder.CreateCylinder("cactusBase", { diameter: 0.5, height: trunkHeight }, this.scene);
-            trunk.position = new Vector3(x, trunkHeight / 2, z);
-            const armL = MeshBuilder.CreateCylinder("cactusArmL", { diameter: 0.35, height: 1.2 }, this.scene);
-            armL.position = new Vector3(x - 0.6, trunkHeight * 0.6, z);
-            const armR = MeshBuilder.CreateCylinder("cactusArmR", { diameter: 0.35, height: 1.2 }, this.scene);
-            armR.position = new Vector3(x + 0.6, trunkHeight * 0.7, z);
-            leafParts.push(armL, armR);
-        }
-
-        trunk.material = this.materials.trunk;
-        if (variant === 5) {
-            leafParts.forEach(p => (p.material = this.materials.sakuraLeaves));
-        } else {
-            leafParts.forEach(p => (p.material = this.materials.leaves));
-        }
-
-        new PhysicsAggregate(trunk, PhysicsShapeType.CYLINDER, { mass: 0 }, this.scene);
-        leafParts.forEach(p => new PhysicsAggregate(p, PhysicsShapeType.BOX, { mass: 0 }, this.scene));
-
-        if (this.scene.shadowGenerator) {
-            this.scene.shadowGenerator.addShadowCaster(trunk);
-            trunk.receiveShadows = true;
-            leafParts.forEach(p => {
-                this.scene.shadowGenerator.addShadowCaster(p);
-                p.receiveShadows = true;
-            });
         }
     }
 
