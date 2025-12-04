@@ -493,6 +493,7 @@ export class BoxMan {
         }
     }
 
+
     /**
      * 行走动画
      */

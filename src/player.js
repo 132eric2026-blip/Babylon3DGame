@@ -841,6 +841,16 @@ export class Player2 {
         this.scene.onKeyboardObservable.add((kbInfo) => {
             const evt = kbInfo.event;
             if (kbInfo.type === KeyboardEventTypes.KEYDOWN) {
+                // Jump Logic
+                if (evt.key === " " && !this.inputMap[" "]) {
+                    if (!this.isBoosterActive) {
+                        if (this.isGrounded()) {
+                            const v = this.aggregate.body.getLinearVelocity();
+                            this.aggregate.body.setLinearVelocity(new Vector3(v.x, Config.player2.jumpSpeed, v.z));
+                        }
+                    }
+                }
+
                 if (evt.key.toLowerCase() === "q" && !this.inputMap["q"]) {
                     this.isBoosterActive = !this.isBoosterActive;
                     if (this.isBoosterActive) {
@@ -977,6 +987,11 @@ export class Player2 {
             this.aggregate.body.setLinearVelocity(new Vector3(0, velocity.y, 0));
         }
 
+        // Reset jump count when grounded
+        if (this.isGrounded()) {
+            // Grounded
+        }
+
         if (this.inputMap[" "]) {
             if (this.isBoosterActive) {
                 const v = this.aggregate.body.getLinearVelocity();
@@ -986,9 +1001,6 @@ export class Player2 {
                 }
                 this.boosterMode = "air";
                 this.holdY = this.mesh.position.y;
-            } else if (this.isGrounded()) {
-                const v = this.aggregate.body.getLinearVelocity();
-                this.aggregate.body.setLinearVelocity(new Vector3(v.x, Config.player2.jumpSpeed, v.z));
             }
         } else if (this.isBoosterActive) {
             if (this.boosterMode === "air") {
