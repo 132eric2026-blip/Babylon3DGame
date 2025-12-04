@@ -895,16 +895,21 @@ export class Player2 {
             }
         });
 
-        // 鼠标输入（射击）
+        // 鼠标输入（射击或释放技能）
         this.scene.onPointerObservable.add((pointerInfo) => {
             if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
                 if (pointerInfo.event.button === 0) {
-                    // 如果点击在背包UI内，则不触发射击
+                    // 如果点击在背包UI内，则不触发
                     if (this.backpackUI && this.backpackUI.isInsideUI(this.scene.pointerX, this.scene.pointerY)) {
                         return;
                     }
 
-                    // 允许在背包打开时射击
+                    // 鼠标左键：释放半月斩技能
+                    if (this.skillManager) {
+                        this.skillManager.activateSkill(0); // 释放第0个技能：半月斩
+                    }
+                    
+                    // 同时也触发槍器（如果持有武器）
                     this.fireInputPressed = true;
                     this.fireWeapon();
                 }
