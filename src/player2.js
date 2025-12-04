@@ -5,6 +5,7 @@ import { BoxMan } from "./characters/boxMan";
 import { VoxelKnight } from "./characters/voxelKnight";
 import { Config } from "./config";
 import { createSolarPlasmaCannonMesh, spawnSolarPlasmaCannon, getSolarPlasmaCannonIcon } from "./equipment/weapons/ranged/SolarPlasmaCannon";
+import { createCrystalVoidWandMesh, getCrystalVoidWandIcon } from "./equipment/weapons/ranged/CrystalVoidWand";
 import { BackpackUI } from "./ui/BackpackUI";
 
 export class Player2 {
@@ -59,6 +60,13 @@ export class Player2 {
             name: "SolarPlasmaCannon",
             type: "gun",
             icon: getSolarPlasmaCannonIcon()
+        };
+        // 第二个格子放入 CrystalVoidWand
+        this.inventory[1] = {
+            id: "CrystalVoidWand",
+            name: "CrystalVoidWand",
+            type: "gun",
+            icon: getCrystalVoidWandIcon()
         };
 
         this.backpackUI = new BackpackUI(scene, this);
@@ -151,6 +159,16 @@ export class Player2 {
             // Adjust position for holding
             // Gun is stout.
             this.gunMuzzle.position = new Vector3(0, 0, 0.8);
+        } else if (weaponName === "CrystalVoidWand") {
+            this.currentGunModel = createCrystalVoidWandMesh(this.scene);
+            this.currentGunModel.parent = this.gunRoot;
+            this.currentGunModel.rotation = Vector3.Zero();
+            
+            // 魔杖比较长，调整位置
+            this.currentGunModel.position = new Vector3(0, 0, 0.2);
+            
+            // 调整枪口位置到水晶处
+            this.gunMuzzle.position = new Vector3(0, 0, 1.0);
         }
         
         // Re-attach muzzle flash to new muzzle position (it follows transform node)
@@ -274,9 +292,15 @@ export class Player2 {
         // Muzzle Flash
         if (this.muzzleFlashPS) {
             this.muzzleFlashPS.manualEmitCount = 15;
-            // Solar Plasma Cannon colors
-            this.muzzleFlashPS.color1 = new Color4(1, 0.5, 0, 1); // Orange
-            this.muzzleFlashPS.color2 = new Color4(1, 0, 1, 1); // Purple
+            if (this.currentWeapon === "CrystalVoidWand") {
+                // Cyan/Blue for Wand
+                this.muzzleFlashPS.color1 = new Color4(0, 1, 1, 1); 
+                this.muzzleFlashPS.color2 = new Color4(0, 0.5, 1, 1);
+            } else {
+                // Default (Solar Plasma Cannon) colors
+                this.muzzleFlashPS.color1 = new Color4(1, 0.5, 0, 1); // Orange
+                this.muzzleFlashPS.color2 = new Color4(1, 0, 1, 1); // Purple
+            }
             this.muzzleFlashPS.start();
         }
 
@@ -386,6 +410,52 @@ export class Player2 {
 
             bulletData.mesh = bulletMesh;
             this.bullets.push(bulletData);
+        } else if (this.currentWeapon === "CrystalVoidWand") {
+             // Crystal Void Wand Logic
+             let bulletMesh;
+             let bulletData = {
+                 life: 3.0, // 射程更远
+                 velocity: direction.scale(40) // 速度稍慢
+             };
+ 
+             // 1. Projectile: Cyan Crystal Shard
+             bulletMesh = MeshBuilder.CreatePolyhedron("crystalShard", { type: 2, size: 0.3 }, this.scene);
+             bulletMesh.position = origin.clone();
+             
+             const crystalMat = new StandardMaterial("shardMat", this.scene);
+             crystalMat.emissiveColor = new Color3(0.2, 0.8, 1.0); 
+             crystalMat.diffuseColor = new Color3(0.0, 0.6, 0.9);
+             crystalMat.disableLighting = true;
+             bulletMesh.material = crystalMat;
+             
+             // 2. Glow
+              const glowLayer = new GlowLayer("shardGlow_" + Date.now(), this.scene);
+             glowLayer.intensity = 1.5;
+             glowLayer.addIncludedOnlyMesh(bulletMesh);
+             bulletData.glowLayer = glowLayer;
+ 
+             // 3. Particle Systems
+             bulletData.particleSystems = [];
+             
+             // Trail
+             const psTrail = new ParticleSystem("shardTrail", 200, this.scene);
+             psTrail.particleTexture = this.particleTexture;
+             psTrail.emitter = bulletMesh;
+             psTrail.minEmitBox = new Vector3(-0.1, -0.1, -0.1);
+             psTrail.maxEmitBox = new Vector3(0.1, 0.1, 0.1);
+             psTrail.color1 = new Color4(0.0, 1.0, 1.0, 1.0);
+             psTrail.color2 = new Color4(0.0, 0.5, 1.0, 0.5);
+             psTrail.colorDead = new Color4(0, 0, 0.2, 0.0);
+             psTrail.minSize = 0.1;
+             psTrail.maxSize = 0.3;
+             psTrail.minLifeTime = 0.2;
+             psTrail.maxLifeTime = 0.5;
+             psTrail.emitRate = 100;
+             psTrail.start();
+             bulletData.particleSystems.push(psTrail);
+ 
+             bulletData.mesh = bulletMesh;
+             this.bullets.push(bulletData);
         }
     }
 
