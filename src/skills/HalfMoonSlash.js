@@ -6,7 +6,8 @@ import {
     Color4,
     Animation,
     ParticleSystem,
-    Texture
+    Texture,
+    TransformNode
 } from "@babylonjs/core";
 import { BaseSkill } from "./BaseSkill";
 
@@ -16,7 +17,7 @@ import { BaseSkill } from "./BaseSkill";
  */
 export class HalfMoonSlash extends BaseSkill {
     constructor(scene, player) {
-        super(scene, player, "半月斩", 0.2); // 3秒冷却
+        super(scene, player, "半月斩", 0.2); // 1秒冷却
     }
     
     /**
@@ -27,8 +28,8 @@ export class HalfMoonSlash extends BaseSkill {
         const playerPos = this.player.mesh.position.clone();
         const playerRotation = this.getPlayerRotation();
         
-        // 创建半月形气波
-        this.createCrescentWave(playerPos, playerRotation);
+        // 创建扫过式半月形气波
+        this.createSweepingCrescent(playerPos, playerRotation);
     }
     
     /**
@@ -44,162 +45,192 @@ export class HalfMoonSlash extends BaseSkill {
     }
     
     /**
-     * 创建半月形气波
-     * @param {Vector3} position - 初始位置（玩家中心）
-     * @param {number} rotation - 朝向角度
+     * 创建扫过式半月形气波（从一端到另一端横扫出现）
+     * @param {Vector3} position - 玩家位置
+     * @param {number} rotation - 玩家朝向
      */
-    createCrescentWave(position, rotation) {
+    createSweepingCrescent(position, rotation) {
         const scene = this.scene;
         const glowLayer = this.player.glowLayer;
         
-        // === 1. 创建半月形网格 ===
-        const crescentMesh = this.createCrescentMesh();
+        // 参数设置
+        const radius = 2.5;           // 半月半径
+        const arcWidth = 0.2;         // 圆弧宽度
+        const sweepDuration = 0.25;   // 扫过时间（秒）
+        const trailDuration = 0.4;    // 拖尾持续时间（秒）
+        const segments = 30;          // 分段数
         
-        // 计算玩家前方位置（半月形圆弧中心在玩家位置）
-        const direction = new Vector3(
-            Math.sin(rotation),
-            0,
-            Math.cos(rotation)
-        );
+        // 创建父节点用于统一管理
+        const rootNode = new TransformNode("crescentRoot", scene);
+        rootNode.position = position.clone();
+        rootNode.position.y += 0.3;
+        rootNode.rotation.y = rotation - Math.PI / 2; // 调整方向
         
-        // 设置位置和旋转
-        crescentMesh.position = position.clone();
-        crescentMesh.position.y += 0.2; // 稍微抬高一点，接近地面
+        // 存储所有创建的小段网格
+        const trailSegments = [];
         
-        // 旋转调整：保持水平（与地面平行），半月形圆弧包裹玩家
-        crescentMesh.rotation.x = 0; // 保持水平
-        crescentMesh.rotation.y = rotation - Math.PI / 2; // 旋转-90度，使圆弧两端点在左右手臂方向，开口朝后
-        
-        // 材质
-        const crescentMat = new StandardMaterial("crescentMat", scene);
-        crescentMat.emissiveColor = new Color3(0.9, 1.0, 1.0); // 明亮的青白色
-        crescentMat.diffuseColor = new Color3(0.4, 0.8, 1.0);
-        crescentMat.specularColor = new Color3(1.0, 1.0, 1.0);
-        crescentMat.alpha = 0.85;
-        crescentMat.disableLighting = true;
-        crescentMat.backFaceCulling = false; // 双面渲染
-        crescentMesh.material = crescentMat;
-        
-        // 添加发光效果
-        if (glowLayer) {
-            glowLayer.addIncludedOnlyMesh(crescentMesh);
-        }
-        
-        // === 2. 粒子效果 ===
-        this.createCrescentParticles(crescentMesh);
-        
-        // === 3. 静态展示动画（不飞出去）===
-        this.animateCrescentWave(crescentMesh);
-    }
-    
-    /**
-     * 创建半月形网格
-     * @returns {Mesh} 半月形网格
-     */
-    createCrescentMesh() {
-        const scene = this.scene;
-        
-        // 使用 Ribbon 创建半月形
-        const radius = 2.5; // 半月半径
-        const thickness = 0.15; // 厚度
-        const segments = 40; // 分段数
-        
-        // 创建两条路径（内外边缘）
-        const outerPath = [];
-        const innerPath = [];
-        
-        // 半月形角度范围：从 -90度到90度（朝向前方的半圆）
-        for (let i = 0; i <= segments; i++) {
-            const angle = Math.PI * (-0.5 + i / segments); // -π/2 到 π/2
-            
-            // 外边缘
-            const outerX = Math.cos(angle) * radius;
-            const outerZ = Math.sin(angle) * radius;
-            outerPath.push(new Vector3(outerX, 0, outerZ));
-            
-            // 内边缘（稍微细一点）
-            const innerX = Math.cos(angle) * (radius - thickness);
-            const innerZ = Math.sin(angle) * (radius - thickness);
-            innerPath.push(new Vector3(innerX, 0, innerZ));
-        }
-        
-        // 创建 Ribbon（带状网格）
-        const crescentMesh = MeshBuilder.CreateRibbon("crescent", {
-            pathArray: [innerPath, outerPath],
-            closeArray: false,
-            closePath: false,
-            updatable: false
-        }, scene);
-        
-        return crescentMesh;
-    }
-    
-    /**
-     * 创建气波粒子效果
-     * @param {Mesh} crescentMesh - 半月形网格
-     */
-    createCrescentParticles(crescentMesh) {
-        const scene = this.scene;
-        
-        // 主粒子系统：青白色光辉
-        const ps = new ParticleSystem("crescentParticles", 500, scene);
+        // 创建材质
+        const trailMat = new StandardMaterial("trailMat", scene);
+        trailMat.emissiveColor = new Color3(0.9, 1.0, 1.0);
+        trailMat.diffuseColor = new Color3(0.5, 0.9, 1.0);
+        trailMat.alpha = 0.9;
+        trailMat.disableLighting = true;
+        trailMat.backFaceCulling = false;
         
         // 创建粒子纹理
         const particleTexture = this.createParticleTexture();
-        ps.particleTexture = particleTexture;
         
-        ps.emitter = crescentMesh;
-        ps.minEmitBox = new Vector3(-2.5, -0.3, -2.5);
-        ps.maxEmitBox = new Vector3(2.5, 0.3, 2.5);
+        // 创建移动的发射点和粒子系统
+        const emitter = new TransformNode("sweepEmitter", scene);
+        emitter.parent = rootNode;
         
-        // 颜色：青白色 -> 蓝色 -> 透明
-        ps.color1 = new Color4(0.9, 1.0, 1.0, 1.0);
-        ps.color2 = new Color4(0.4, 0.9, 1.0, 1.0);
-        ps.colorDead = new Color4(0.2, 0.6, 1.0, 0.0);
+        const trailPS = new ParticleSystem("trailParticles", 600, scene);
+        trailPS.particleTexture = particleTexture;
+        trailPS.emitter = emitter;
+        trailPS.minEmitBox = new Vector3(-0.15, -0.15, -0.15);
+        trailPS.maxEmitBox = new Vector3(0.15, 0.15, 0.15);
+        trailPS.color1 = new Color4(1.0, 1.0, 1.0, 1.0);
+        trailPS.color2 = new Color4(0.7, 0.95, 1.0, 1.0);
+        trailPS.colorDead = new Color4(0.4, 0.8, 1.0, 0.0);
+        trailPS.minSize = 0.15;
+        trailPS.maxSize = 0.4;
+        trailPS.minLifeTime = 0.2;
+        trailPS.maxLifeTime = 0.5;
+        trailPS.emitRate = 800;
+        trailPS.blendMode = ParticleSystem.BLENDMODE_ADD;
+        trailPS.minEmitPower = 0.3;
+        trailPS.maxEmitPower = 1.0;
+        trailPS.start();
         
-        ps.minSize = 0.15;
-        ps.maxSize = 0.4;
-        ps.minLifeTime = 0.3;
-        ps.maxLifeTime = 0.6;
+        // 扫过动画变量
+        let currentSegment = 0;
+        const fps = 60;
+        const framesPerSegment = (sweepDuration * fps) / segments;
+        let frameCount = 0;
         
-        ps.emitRate = 400;
-        ps.blendMode = ParticleSystem.BLENDMODE_ADD;
+        // 每帧更新
+        const sweepObserver = scene.onBeforeRenderObservable.add(() => {
+            frameCount++;
+            
+            // 计算当前进度
+            const progress = Math.min(frameCount / (sweepDuration * fps), 1.0);
+            const targetSegment = Math.floor(progress * segments);
+            
+            // 更新发射点位置
+            const currentAngle = Math.PI * (-0.5 + progress);
+            emitter.position.x = Math.cos(currentAngle) * radius;
+            emitter.position.z = Math.sin(currentAngle) * radius;
+            
+            // 创建新的小段圆弧
+            while (currentSegment < targetSegment && currentSegment < segments) {
+                const segmentMesh = this.createArcSegment(
+                    scene,
+                    radius,
+                    arcWidth,
+                    currentSegment,
+                    segments
+                );
+                
+                segmentMesh.parent = rootNode;
+                
+                // 复制材质（每个段独立的材质以便独立淡出）
+                const segMat = trailMat.clone("segMat_" + currentSegment);
+                segmentMesh.material = segMat;
+                
+                // 添加发光
+                if (glowLayer) {
+                    glowLayer.addIncludedOnlyMesh(segmentMesh);
+                }
+                
+                // 存储并设置淡出
+                trailSegments.push({
+                    mesh: segmentMesh,
+                    material: segMat,
+                    createdAt: frameCount,
+                    alpha: 0.95
+                });
+                
+                currentSegment++;
+            }
+            
+            // 更新所有段的透明度（拖尾淡出效果）
+            const trailFrames = trailDuration * fps;
+            for (let i = trailSegments.length - 1; i >= 0; i--) {
+                const seg = trailSegments[i];
+                const age = frameCount - seg.createdAt;
+                
+                if (age > trailFrames) {
+                    // 超出拖尾时间，销毁
+                    seg.mesh.dispose();
+                    seg.material.dispose();
+                    trailSegments.splice(i, 1);
+                } else {
+                    // 计算淡出
+                    const fadeProgress = age / trailFrames;
+                    seg.material.alpha = 0.95 * (1 - fadeProgress * fadeProgress);
+                }
+            }
+            
+            // 扫过完成后停止粒子发射
+            if (progress >= 1.0 && trailPS.isStarted()) {
+                trailPS.stop();
+            }
+            
+            // 所有段都消失后清理
+            if (trailSegments.length === 0 && progress >= 1.0) {
+                scene.onBeforeRenderObservable.remove(sweepObserver);
+                trailPS.dispose();
+                emitter.dispose();
+                rootNode.dispose();
+                console.log("半月斩气波消散");
+            }
+        });
+    }
+    
+    /**
+     * 创建单个圆弧段
+     * @param {Scene} scene 
+     * @param {number} radius 
+     * @param {number} width 
+     * @param {number} segmentIndex 
+     * @param {number} totalSegments 
+     * @returns {Mesh}
+     */
+    createArcSegment(scene, radius, width, segmentIndex, totalSegments) {
+        // 计算这个段的角度范围
+        const startAngle = Math.PI * (-0.5 + segmentIndex / totalSegments);
+        const endAngle = Math.PI * (-0.5 + (segmentIndex + 1) / totalSegments);
         
-        // 粒子向外飞溅
-        ps.minEmitPower = 1.5;
-        ps.maxEmitPower = 3.5;
-        ps.updateSpeed = 0.01;
+        // 创建路径点
+        const innerPath = [];
+        const outerPath = [];
+        const subSegments = 3; // 每个段内的细分
         
-        ps.start();
+        for (let i = 0; i <= subSegments; i++) {
+            const t = i / subSegments;
+            const angle = startAngle + (endAngle - startAngle) * t;
+            
+            innerPath.push(new Vector3(
+                Math.cos(angle) * (radius - width / 2),
+                0,
+                Math.sin(angle) * (radius - width / 2)
+            ));
+            
+            outerPath.push(new Vector3(
+                Math.cos(angle) * (radius + width / 2),
+                0,
+                Math.sin(angle) * (radius + width / 2)
+            ));
+        }
         
-        // 火花粒子（边缘效果）
-        const psSparks = new ParticleSystem("crescentSparks", 300, scene);
-        psSparks.particleTexture = particleTexture;
-        psSparks.emitter = crescentMesh;
-        psSparks.minEmitBox = new Vector3(-2.5, -0.2, -2.5);
-        psSparks.maxEmitBox = new Vector3(2.5, 0.2, 2.5);
+        // 创建带状网格
+        const segment = MeshBuilder.CreateRibbon("arcSeg_" + segmentIndex, {
+            pathArray: [innerPath, outerPath],
+            closeArray: false,
+            closePath: false
+        }, scene);
         
-        psSparks.color1 = new Color4(1.0, 1.0, 1.0, 1.0); // 白色火花
-        psSparks.color2 = new Color4(0.7, 1.0, 1.0, 1.0);
-        psSparks.colorDead = new Color4(0.3, 0.7, 1.0, 0.0);
-        
-        psSparks.minSize = 0.08;
-        psSparks.maxSize = 0.2;
-        psSparks.minLifeTime = 0.2;
-        psSparks.maxLifeTime = 0.5;
-        
-        psSparks.emitRate = 250;
-        psSparks.blendMode = ParticleSystem.BLENDMODE_ADD;
-        
-        psSparks.minEmitPower = 2.0;
-        psSparks.maxEmitPower = 5.0;
-        psSparks.gravity = new Vector3(0, -2, 0); // 火花下落
-        psSparks.updateSpeed = 0.008;
-        
-        psSparks.start();
-        
-        // 存储粒子系统，用于后续清理
-        crescentMesh._particleSystems = [ps, psSparks];
+        return segment;
     }
     
     /**
@@ -212,119 +243,16 @@ export class HalfMoonSlash extends BaseSkill {
         canvas.height = 64;
         const ctx = canvas.getContext("2d");
         
-        // 星形/光芒形状
-        ctx.beginPath();
-        const cx = 32, cy = 32, spikes = 8, outerRadius = 30, innerRadius = 10;
-        let rot = Math.PI / 2 * 3;
-        const step = Math.PI / spikes;
-        
-        ctx.moveTo(cx, cy - outerRadius);
-        for (let i = 0; i < spikes; i++) {
-            let x = cx + Math.cos(rot) * outerRadius;
-            let y = cy + Math.sin(rot) * outerRadius;
-            ctx.lineTo(x, y);
-            rot += step;
-            
-            x = cx + Math.cos(rot) * innerRadius;
-            y = cy + Math.sin(rot) * innerRadius;
-            ctx.lineTo(x, y);
-            rot += step;
-        }
-        ctx.lineTo(cx, cy - outerRadius);
-        ctx.closePath();
-        
+        // 圆形光晕
         const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
         grad.addColorStop(0, "rgba(255, 255, 255, 1)");
-        grad.addColorStop(0.5, "rgba(200, 240, 255, 0.8)");
+        grad.addColorStop(0.3, "rgba(200, 240, 255, 0.8)");
+        grad.addColorStop(0.6, "rgba(150, 220, 255, 0.4)");
         grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+        
         ctx.fillStyle = grad;
-        ctx.fill();
+        ctx.fillRect(0, 0, 64, 64);
         
         return Texture.CreateFromBase64String(canvas.toDataURL(), "crescentParticle", this.scene);
-    }
-    
-    /**
-     * 气波静态展示动画（在玩家前方停留）
-     * @param {Mesh} crescentMesh - 半月形网格
-     */
-    animateCrescentWave(crescentMesh) {
-        const scene = this.scene;
-        
-        const duration = 0.8; // 持续时间（秒）
-        const fps = 60;
-        const totalFrames = fps * duration;
-        
-        // 缩放动画（出现 -> 放大 -> 缩小消失）
-        const scaleAnim = new Animation(
-            "crescentScale",
-            "scaling",
-            fps,
-            Animation.ANIMATIONTYPE_VECTOR3,
-            Animation.ANIMATIONLOOPMODE_CONSTANT
-        );
-        
-        const scaleKeys = [];
-        scaleKeys.push({ frame: 0, value: new Vector3(0.3, 0.3, 0.3) });      // 从小开始
-        scaleKeys.push({ frame: totalFrames * 0.2, value: new Vector3(1.3, 1.3, 1.3) }); // 快速放大
-        scaleKeys.push({ frame: totalFrames * 0.6, value: new Vector3(1.2, 1.2, 1.2) }); // 保持
-        scaleKeys.push({ frame: totalFrames, value: new Vector3(0.5, 0.5, 0.5) });       // 缩小消失
-        scaleAnim.setKeys(scaleKeys);
-        
-        // 透明度动画
-        const alphaAnim = new Animation(
-            "crescentAlpha",
-            "material.alpha",
-            fps,
-            Animation.ANIMATIONTYPE_FLOAT,
-            Animation.ANIMATIONLOOPMODE_CONSTANT
-        );
-        
-        const alphaKeys = [];
-        alphaKeys.push({ frame: 0, value: 0.0 });                    // 开始透明
-        alphaKeys.push({ frame: totalFrames * 0.15, value: 0.95 });  // 快速出现
-        alphaKeys.push({ frame: totalFrames * 0.6, value: 0.9 });    // 保持
-        alphaKeys.push({ frame: totalFrames, value: 0.0 });          // 淡出
-        alphaAnim.setKeys(alphaKeys);
-        
-        // 轻微的Y轴旋转动画（增加动感）
-        const rotAnim = new Animation(
-            "crescentRotate",
-            "rotation.y",
-            fps,
-            Animation.ANIMATIONTYPE_FLOAT,
-            Animation.ANIMATIONLOOPMODE_CONSTANT
-        );
-        
-        const currentRotY = crescentMesh.rotation.y;
-        const rotKeys = [];
-        rotKeys.push({ frame: 0, value: currentRotY });
-        rotKeys.push({ frame: totalFrames, value: currentRotY + 0.15 }); // 减小旋转幅度
-        rotAnim.setKeys(rotKeys);
-        
-        // 播放动画
-        const animatable = scene.beginDirectAnimation(
-            crescentMesh,
-            [scaleAnim, alphaAnim, rotAnim],
-            0,
-            totalFrames,
-            false,
-            1.5 // 稍微加快一点速度
-        );
-        
-        // 动画结束后清理
-        animatable.onAnimationEnd = () => {
-            // 停止并清理粒子系统
-            if (crescentMesh._particleSystems) {
-                for (const ps of crescentMesh._particleSystems) {
-                    ps.stop();
-                    setTimeout(() => ps.dispose(), 500);
-                }
-            }
-            
-            // 销毁网格
-            crescentMesh.dispose();
-            
-            console.log("半月斩气波消散");
-        };
     }
 }
