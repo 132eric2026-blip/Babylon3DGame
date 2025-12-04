@@ -98,6 +98,70 @@ function createBoosterIcon() {
     return c.toDataURL();
 }
 
+function createHalfMoonSlashIcon() {
+    const size = 64;
+    const c = document.createElement("canvas");
+    c.width = size;
+    c.height = size;
+    const ctx = c.getContext("2d");
+    ctx.clearRect(0, 0, size, size);
+
+    // 背景辉光
+    const glow = ctx.createRadialGradient(32, 32, 0, 32, 32, 30);
+    glow.addColorStop(0, "rgba(150, 230, 255, 0.6)");
+    glow.addColorStop(1, "rgba(0, 100, 150, 0.0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, size, size);
+
+    // 半月形气波
+    ctx.save();
+    ctx.translate(32, 32);
+    
+    // 外圈半月
+    ctx.strokeStyle = "rgba(200, 240, 255, 0.9)";
+    ctx.lineWidth = 8;
+    ctx.shadowColor = "rgba(150, 230, 255, 0.8)";
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.arc(0, 0, 20, -Math.PI/2, Math.PI/2, false);
+    ctx.stroke();
+    
+    // 内圈半月
+    ctx.strokeStyle = "rgba(100, 200, 255, 0.8)";
+    ctx.lineWidth = 5;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(0, 0, 14, -Math.PI/2, Math.PI/2, false);
+    ctx.stroke();
+    
+    // 能量核心
+    const core = ctx.createRadialGradient(0, 0, 0, 0, 0, 8);
+    core.addColorStop(0, "rgba(255, 255, 255, 1)");
+    core.addColorStop(0.5, "rgba(150, 230, 255, 0.8)");
+    core.addColorStop(1, "rgba(100, 200, 255, 0.3)");
+    ctx.fillStyle = core;
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.arc(0, 0, 8, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 火花效果
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+    for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI - Math.PI/2;
+        const distance = 22;
+        const x = Math.cos(angle) * distance;
+        const y = Math.sin(angle) * distance;
+        ctx.beginPath();
+        ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    ctx.restore();
+    return c.toDataURL("image/png");
+}
+
 export function setupSkillBar(scene, player) {
     const keys = ["1", "Q", "3", "4", "5", "6", "7", "8", "9", "0"];
     const advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("SkillsUI");
@@ -130,7 +194,7 @@ export function setupSkillBar(scene, player) {
         bar.addControl(slot);
         slots.push(slot);
 
-        const keyText = new TextBlock("keyText_" + i, i === 0 ? "E" : keys[i]);
+        const keyText = new TextBlock("keyText_" + i, i === 0 ? "E" : i === 2 ? "1" : keys[i]);
         keyText.color = "white";
         keyText.fontSize = 14;
         keyText.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
@@ -139,7 +203,7 @@ export function setupSkillBar(scene, player) {
         keyText.top = "6px";
         slot.addControl(keyText);
 
-        const icon = new Image("icon_" + i, i === 0 ? createShieldIcon() : i === 1 ? createBoosterIcon() : "");
+        const icon = new Image("icon_" + i, i === 0 ? createShieldIcon() : i === 1 ? createBoosterIcon() : i === 2 ? createHalfMoonSlashIcon() : "");
         const iconSize = (slotSize - 32);
         icon.width = iconSize + "px";
         icon.height = iconSize + "px";

@@ -9,6 +9,7 @@ import { createCrystalVoidWandMesh, getCrystalVoidWandIcon } from "./equipment/w
 import { createForestStaffMesh, getForestStaffIcon } from "./equipment/weapons/ranged/ForestStaff";
 import { createThunderStormBladeMesh, getThunderStormBladeIcon } from "./equipment/weapons/melee/ThunderStormBlade";
 import { BackpackUI } from "./ui/BackpackUI";
+import { SkillManager } from "./skills/SkillManager";
 
 export class Player2 {
     constructor(scene, camera, glowLayer = null) {
@@ -87,6 +88,9 @@ export class Player2 {
 
         this.backpackUI = new BackpackUI(scene, this);
         this.backpackUI.updateDisplay(this.inventory);
+
+        // 初始化技能管理器
+        this.skillManager = new SkillManager(scene, this);
 
         this.setupInputs();
         this.setupGun(); // 初始化武器系统
@@ -916,6 +920,11 @@ export class Player2 {
         this.scene.registerBeforeRender(() => {
             const dt = this.scene.getEngine().getDeltaTime() / 1000.0;
             this.updateBullets(dt);
+
+            // 更新技能管理器
+            if (this.skillManager) {
+                this.skillManager.update(dt);
+            }
 
             this.updateMovement();
 
