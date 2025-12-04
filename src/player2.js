@@ -1,4 +1,4 @@
-import { Vector3, Quaternion, Matrix, ActionManager, KeyboardEventTypes, Ray, TransformNode, MeshBuilder, StandardMaterial, Color3, Texture, ParticleSystem, Color4, PointerEventTypes, TrailMesh, GlowLayer } from "@babylonjs/core";
+import { Vector3, Quaternion, Matrix, ActionManager, KeyboardEventTypes, Ray, TransformNode, MeshBuilder, StandardMaterial, Color3, Texture, ParticleSystem, Color4, PointerEventTypes, TrailMesh, GlowLayer, Animation } from "@babylonjs/core";
 import { BoxMan } from "./characters/boxMan";
 //import { CyberpunkMan } from "./characters/cyberpunkMan";
 //import { SphereGirl } from "./characters/sphereGirl";
@@ -7,6 +7,7 @@ import { Config } from "./config";
 import { createSolarPlasmaCannonMesh, spawnSolarPlasmaCannon, getSolarPlasmaCannonIcon } from "./equipment/weapons/ranged/SolarPlasmaCannon";
 import { createCrystalVoidWandMesh, getCrystalVoidWandIcon } from "./equipment/weapons/ranged/CrystalVoidWand";
 import { createForestStaffMesh, getForestStaffIcon } from "./equipment/weapons/ranged/ForestStaff";
+import { createThunderStormBladeMesh, getThunderStormBladeIcon } from "./equipment/weapons/melee/ThunderStormBlade";
 import { BackpackUI } from "./ui/BackpackUI";
 
 export class Player2 {
@@ -76,6 +77,13 @@ export class Player2 {
             type: "gun",
             icon: getForestStaffIcon()
         };
+        // 第四个格子放入 ThunderStormBlade
+        this.inventory[3] = {
+            id: "ThunderStormBlade",
+            name: "ThunderStormBlade",
+            type: "sword",
+            icon: getThunderStormBladeIcon()
+        };
 
         this.backpackUI = new BackpackUI(scene, this);
         this.backpackUI.updateDisplay(this.inventory);
@@ -90,7 +98,7 @@ export class Player2 {
 
     // 装备物品的方法 (供 BackpackUI 调用)
     equipItem(item) {
-        if (item.type === "gun") {
+        if (item.type === "gun" || item.type === "sword") {
             if (this.currentWeapon === item.id) {
                 // 如果已经装备，则卸下 (可选逻辑，这里暂不卸下)
                 // this.unequipWeapon(); 
@@ -212,6 +220,33 @@ export class Player2 {
             
             // Muzzle: Top of the staff (Magic comes from the tip)
             this.gunMuzzle.position = new Vector3(0, 1.2, 0); 
+        } else if (weaponName === "ThunderStormBlade") {
+            this.currentGunModel = createThunderStormBladeMesh(this.scene);
+            this.currentGunModel.parent = this.gunRoot;
+            
+            // Sword Pose: Held in hand
+            // Reset rotation
+            this.currentGunModel.rotation = Vector3.Zero();
+            
+            // Adjust Position
+            this.currentGunModel.position = new Vector3(0, 0, 0);
+
+            // Arm is lowered.
+            // We want the sword to point forward-ish or resting?
+            // Let's point it forward for now like a ready stance.
+            // GunRoot defaults to (PI/2, 0, 0) which points Forward (Z+) relative to Arm (Y-).
+            // Sword Z+ is the blade tip.
+            // So default GunRoot rotation should make the sword point forward.
+            
+            // However, the arm is angled down.
+            // Let's angle the sword up a bit.
+            this.gunRoot.rotation = new Vector3(Math.PI / 2 + 0.5, 0, 0);
+            
+            // Position in hand
+            this.gunRoot.position = new Vector3(0, -0.4, 0.1);
+            
+            // Muzzle: Blade tip (for sparks/trails)
+            this.gunMuzzle.position = new Vector3(0, 0, 1.5);
         }
         
         // Re-attach muzzle flash to new muzzle position (it follows transform node)
@@ -333,7 +368,7 @@ export class Player2 {
         if (!this.currentWeapon) return;
 
         // Muzzle Flash
-        if (this.muzzleFlashPS) {
+        if (this.muzzleFlashPS && this.currentWeapon !== "ThunderStormBlade") {
             this.muzzleFlashPS.manualEmitCount = 15;
             if (this.currentWeapon === "CrystalVoidWand") {
                 // Cyan/Blue for Wand
@@ -360,6 +395,35 @@ export class Player2 {
         } else {
             // Guns/Wands pointing forward shoot along their barrel
             direction = origin.subtract(this.gunRoot.getAbsolutePosition()).normalize();
+        }
+
+        if (this.currentWeapon === "ThunderStormBlade") {
+            // Melee Attack Animation (Slash)
+            // Removed animation as per user request (Sword shouldn't move wildly)
+            /*
+            const startRot = this.gunRoot.rotation.x;
+            const attackAnim = new Animation(
+                "swordSlash",
+                "rotation.x",
+                60,
+                Animation.ANIMATIONTYPE_FLOAT,
+                Animation.ANIMATIONLOOPMODE_CONSTANT
+            );
+            
+            // Simple downward slash sequence
+            const keys = [];
+            keys.push({ frame: 0, value: startRot });
+            keys.push({ frame: 5, value: startRot - 0.5 }); // Wind up (back)
+            keys.push({ frame: 15, value: startRot + 1.5 }); // Slash forward/down
+            keys.push({ frame: 30, value: startRot }); // Return
+            
+            attackAnim.setKeys(keys);
+            this.scene.beginDirectAnimation(this.gunRoot, [attackAnim], 0, 30, false);
+            */
+
+            // Removed Slash Wave Effect as per user request
+
+            return; // Melee doesn't shoot bullets
         }
 
         let bulletMesh;

@@ -117,6 +117,10 @@ export const Config = {
         ThunderArcGun: { // 雷霆电弧枪 (特斯拉电弧)
             enabled: false,
             spawnWeight: .5
+        },
+        ThunderStormBlade: { // 雷霆风暴之刃 (近战)
+            enabled: true,
+            spawnWeight: 1.0
         }
     }
 };

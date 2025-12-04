@@ -3,6 +3,7 @@ import { Config } from "./config";
 // import { spawnAlphaParticleCannon } from "./props/guns/AlphaParticleCannon";
 // import { spawnPegasusParticleCannon } from "./props/guns/PegasusParticleCannon";
 import { spawnSolarPlasmaCannon } from "./equipment/weapons/ranged/SolarPlasmaCannon";
+import { spawnThunderStormBlade } from "./equipment/weapons/melee/ThunderStormBlade";
 // import { spawnScorpioPulsarGun } from "./props/guns/ScorpioPulsarGun";
 // import { spawnQuantumAnnihilator } from "./props/guns/QuantumAnnihilator";
 // import { spawnEmeraldViper } from "./props/guns/EmeraldViper";
@@ -16,6 +17,7 @@ const WEAPON_REGISTRY = {
     // AlphaParticleCannon: spawnAlphaParticleCannon,
     // PegasusParticleCannon: spawnPegasusParticleCannon,
     SolarPlasmaCannon: spawnSolarPlasmaCannon,
+    ThunderStormBlade: spawnThunderStormBlade,
     // ScorpioPulsarGun: spawnScorpioPulsarGun,
     // QuantumAnnihilator: spawnQuantumAnnihilator,
     // EmeraldViper: spawnEmeraldViper,
