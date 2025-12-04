@@ -352,26 +352,15 @@ export class Player2 {
         }
 
         const origin = this.gunMuzzle.getAbsolutePosition();
+        let direction;
         
-        // 计算射击方向：从枪口指向准星瞄准的目标
-        // 1. 获取摄像机准星射线 (屏幕中心)
-        const ray = this.camera.getForwardRay(100);
-        
-        // 2. 检测射线击中点 (排除玩家自己)
-        const pickInfo = this.scene.pickWithRay(ray, (mesh) => {
-            return mesh.isPickable && mesh.isVisible && mesh !== this.mesh && !mesh.isDescendantOf(this.mesh);
-        });
-
-        let targetPoint;
-        if (pickInfo.hit) {
-            targetPoint = pickInfo.pickedPoint;
+        if (this.currentWeapon === "ForestStaff") {
+            // Staff is held vertically, but magic shoots towards camera aim
+            direction = this.camera.getForwardRay().direction;
         } else {
-            // 如果没击中，目标点就是射线终点
-            targetPoint = ray.origin.add(ray.direction.scale(100));
+            // Guns/Wands pointing forward shoot along their barrel
+            direction = origin.subtract(this.gunRoot.getAbsolutePosition()).normalize();
         }
-
-        // 3. 计算从枪口到目标点的方向
-        const direction = targetPoint.subtract(origin).normalize();
 
         let bulletMesh;
         let bulletData = {
@@ -842,20 +831,11 @@ export class Player2 {
                     this.boxMan.rightShoulder.rotation.y = 0.6;
                     this.boxMan.rightShoulder.rotation.z = 0.0;
                 } else if (this.currentWeapon === "ForestStaff") {
-                    // 森林法杖姿势：手持手杖
-                    // 基础角度 x: -1.0 (约60度下垂)
-                    let baseRotX = -1.0;
-
-                    // 如果在移动，添加摆动效果 (跟随身体自然的摆动节奏)
-                    if (isMoving) {
-                         const angle = Math.sin(this.boxMan.walkTime);
-                         // 摆动幅度：跑动时更大
-                         const swingAmp = this.isSprinting ? 0.6 : 0.4; 
-                         // 叠加摆动 (-angle 与默认行走动画的相位一致)
-                         baseRotX += (-angle * swingAmp);
-                    }
-
-                    this.boxMan.rightShoulder.rotation.x = baseRotX;
+                    // 森林法杖姿势：手持手杖 (稍微降低手臂，不完全水平)
+                    // x: -1.0 (约60度下垂)
+                    // y: 0
+                    // z: 0
+                    this.boxMan.rightShoulder.rotation.x = -1.0;
                     this.boxMan.rightShoulder.rotation.y = 0.0;
                     this.boxMan.rightShoulder.rotation.z = 0.0;
                 } else {
