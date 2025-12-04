@@ -3,8 +3,8 @@ import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPi
 import HavokPhysics from "@babylonjs/havok";
 import { SagittariusScene } from "./scenes/sagittarius/SagittariusScene";
 import { DefaultScene } from "./scenes/default/DefaultScene";
-import { Player } from "./player";
-import { Player2 } from "./player2";
+//import { Player } from "./player";
+import { Player2 } from "./player";
 import { BoxMan } from "./characters/boxMan";
 import { Config } from "./config";
 import { setupUI } from "./ui";

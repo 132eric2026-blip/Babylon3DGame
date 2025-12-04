@@ -340,6 +340,7 @@ export class BoxMan {
         
         this.walkTime += walkTimeIncrement;
         const angle = Math.sin(this.walkTime);
+        this.lastAngle = angle; // 保存 angle 供外部访问
 
         if (isBoosterActive) {
             if (isMoving) {
