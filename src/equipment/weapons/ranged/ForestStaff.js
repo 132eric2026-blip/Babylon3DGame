@@ -7,7 +7,7 @@ import { Equipment } from "../../Equipment";
  */
 export class ForestStaff extends Equipment {
     constructor(scene) {
-        super(scene, "ForestStaff", "gun");
+        super(scene, "ForestStaff", "staff");
         this.init();
     }
 
@@ -43,7 +43,7 @@ export class ForestStaff extends Equipment {
             new Vector3(-0.2, 1.1, 0),
             new Vector3(-0.15, 1.2, 0.1)
         ];
-        
+
         const curve = Curve3.CreateCatmullRomSpline(pathPoints, 20);
         const radiusFunction = (i, distance) => {
             // 底部粗，顶部细
@@ -83,14 +83,14 @@ export class ForestStaff extends Equipment {
             const leaf = MeshBuilder.CreatePlane("leaf" + i, { size: 0.12 }, this.scene);
             leaf.material = leafMat;
             leaf.parent = staffGroup;
-            
+
             // 随机位置 (主要在中上部)
-            const t = 0.3 + Math.random() * 0.7; 
+            const t = 0.3 + Math.random() * 0.7;
             // 简单估算位置，围绕Y轴
             const y = -0.5 + t * 1.7;
             const angle = Math.random() * Math.PI * 2;
             const r = 0.05 + Math.random() * 0.05;
-            
+
             leaf.position = new Vector3(Math.cos(angle) * r, y, Math.sin(angle) * r);
             leaf.rotation = new Vector3(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
         }
@@ -113,27 +113,27 @@ export class ForestStaff extends Equipment {
         // === 5. 粒子特效 (飘落的魔法花瓣/萤火虫) ===
         const particleSystem = new ParticleSystem("forestParticles", 100, this.scene);
         // 绑定到顶部区域
-        const emitterMesh = MeshBuilder.CreateBox("emitter", {size: 0.5}, this.scene);
+        const emitterMesh = MeshBuilder.CreateBox("emitter", { size: 0.5 }, this.scene);
         emitterMesh.isVisible = false;
         emitterMesh.parent = staffGroup;
         emitterMesh.position.y = 1.0;
-        
+
         particleSystem.emitter = emitterMesh;
-        
+
         particleSystem.color1 = new Color4(0.5, 1.0, 0.2, 1.0); // 黄绿
         particleSystem.color2 = new Color4(1.0, 1.0, 0.5, 1.0); // 浅黄
         particleSystem.colorDead = new Color4(0, 0, 0, 0.0);
-        
+
         particleSystem.minSize = 0.03;
         particleSystem.maxSize = 0.08;
         particleSystem.minLifeTime = 1.0;
         particleSystem.maxLifeTime = 2.5;
-        
+
         particleSystem.emitRate = 15;
         particleSystem.gravity = new Vector3(0, -0.1, 0); // 缓慢飘落
         particleSystem.minEmitPower = 0.1;
         particleSystem.maxEmitPower = 0.3;
-        
+
         particleSystem.start();
 
         this.mesh = staffGroup;
@@ -176,8 +176,8 @@ export function getForestStaffIcon() {
 
     // 叶子 (绿色)
     ctx.fillStyle = "#32CD32";
-    ctx.beginPath(); ctx.ellipse(32, 30, 4, 2, Math.PI/4, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(28, 20, 3, 1.5, -Math.PI/4, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(32, 30, 4, 2, Math.PI / 4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(28, 20, 3, 1.5, -Math.PI / 4, 0, Math.PI * 2); ctx.fill();
 
     // 光点 (黄色发光)
     ctx.fillStyle = "#FFD700";

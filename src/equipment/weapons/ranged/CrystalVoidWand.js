@@ -11,7 +11,7 @@ export class CrystalVoidWand extends Equipment {
      * @param {Scene} scene - BabylonJS 场景
      */
     constructor(scene) {
-        super(scene, "CrystalVoidWand", "gun");
+        super(scene, "CrystalVoidWand", "wand");
         this.init();
     }
 
@@ -44,7 +44,7 @@ export class CrystalVoidWand extends Equipment {
         goldMat.emissiveColor = new Color3(0.2, 0.15, 0.0);
 
         // === 1. 杖身 (由几个部分组成) ===
-        
+
         // 手柄
         const handle = MeshBuilder.CreateCylinder("wandHandle", {
             height: 0.4,
@@ -76,7 +76,7 @@ export class CrystalVoidWand extends Equipment {
         ring1.position.z = 0.1;
 
         // === 2. 杖头水晶 ===
-        
+
         // 悬浮的主水晶 (八面体)
         const mainCrystal = MeshBuilder.CreatePolyhedron("wandCrystal", {
             type: 1, // 八面体
@@ -99,7 +99,7 @@ export class CrystalVoidWand extends Equipment {
             { frame: 60, value: Math.PI * 2 }
         ]);
         mainCrystal.animations.push(crystalAnim);
-        
+
         // 水晶浮动动画
         const floatAnim = new Animation(
             "crystalFloat",
@@ -127,49 +127,49 @@ export class CrystalVoidWand extends Equipment {
             }, this.scene);
             shield.material = goldMat;
             shield.parent = wandGroup;
-            
+
             // 初始位置
             const angle = (Math.PI * 2 / 3) * i;
             const radius = 0.12;
-            
+
             // 放到杖头位置
             const holder = new TransformNode("shieldHolder" + i, this.scene);
             holder.parent = wandGroup;
             holder.position.z = 0.85;
             holder.rotation.z = angle;
-            
+
             shield.parent = holder;
             shield.position.y = radius;
             // 稍微向内倾斜
-            shield.rotation.x = -0.3; 
+            shield.rotation.x = -0.3;
         }
 
         // === 4. 粒子效果 (常驻) ===
         // 创建一个小的粒子系统在水晶周围
         const particleSystem = new ParticleSystem("wandParticles", 100, this.scene);
         particleSystem.emitter = mainCrystal;
-        
+
         // 简单的点纹理，或者使用 scene 中已有的
         // 这里为了简便，不加载外部纹理，直接用颜色
         // 实际项目中可以使用 createParticleTexture 类似的方法
-        
+
         particleSystem.minEmitBox = new Vector3(-0.05, -0.05, -0.05);
         particleSystem.maxEmitBox = new Vector3(0.05, 0.05, 0.05);
-        
+
         particleSystem.color1 = new Color4(0.2, 1.0, 1.0, 1.0);
         particleSystem.color2 = new Color4(0.0, 0.5, 1.0, 1.0);
         particleSystem.colorDead = new Color4(0, 0, 0, 0.0);
-        
+
         particleSystem.minSize = 0.02;
         particleSystem.maxSize = 0.05;
         particleSystem.minLifeTime = 0.3;
         particleSystem.maxLifeTime = 0.6;
-        
+
         particleSystem.emitRate = 20;
         particleSystem.gravity = new Vector3(0, 0.5, 0); // 向上飘
-        
+
         particleSystem.start();
-        
+
         // 绑定粒子系统到 mesh 上以便随之移动 (注意：ParticleSystem 默认是世界坐标，需要 update)
         // BabylonJS 粒子系统 emitter 如果是 Mesh，会自动跟随。
 
@@ -194,7 +194,7 @@ export function getCrystalVoidWandIcon() {
     const ctx = c.getContext("2d");
 
     ctx.clearRect(0, 0, size, size);
-    
+
     // 1. 背景辉光
     const glow = ctx.createRadialGradient(32, 32, 0, 32, 32, 30);
     glow.addColorStop(0, "rgba(0, 200, 255, 0.3)");
@@ -223,14 +223,14 @@ export function getCrystalVoidWandIcon() {
     ctx.lineTo(32, 22);
     ctx.lineTo(26, 12);
     ctx.closePath();
-    
+
     const crystalGrad = ctx.createLinearGradient(32, 2, 32, 22);
     crystalGrad.addColorStop(0, "#aaffff");
     crystalGrad.addColorStop(0.5, "#00ccff");
     crystalGrad.addColorStop(1, "#006699");
     ctx.fillStyle = crystalGrad;
     ctx.fill();
-    
+
     // 水晶高光
     ctx.beginPath();
     ctx.moveTo(32, 2);
@@ -241,9 +241,9 @@ export function getCrystalVoidWandIcon() {
 
     // 5. 环绕能量 (几个小圆点)
     ctx.fillStyle = "#00ffff";
-    ctx.beginPath(); ctx.arc(20, 12, 2, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(44, 12, 2, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(32, -4, 2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(20, 12, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(44, 12, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(32, -4, 2, 0, Math.PI * 2); ctx.fill();
 
     return c.toDataURL();
 }
