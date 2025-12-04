@@ -336,7 +336,7 @@ export class BoxMan {
     }
 
     updateAnimation(dt, state) {
-        const { isMoving, isSprinting, isGrounded, isBoosterActive, velocity, yaw, walkTimeIncrement } = state;
+        const { isMoving, isSprinting, isGrounded, isBoosterActive, velocity, yaw, walkTimeIncrement, swordSlashAnimating } = state;
         
         this.walkTime += walkTimeIncrement;
         const angle = Math.sin(this.walkTime);
@@ -371,9 +371,9 @@ export class BoxMan {
             this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0, yaw, 0);
 
             if (isMoving) {
-                this.animateWalk(isSprinting, yaw, angle);
+                this.animateWalk(isSprinting, yaw, angle, swordSlashAnimating);
             } else {
-                this.animateIdle(yaw);
+                this.animateIdle(yaw, swordSlashAnimating);
             }
         }
     }
@@ -496,7 +496,7 @@ export class BoxMan {
     /**
      * 行走动画
      */
-    animateWalk(isSprinting, yaw, angle) {
+    animateWalk(isSprinting, yaw, angle, swordSlashAnimating = false) {
         const amp = isSprinting ? 1.2 : 0.8;
         
         if (this.leftHip) this.leftHip.rotation.x = -angle * amp;
@@ -505,7 +505,8 @@ export class BoxMan {
             this.leftShoulder.rotation.x = angle * amp;
             this.leftShoulder.rotation.z = 0;
         }
-        if (this.rightShoulder) {
+        // 只在非挥砍动画时才设置右肩臂动画
+        if (this.rightShoulder && !swordSlashAnimating) {
             this.rightShoulder.rotation.x = -angle * amp;
             this.rightShoulder.rotation.z = 0;
         }
@@ -514,14 +515,15 @@ export class BoxMan {
     /**
      * 待机动画
      */
-    animateIdle(yaw) {
+    animateIdle(yaw, swordSlashAnimating = false) {
         if (this.leftHip) this.leftHip.rotation.x = 0;
         if (this.rightHip) this.rightHip.rotation.x = 0;
         if (this.leftShoulder) {
             this.leftShoulder.rotation.x = 0;
             this.leftShoulder.rotation.z = 0;
         }
-        if (this.rightShoulder) {
+        // 只在非挥砍动画时才设置右肩臂动画
+        if (this.rightShoulder && !swordSlashAnimating) {
             this.rightShoulder.rotation.x = 0;
             this.rightShoulder.rotation.z = 0;
         }

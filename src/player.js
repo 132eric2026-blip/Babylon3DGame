@@ -126,6 +126,7 @@ export class Player2 {
         this.isHoldingGun = false;
         this.bullets = [];
         this.currentGunModel = null;
+        this.swordSlashAnimating = false; // 追踪剑的挥砍动画状态
 
         // Beam Weapon State
         this.isBeamActive = false;
@@ -394,29 +395,47 @@ export class Player2 {
 
         if (this.currentWeapon === "ThunderStormBlade") {
             // Melee Attack Animation (Slash)
-            // Removed animation as per user request (Sword shouldn't move wildly)
-            /*
-            const startRot = this.gunRoot.rotation.x;
-            const attackAnim = new Animation(
-                "swordSlash",
-                "rotation.x",
-                60,
-                Animation.ANIMATIONTYPE_FLOAT,
-                Animation.ANIMATIONLOOPMODE_CONSTANT
-            );
+            // 挥砍动画：基于肩膀旋转的自然挥砍
             
-            // Simple downward slash sequence
-            const keys = [];
-            keys.push({ frame: 0, value: startRot });
-            keys.push({ frame: 5, value: startRot - 0.5 }); // Wind up (back)
-            keys.push({ frame: 15, value: startRot + 1.5 }); // Slash forward/down
-            keys.push({ frame: 30, value: startRot }); // Return
-            
-            attackAnim.setKeys(keys);
-            this.scene.beginDirectAnimation(this.gunRoot, [attackAnim], 0, 30, false);
-            */
-
-            // Removed Slash Wave Effect as per user request
+            if (this.boxMan && this.boxMan.rightShoulder) {
+                const startRot = this.boxMan.rightShoulder.rotation.x;
+                
+                const attackAnim = new Animation(
+                    "swordSlash",
+                    "rotation.x",
+                    60, // 60 fps
+                    Animation.ANIMATIONTYPE_FLOAT,
+                    Animation.ANIMATIONLOOPMODE_CONSTANT
+                );
+                
+                // 挥砍序列：蓄力 -> 挥砍 -> 回收
+                const keys = [];
+                keys.push({ frame: 0, value: startRot });           // 初始位置
+                keys.push({ frame: 5, value: startRot + 0.8 });    // 快速向后蓄力
+                keys.push({ frame: 15, value: startRot - 1.2 });   // 向前挥砍
+                keys.push({ frame: 30, value: startRot });         // 回到初始位置
+                
+                attackAnim.setKeys(keys);
+                
+                // 停止任何正在进行的动画
+                this.scene.stopAnimation(this.boxMan.rightShoulder);
+                
+                this.swordSlashAnimating = true;
+                const animatable = this.scene.beginDirectAnimation(
+                    this.boxMan.rightShoulder, 
+                    [attackAnim], 
+                    0,      // from frame
+                    30,     // to frame 
+                    false,  // loop
+                    1.0     // speed ratio
+                );
+                
+                // 监听动画完成
+                animatable.onAnimationEnd = () => {
+                    this.swordSlashAnimating = false;
+                    console.log("Slash animation finished!");
+                };
+            }
 
             return; // Melee doesn't shoot bullets
         }
@@ -875,7 +894,8 @@ export class Player2 {
                 isBoosterActive: this.isBoosterActive,
                 velocity,
                 yaw,
-                walkTimeIncrement
+                walkTimeIncrement,
+                swordSlashAnimating: this.swordSlashAnimating // 传递挥砍动画状态
             });
 
             // Override arm rotation if holding gun
@@ -899,22 +919,26 @@ export class Player2 {
                     this.boxMan.rightShoulder.rotation.z = 0.0;
                 } else if (this.currentWeapon === "ThunderStormBlade") {
                     // 剑的姿势：正常持剑，手臂放松不举起
-                    // 行走时允许手臂摆动，待机时保持放松姿势
-                    if (isMoving) {
-                        // 行走时：基础旋转 0，加上摆动偏移
-                        // angle 来自 boxMan 的正弦波摆动
-                        const amp = this.isSprinting ? 1.2 : 0.8;
-                        const angle = this.boxMan.lastAngle || 0;
-                        this.boxMan.rightShoulder.rotation.x = 0 + (-angle * amp);
-                    } else {
-                        // 待机时：保持固定的放松姿势，与左臂对称
-                        // x: 0 (与左臂一致)
-                        // y: 0.0 (不向外打开)
-                        // z: 0.0
-                        this.boxMan.rightShoulder.rotation.x = 0;
+                    // 仅在非挥砍动画时才覆盖旋转
+                    if (!this.swordSlashAnimating) {
+                        // 行走时允许手臂摆动，待机时保持放松姿势
+                        if (isMoving) {
+                            // 行走时：基础旋转 0，加上摆动偏移
+                            // angle 来自 boxMan 的正弦波摆动
+                            const amp = this.isSprinting ? 1.2 : 0.8;
+                            const angle = this.boxMan.lastAngle || 0;
+                            this.boxMan.rightShoulder.rotation.x = 0 + (-angle * amp);
+                        } else {
+                            // 待机时：保持固定的放松姿势，与左臂对称
+                            // x: 0 (与左臂一致)
+                            // y: 0.0 (不向外打开)
+                            // z: 0.0
+                            this.boxMan.rightShoulder.rotation.x = 0;
+                        }
+                        this.boxMan.rightShoulder.rotation.y = 0.0;
+                        this.boxMan.rightShoulder.rotation.z = 0.0;
                     }
-                    this.boxMan.rightShoulder.rotation.y = 0.0;
-                    this.boxMan.rightShoulder.rotation.z = 0.0;
+                    // 否则让挥砍动画按其路径执行
                 } else {
                     // 默认枪械姿势：平举
                     this.boxMan.rightShoulder.rotation.x = -Math.PI / 2;
