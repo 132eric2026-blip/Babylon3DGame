@@ -158,8 +158,39 @@ export class ThunderSpear extends BaseSkill {
         
         // 创建根节点
         const rootNode = new TransformNode("thunderSpearRoot", scene);
-        rootNode.position = position.clone();
-        rootNode.position.y += 1.2; // 从胸口高度发射
+        
+        // 从双手前方发射 - 获取手的位置
+        let handsPosition = null; // 保存手的位置用于冲击波
+        const boxMan = this.player.boxMan;
+        if (boxMan && boxMan.rightShoulder && boxMan.leftShoulder) {
+            // 获取左右肩膀的世界坐标
+            const rightShoulderPos = boxMan.rightShoulder.getAbsolutePosition();
+            const leftShoulderPos = boxMan.leftShoulder.getAbsolutePosition();
+            
+            // 计算双手中点
+            const handsCenter = rightShoulderPos.add(leftShoulderPos).scale(0.5);
+            
+            // 手的位置在肩膀下方约0.5单位（手臂末端）
+            handsCenter.y -= 0.3;
+            
+            // 保存手的位置（用于冲击波）
+            handsPosition = handsCenter.clone();
+            
+            // 向前偏移（施法方向），让矛从手前方生成
+            const forwardOffset = new Vector3(
+                Math.sin(rotation) * 1.0,
+                0,
+                Math.cos(rotation) * 1.0
+            );
+            
+            rootNode.position = handsCenter.add(forwardOffset);
+        } else {
+            // 备用位置
+            rootNode.position = position.clone();
+            rootNode.position.y += 1.2;
+            handsPosition = rootNode.position.clone();
+        }
+        
         rootNode.rotation.y = rotation;
         
         // 计算前进方向
@@ -198,8 +229,8 @@ export class ThunderSpear extends BaseSkill {
         // 创建尾迹粒子
         const trailPS = this.createTrailParticles(scene, rootNode);
         
-        // 创建冲击波效果
-        this.createShockwave(position.clone(), rotation);
+        // 创建冲击波效果（在手的位置附近）
+        this.createShockwave(handsPosition, rotation);
         
         // 发射动画
         let distanceTraveled = 0;
