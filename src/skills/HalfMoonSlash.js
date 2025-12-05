@@ -7,7 +7,8 @@ import {
     Animation,
     ParticleSystem,
     Texture,
-    TransformNode
+    TransformNode,
+    Quaternion
 } from "@babylonjs/core";
 import { BaseSkill } from "./BaseSkill";
 
@@ -28,8 +29,157 @@ export class HalfMoonSlash extends BaseSkill {
         const playerPos = this.player.mesh.position.clone();
         const playerRotation = this.getPlayerRotation();
         
+        // 播放角色施展动作
+        this.playSlashAnimation();
+        
         // 创建扫过式半月形气波
         this.createSweepingCrescent(playerPos, playerRotation);
+    }
+    
+    /**
+     * 播放半月斩施展动作
+     * 双臂横向挥斩配合身体微转
+     */
+    playSlashAnimation() {
+        const boxMan = this.player.boxMan;
+        if (!boxMan || !boxMan.rightShoulder || !boxMan.leftShoulder) return;
+        
+        const scene = this.scene;
+        const fps = 60;
+        
+        // 保存初始状态
+        const rightStartX = boxMan.rightShoulder.rotation.x;
+        const rightStartY = boxMan.rightShoulder.rotation.y;
+        const rightStartZ = boxMan.rightShoulder.rotation.z;
+        
+        const leftStartX = boxMan.leftShoulder.rotation.x;
+        const leftStartY = boxMan.leftShoulder.rotation.y;
+        const leftStartZ = boxMan.leftShoulder.rotation.z;
+        
+        // 标记动画进行中（防止其他动画覆盖）
+        this.player.halfMoonSlashAnimating = true;
+        
+        // ===== 右臂动画（主挥斩臂） =====
+        // X轴：手臂抬起角度（负值=抬起）
+        const rightAnimX = new Animation(
+            "halfMoonRightX",
+            "rotation.x",
+            fps,
+            Animation.ANIMATIONTYPE_FLOAT,
+            Animation.ANIMATIONLOOPMODE_CONSTANT
+        );
+        rightAnimX.setKeys([
+            { frame: 0, value: rightStartX },
+            { frame: 4, value: -1.8 },        // 快速抬臂蓄力
+            { frame: 10, value: -1.5 },       // 横扫过程保持高度
+            { frame: 18, value: -1.2 },       // 挥斩延伸
+            { frame: 25, value: rightStartX } // 恢复
+        ]);
+        
+        // Y轴：横向挥斩（正值=向右，负值=向左）
+        const rightAnimY = new Animation(
+            "halfMoonRightY",
+            "rotation.y",
+            fps,
+            Animation.ANIMATIONTYPE_FLOAT,
+            Animation.ANIMATIONLOOPMODE_CONSTANT
+        );
+        rightAnimY.setKeys([
+            { frame: 0, value: rightStartY },
+            { frame: 4, value: 1.0 },         // 向右后方蓄力
+            { frame: 12, value: -1.2 },       // 从右向左横扫
+            { frame: 18, value: -1.4 },       // 挥斩到位
+            { frame: 25, value: rightStartY } // 恢复
+        ]);
+        
+        // Z轴：手臂外展
+        const rightAnimZ = new Animation(
+            "halfMoonRightZ",
+            "rotation.z",
+            fps,
+            Animation.ANIMATIONTYPE_FLOAT,
+            Animation.ANIMATIONLOOPMODE_CONSTANT
+        );
+        rightAnimZ.setKeys([
+            { frame: 0, value: rightStartZ },
+            { frame: 4, value: -0.3 },        // 略微外展
+            { frame: 12, value: 0.2 },        // 横扫时收臂
+            { frame: 25, value: rightStartZ } // 恢复
+        ]);
+        
+        // ===== 左臂动画（配合臂） =====
+        // 左臂做相反方向的配合动作，形成协调的横扫姿态
+        const leftAnimX = new Animation(
+            "halfMoonLeftX",
+            "rotation.x",
+            fps,
+            Animation.ANIMATIONTYPE_FLOAT,
+            Animation.ANIMATIONLOOPMODE_CONSTANT
+        );
+        leftAnimX.setKeys([
+            { frame: 0, value: leftStartX },
+            { frame: 4, value: -0.8 },        // 左臂略抬配合
+            { frame: 12, value: -0.5 },       // 保持姿态
+            { frame: 18, value: -0.3 },       // 逐渐放下
+            { frame: 25, value: leftStartX }  // 恢复
+        ]);
+        
+        const leftAnimY = new Animation(
+            "halfMoonLeftY",
+            "rotation.y",
+            fps,
+            Animation.ANIMATIONTYPE_FLOAT,
+            Animation.ANIMATIONLOOPMODE_CONSTANT
+        );
+        leftAnimY.setKeys([
+            { frame: 0, value: leftStartY },
+            { frame: 4, value: -0.5 },        // 左臂向左
+            { frame: 12, value: 0.3 },        // 配合右臂向右收
+            { frame: 25, value: leftStartY }  // 恢复
+        ]);
+        
+        const leftAnimZ = new Animation(
+            "halfMoonLeftZ",
+            "rotation.z",
+            fps,
+            Animation.ANIMATIONTYPE_FLOAT,
+            Animation.ANIMATIONLOOPMODE_CONSTANT
+        );
+        leftAnimZ.setKeys([
+            { frame: 0, value: leftStartZ },
+            { frame: 4, value: 0.4 },         // 外展配合
+            { frame: 12, value: 0.2 },        // 保持
+            { frame: 25, value: leftStartZ }  // 恢复
+        ]);
+        
+        // 停止可能正在进行的动画
+        scene.stopAnimation(boxMan.rightShoulder);
+        scene.stopAnimation(boxMan.leftShoulder);
+        
+        // 播放右臂动画
+        const rightAnimatable = scene.beginDirectAnimation(
+            boxMan.rightShoulder,
+            [rightAnimX, rightAnimY, rightAnimZ],
+            0,
+            25,
+            false,
+            1.2  // 加快播放速度使动作更干脆
+        );
+        
+        // 播放左臂动画
+        scene.beginDirectAnimation(
+            boxMan.leftShoulder,
+            [leftAnimX, leftAnimY, leftAnimZ],
+            0,
+            25,
+            false,
+            1.2
+        );
+        
+        // 动画完成后重置状态
+        rightAnimatable.onAnimationEnd = () => {
+            this.player.halfMoonSlashAnimating = false;
+        };
     }
     
     /**

@@ -402,7 +402,10 @@ export class VoxelKnight {
 
     // 复用 BoxMan 的动画逻辑，因为骨骼结构一致
     updateAnimation(dt, state) {
-        const { isMoving, isSprinting, isGrounded, isBoosterActive, velocity, yaw, walkTimeIncrement } = state;
+        const { isMoving, isSprinting, isGrounded, isBoosterActive, velocity, yaw, walkTimeIncrement, swordSlashAnimating, halfMoonSlashAnimating } = state;
+        
+        // 合并所有手臂动画状态
+        const isArmAnimating = swordSlashAnimating || halfMoonSlashAnimating;
 
         this.walkTime += walkTimeIncrement;
         this.time += dt * 0.001; // 转换为秒
@@ -453,9 +456,9 @@ export class VoxelKnight {
             this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0, yaw, 0);
 
             if (isMoving) {
-                this.animateWalk(isSprinting, yaw, angle);
+                this.animateWalk(isSprinting, yaw, angle, isArmAnimating);
             } else {
-                this.animateIdle(yaw);
+                this.animateIdle(yaw, isArmAnimating);
             }
         }
     }
@@ -554,31 +557,39 @@ export class VoxelKnight {
         }
     }
 
-    animateWalk(isSprinting, yaw, angle) {
+    animateWalk(isSprinting, yaw, angle, isArmAnimating = false) {
         const amp = isSprinting ? 1.2 : 0.8;
 
         if (this.leftHip) this.leftHip.rotation.x = -angle * amp;
         if (this.rightHip) this.rightHip.rotation.x = angle * amp;
-        if (this.leftShoulder) {
-            this.leftShoulder.rotation.x = angle * amp;
-            this.leftShoulder.rotation.z = 0;
-        }
-        if (this.rightShoulder) {
-            this.rightShoulder.rotation.x = -angle * amp;
-            this.rightShoulder.rotation.z = 0;
+        
+        // 只在非手臂动画时才设置手臂动画
+        if (!isArmAnimating) {
+            if (this.leftShoulder) {
+                this.leftShoulder.rotation.x = angle * amp;
+                this.leftShoulder.rotation.z = 0;
+            }
+            if (this.rightShoulder) {
+                this.rightShoulder.rotation.x = -angle * amp;
+                this.rightShoulder.rotation.z = 0;
+            }
         }
     }
 
-    animateIdle(yaw) {
+    animateIdle(yaw, isArmAnimating = false) {
         if (this.leftHip) this.leftHip.rotation.x = 0;
         if (this.rightHip) this.rightHip.rotation.x = 0;
-        if (this.leftShoulder) {
-            this.leftShoulder.rotation.x = 0;
-            this.leftShoulder.rotation.z = 0;
-        }
-        if (this.rightShoulder) {
-            this.rightShoulder.rotation.x = 0;
-            this.rightShoulder.rotation.z = 0;
+        
+        // 只在非手臂动画时才设置手臂动画
+        if (!isArmAnimating) {
+            if (this.leftShoulder) {
+                this.leftShoulder.rotation.x = 0;
+                this.leftShoulder.rotation.z = 0;
+            }
+            if (this.rightShoulder) {
+                this.rightShoulder.rotation.x = 0;
+                this.rightShoulder.rotation.z = 0;
+            }
         }
     }
 }

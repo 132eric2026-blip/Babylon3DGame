@@ -1110,7 +1110,8 @@ export class Player2 {
                 velocity,
                 yaw,
                 walkTimeIncrement,
-                swordSlashAnimating: this.swordSlashAnimating // 传递挥砍动画状态
+                swordSlashAnimating: this.swordSlashAnimating,
+                halfMoonSlashAnimating: this.halfMoonSlashAnimating // 传递半月斩动画状态
             });
 
             // Override arm rotation if holding gun
@@ -1135,7 +1136,7 @@ export class Player2 {
                 } else if (this.currentWeapon === "ThunderStormBlade") {
                     // 剑的姿势：正常持剑，手臂放松不举起
                     // 仅在非挥砍动画时才覆盖旋转
-                    if (!this.swordSlashAnimating) {
+                    if (!this.swordSlashAnimating && !this.halfMoonSlashAnimating) {
                         // 行走时允许手臂摆动，待机时保持放松姿势
                         if (isMoving) {
                             // 行走时：基础旋转 0，加上摆动偏移

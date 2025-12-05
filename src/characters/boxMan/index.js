@@ -336,7 +336,10 @@ export class BoxMan {
     }
 
     updateAnimation(dt, state) {
-        const { isMoving, isSprinting, isGrounded, isBoosterActive, velocity, yaw, walkTimeIncrement, swordSlashAnimating } = state;
+        const { isMoving, isSprinting, isGrounded, isBoosterActive, velocity, yaw, walkTimeIncrement, swordSlashAnimating, halfMoonSlashAnimating } = state;
+        
+        // 合并所有手臂动画状态
+        const isArmAnimating = swordSlashAnimating || halfMoonSlashAnimating;
         
         this.walkTime += walkTimeIncrement;
         const angle = Math.sin(this.walkTime);
@@ -371,9 +374,9 @@ export class BoxMan {
             this.modelRoot.rotationQuaternion = Quaternion.FromEulerAngles(0, yaw, 0);
 
             if (isMoving) {
-                this.animateWalk(isSprinting, yaw, angle, swordSlashAnimating);
+                this.animateWalk(isSprinting, yaw, angle, isArmAnimating);
             } else {
-                this.animateIdle(yaw, swordSlashAnimating);
+                this.animateIdle(yaw, isArmAnimating);
             }
         }
     }
@@ -497,36 +500,42 @@ export class BoxMan {
     /**
      * 行走动画
      */
-    animateWalk(isSprinting, yaw, angle, swordSlashAnimating = false) {
+    animateWalk(isSprinting, yaw, angle, isArmAnimating = false) {
         const amp = isSprinting ? 1.2 : 0.8;
         
         if (this.leftHip) this.leftHip.rotation.x = -angle * amp;
         if (this.rightHip) this.rightHip.rotation.x = angle * amp;
-        if (this.leftShoulder) {
-            this.leftShoulder.rotation.x = angle * amp;
-            this.leftShoulder.rotation.z = 0;
-        }
-        // 只在非挥砍动画时才设置右肩臂动画
-        if (this.rightShoulder && !swordSlashAnimating) {
-            this.rightShoulder.rotation.x = -angle * amp;
-            this.rightShoulder.rotation.z = 0;
+        
+        // 只在非手臂动画时才设置手臂动画
+        if (!isArmAnimating) {
+            if (this.leftShoulder) {
+                this.leftShoulder.rotation.x = angle * amp;
+                this.leftShoulder.rotation.z = 0;
+            }
+            if (this.rightShoulder) {
+                this.rightShoulder.rotation.x = -angle * amp;
+                this.rightShoulder.rotation.z = 0;
+            }
         }
     }
 
     /**
      * 待机动画
      */
-    animateIdle(yaw, swordSlashAnimating = false) {
+    animateIdle(yaw, isArmAnimating = false) {
         if (this.leftHip) this.leftHip.rotation.x = 0;
         if (this.rightHip) this.rightHip.rotation.x = 0;
-        if (this.leftShoulder) {
-            this.leftShoulder.rotation.x = 0;
-            this.leftShoulder.rotation.z = 0;
-        }
-        // 只在非挥砍动画时才设置右肩臂动画
-        if (this.rightShoulder && !swordSlashAnimating) {
-            this.rightShoulder.rotation.x = 0;
-            this.rightShoulder.rotation.z = 0;
+        
+        // 只在非手臂动画时才设置手臂动画
+        if (!isArmAnimating) {
+            if (this.leftShoulder) {
+                this.leftShoulder.rotation.x = 0;
+                this.leftShoulder.rotation.z = 0;
+            }
+            if (this.rightShoulder) {
+                this.rightShoulder.rotation.x = 0;
+                this.rightShoulder.rotation.z = 0;
+            }
         }
     }
 }
