@@ -4,4 +4,5 @@
 
 export { SkillManager } from "./SkillManager";
 export { BaseSkill } from "./BaseSkill";
-export { HalfMoonSlash } from "./HalfMoonSlash";
+export { HalfMoonSlash } from "./HalfMoonSlash/HalfMoonSlash";
+export { ThunderSpear } from "./ThunderSpear/ThunderSpear";

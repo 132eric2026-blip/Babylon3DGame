@@ -1,4 +1,5 @@
-import { HalfMoonSlash } from "./HalfMoonSlash";
+import { HalfMoonSlash } from "./HalfMoonSlash/HalfMoonSlash";
+import { ThunderSpear } from "./ThunderSpear/ThunderSpear";
 
 /**
  * 技能管理器
@@ -30,6 +31,8 @@ export class SkillManager {
     initSkills() {
         // 第一个技能槽（按键1）：半月斩
         this.skills[0] = new HalfMoonSlash(this.scene, this.player);
+        // 第二个技能槽（按键F）：雷霆之矛
+        this.skills[1] = new ThunderSpear(this.scene, this.player);
     }
     
     /**
@@ -45,6 +48,11 @@ export class SkillManager {
                 this.activateSkill(index);
             } else if (key === '0') {
                 this.activateSkill(9);
+            }
+            
+            // F键：释放第二个技能（雷霆之矛）
+            if (key.toLowerCase() === 'f') {
+                this.activateSkill(1);
             }
         });
     }
