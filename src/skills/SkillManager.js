@@ -1,6 +1,8 @@
 import { HalfMoonSlash } from "./HalfMoonSlash/HalfMoonSlash";
 import { ThunderSpear } from "./ThunderSpear/ThunderSpear";
 import { FlameShockwave } from "./FlameShockwave/FlameShockwave";
+// 已移除 VolumetricFireShield 与 FireRingShield
+// 已移除 FireShield
 
 
 /**
@@ -37,7 +39,7 @@ export class SkillManager {
         this.skills[1] = new ThunderSpear(this.scene, this.player);
         // 第三个技能槽（按键R）：烈焰震地
         this.skills[2] = new FlameShockwave(this.scene, this.player);
-        
+        // 第四、第五技能槽空置
     }
     
     /**
@@ -64,7 +66,8 @@ export class SkillManager {
             if (key.toLowerCase() === 'r') {
                 this.activateSkill(2);
             }
-            
+
+            // E、Z 键当前未绑定技能
             
         });
     }
