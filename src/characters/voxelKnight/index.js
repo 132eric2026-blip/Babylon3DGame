@@ -402,10 +402,10 @@ export class VoxelKnight {
 
     // 复用 BoxMan 的动画逻辑，因为骨骼结构一致
     updateAnimation(dt, state) {
-        const { isMoving, isSprinting, isGrounded, isBoosterActive, velocity, yaw, walkTimeIncrement, swordSlashAnimating, halfMoonSlashAnimating, thunderSpearAnimating, isCastingSkill } = state;
+        const { isMoving, isSprinting, isGrounded, isBoosterActive, velocity, yaw, walkTimeIncrement, swordSlashAnimating, halfMoonSlashAnimating, thunderSpearAnimating } = state;
         
         // 合并所有手臂动画状态
-        const isArmAnimating = swordSlashAnimating || halfMoonSlashAnimating || thunderSpearAnimating || isCastingSkill;
+        const isArmAnimating = swordSlashAnimating || halfMoonSlashAnimating || thunderSpearAnimating;
 
         this.walkTime += walkTimeIncrement;
         this.time += dt * 0.001; // 转换为秒

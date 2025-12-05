@@ -51,7 +51,7 @@ export class Player2 {
         this.inputMap = {};
         this.isSprinting = false;
         this.isBoosterActive = false;
-        this.isCastingSkill = false; // 是否正在释放技能
+
         this._groundEpsilon = 0.06;
         // Z键按压状态
         this.isZPressed = false;
@@ -1113,8 +1113,7 @@ export class Player2 {
                 walkTimeIncrement,
                 swordSlashAnimating: this.swordSlashAnimating,
                 halfMoonSlashAnimating: this.halfMoonSlashAnimating,
-                thunderSpearAnimating: this.thunderSpearAnimating, // 传递雷霆之矛动画状态
-                isCastingSkill: this.isCastingSkill // 传递通用施法状态
+                thunderSpearAnimating: this.thunderSpearAnimating // 传递雷霆之矛动画状态
             });
 
             // Override arm rotation if holding gun

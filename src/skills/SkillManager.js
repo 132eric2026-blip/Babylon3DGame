@@ -1,6 +1,5 @@
 import { HalfMoonSlash } from "./HalfMoonSlash/HalfMoonSlash";
 import { ThunderSpear } from "./ThunderSpear/ThunderSpear";
-import { ExplosionWave } from "./ExplosionWave/ExplosionWave";
 
 /**
  * 技能管理器
@@ -34,8 +33,6 @@ export class SkillManager {
         this.skills[0] = new HalfMoonSlash(this.scene, this.player);
         // 第二个技能槽（按键F）：雷霆之矛
         this.skills[1] = new ThunderSpear(this.scene, this.player);
-        // 第三个技能槽（按键R）：爆裂冲击波
-        this.skills[2] = new ExplosionWave(this.scene, this.player);
     }
     
     /**
@@ -56,11 +53,6 @@ export class SkillManager {
             // F键：释放第二个技能（雷霆之矛）
             if (key.toLowerCase() === 'f') {
                 this.activateSkill(1);
-            }
-
-            // R键：释放第三个技能（爆裂冲击波）
-            if (key.toLowerCase() === 'r') {
-                this.activateSkill(2);
             }
         });
     }
