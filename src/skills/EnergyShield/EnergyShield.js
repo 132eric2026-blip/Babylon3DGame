@@ -224,12 +224,12 @@ export class EnergyShield extends BaseSkill {
         shield.scaling = new Vector3(1, 1.3, 1); // 椭圆形
         shield.position.y = 1.2;
         
-        // 半透明青蓝色材质
+        // 半透明青蓝色材质 - 降低透明度让角色更清晰
         const shieldMat = new StandardMaterial("mainShieldMat", scene);
-        shieldMat.emissiveColor = new Color3(0.0, 0.8, 1.0);
-        shieldMat.diffuseColor = new Color3(0.0, 0.6, 0.9);
-        shieldMat.specularColor = new Color3(0.5, 0.9, 1.0);
-        shieldMat.alpha = 0.15;
+        shieldMat.emissiveColor = new Color3(0.0, 0.6, 0.8);
+        shieldMat.diffuseColor = new Color3(0.0, 0.4, 0.7);
+        shieldMat.specularColor = new Color3(0.3, 0.7, 0.9);
+        shieldMat.alpha = 0.06;  // 更透明
         shieldMat.backFaceCulling = false;
         shieldMat.disableLighting = true;
         shield.material = shieldMat;
@@ -251,8 +251,8 @@ export class EnergyShield extends BaseSkill {
         innerShield.position.y = 1.2;
         
         const innerMat = new StandardMaterial("innerShieldMat", scene);
-        innerMat.emissiveColor = new Color3(0.2, 0.9, 1.0);
-        innerMat.alpha = 0.08;
+        innerMat.emissiveColor = new Color3(0.1, 0.7, 0.9);
+        innerMat.alpha = 0.03;  // 更透明
         innerMat.backFaceCulling = false;
         innerMat.disableLighting = true;
         innerShield.material = innerMat;
@@ -431,24 +431,24 @@ export class EnergyShield extends BaseSkill {
     createEnergyParticles() {
         const scene = this.scene;
         
-        // 环绕护盾的能量粒子
-        const energyPS = new ParticleSystem("energyParticles", 400, scene);
+        // 环绕护盾的能量粒子 - 只在护盾表面，不穿过角色
+        const energyPS = new ParticleSystem("energyParticles", 200, scene);
         energyPS.particleTexture = this.createEnergyTexture();
         energyPS.emitter = this.shieldRoot;
         
-        // 球形发射区域
-        energyPS.createSphereEmitter(1.8);
+        // 球形发射区域 - 在护盾表面
+        energyPS.createSphereEmitter(1.9, 0.1);  // 只在护盾外表面
         
-        energyPS.color1 = new Color4(0.0, 0.9, 1.0, 0.8);
-        energyPS.color2 = new Color4(0.3, 1.0, 1.0, 0.6);
+        energyPS.color1 = new Color4(0.0, 0.9, 1.0, 0.6);
+        energyPS.color2 = new Color4(0.3, 1.0, 1.0, 0.4);
         energyPS.colorDead = new Color4(0.0, 0.5, 0.8, 0.0);
         
-        energyPS.minSize = 0.08;
-        energyPS.maxSize = 0.2;
-        energyPS.minLifeTime = 0.8;
-        energyPS.maxLifeTime = 1.5;
+        energyPS.minSize = 0.05;
+        energyPS.maxSize = 0.12;
+        energyPS.minLifeTime = 0.6;
+        energyPS.maxLifeTime = 1.0;
         
-        energyPS.emitRate = 100;
+        energyPS.emitRate = 50;  // 减少粒子数量
         energyPS.blendMode = ParticleSystem.BLENDMODE_ADD;
         
         energyPS.minEmitPower = 0.3;
@@ -467,25 +467,24 @@ export class EnergyShield extends BaseSkill {
     createEdgeFlames() {
         const scene = this.scene;
         
-        // 边缘能量流动
-        const flamePS = new ParticleSystem("edgeFlames", 600, scene);
+        // 边缘能量流动 - 只在护盾边缘，不遮挡角色
+        const flamePS = new ParticleSystem("edgeFlames", 300, scene);
         flamePS.particleTexture = this.createFlameTexture();
         flamePS.emitter = this.shieldRoot;
         
-        // 从护盾边缘发射
-        flamePS.minEmitBox = new Vector3(-1.8, 0, -1.8);
-        flamePS.maxEmitBox = new Vector3(1.8, 2.5, 1.8);
+        // 只在护盾边缘外围发射，避开角色中心区域
+        flamePS.createCylinderEmitter(1.7, 0.3, 0, 0);  // 圆柱形边缘发射
         
-        flamePS.color1 = new Color4(0.0, 0.8, 1.0, 0.7);
-        flamePS.color2 = new Color4(0.2, 0.9, 1.0, 0.5);
+        flamePS.color1 = new Color4(0.0, 0.8, 1.0, 0.5);
+        flamePS.color2 = new Color4(0.2, 0.9, 1.0, 0.3);
         flamePS.colorDead = new Color4(0.0, 0.4, 0.8, 0.0);
         
-        flamePS.minSize = 0.15;
-        flamePS.maxSize = 0.4;
+        flamePS.minSize = 0.1;
+        flamePS.maxSize = 0.25;
         flamePS.minLifeTime = 0.3;
-        flamePS.maxLifeTime = 0.8;
+        flamePS.maxLifeTime = 0.6;
         
-        flamePS.emitRate = 200;
+        flamePS.emitRate = 80;  // 减少粒子数量
         flamePS.blendMode = ParticleSystem.BLENDMODE_ADD;
         
         flamePS.minEmitPower = 0.5;

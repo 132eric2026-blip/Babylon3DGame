@@ -2,6 +2,7 @@ import { HalfMoonSlash } from "./HalfMoonSlash/HalfMoonSlash";
 import { ThunderSpear } from "./ThunderSpear/ThunderSpear";
 import { FlameShockwave } from "./FlameShockwave/FlameShockwave";
 import { EnergyShield } from "./EnergyShield/EnergyShield";
+import { PlasmaShield } from "./PlasmaShield/PlasmaShield";
 
 /**
  * 技能管理器
@@ -39,6 +40,8 @@ export class SkillManager {
         this.skills[2] = new FlameShockwave(this.scene, this.player);
         // 第四个技能槽（按键E）：能量护盾
         this.skills[3] = new EnergyShield(this.scene, this.player);
+        // 第五个技能槽（按键Z）：等离子护盾
+        this.skills[4] = new PlasmaShield(this.scene, this.player);
     }
     
     /**
@@ -69,6 +72,11 @@ export class SkillManager {
             // E键：切换第四个技能（能量护盾）
             if (key.toLowerCase() === 'e') {
                 this.activateSkill(3);
+            }
+            
+            // Z键：切换第五个技能（等离子护盾）
+            if (key.toLowerCase() === 'z') {
+                this.activateSkill(4);
             }
         });
     }
