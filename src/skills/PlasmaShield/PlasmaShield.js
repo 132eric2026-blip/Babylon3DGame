@@ -63,7 +63,7 @@ export class PlasmaShield extends BaseSkill {
         this.createMainShield(glowLayer);
        this.createGridPattern(glowLayer);
        // this.createTechFrame(glowLayer);
-     this.createLightningParticles();
+        this.createLightningParticles();
        // this.createPlasmaParticles();
         //this.createFootRing(glowLayer);
         this.startUpdateLoop();
@@ -179,14 +179,14 @@ export class PlasmaShield extends BaseSkill {
         }, scene);
         
         shield.parent = this.shieldRoot;
-        shield.scaling = new Vector3(1, 1.2, 1);
-        shield.position.y = 1.0;
+        shield.scaling = new Vector3(1, 1, 1);
+        shield.position.y = 0.5;  // 降低位置，包住玩家中心
         
         const shieldMat = new StandardMaterial("plasmaShieldMat", scene);
         shieldMat.emissiveColor = new Color3(0.5, 0.15, 0.7);
         shieldMat.diffuseColor = new Color3(0.4, 0.1, 0.6);
         shieldMat.specularColor = new Color3(0.7, 0.4, 0.9);
-        shieldMat.alpha = 0.04;  // 更透明
+        shieldMat.alpha = 0.04;
         shieldMat.backFaceCulling = false;
         shieldMat.disableLighting = true;
         shield.material = shieldMat;
@@ -205,12 +205,12 @@ export class PlasmaShield extends BaseSkill {
         const scene = this.scene;
         
         // 创建多条经线 - 减少数量
-        const meridianCount = 8;
+        const meridianCount = 10;
         for (let i = 0; i < meridianCount; i++) {
             const angle = (Math.PI * 2 / meridianCount) * i;
             const meridian = this.createMeridianLine(scene, angle);
             meridian.parent = this.shieldRoot;
-            meridian.position.y = 1.0;
+            meridian.position.y = 0.5;  // 与护盾位置一致
             
             const meridianMat = new StandardMaterial("meridianMat" + i, scene);
             meridianMat.emissiveColor = new Color3(0.7, 0.35, 0.9);
@@ -222,16 +222,16 @@ export class PlasmaShield extends BaseSkill {
                 glowLayer.addIncludedOnlyMesh(meridian);
             }
             
-            this.shieldMeshes.push(meridian);
+           // this.shieldMeshes.push(meridian);
         }
         
         // 创建多条纬线 - 减少数量
-        const parallelCount = 6;
+        const parallelCount = 8;
         for (let i = 1; i < parallelCount; i++) {
             const y = -0.9 + (1.8 / parallelCount) * i;
             const parallel = this.createParallelLine(scene, y);
             parallel.parent = this.shieldRoot;
-            parallel.position.y = 1.0;
+            parallel.position.y = 0.5;  // 降低位置
             
             const parallelMat = new StandardMaterial("parallelMat" + i, scene);
             parallelMat.emissiveColor = new Color3(0.7, 0.35, 0.9);
@@ -330,7 +330,7 @@ export class PlasmaShield extends BaseSkill {
                 }, scene);
                 
                 node.parent = this.shieldRoot;
-                node.position = new Vector3(x, y + 1.0, z);
+                node.position = new Vector3(x, y , z);  // 降低位置
                 
                 const nodeMat = new StandardMaterial("nodeMat", scene);
                 nodeMat.emissiveColor = new Color3(0.9, 0.6, 1.0);
@@ -361,7 +361,7 @@ export class PlasmaShield extends BaseSkill {
         }, scene);
         
         mainFrame.parent = this.shieldRoot;
-        mainFrame.position.y = 1.0;
+        mainFrame.position.y = 0.0;  // 与护盾位置一致
         mainFrame.rotation.x = Math.PI / 2;
         mainFrame.scaling.y = 1.2;
         
@@ -387,7 +387,7 @@ export class PlasmaShield extends BaseSkill {
         }, scene);
         
         topFrame.parent = this.shieldRoot;
-        topFrame.position.y = 1.0 + 1.2 * 1.2;
+        topFrame.position.y = 0.9 + 1.2 * 1.2;  // 与护盾位置一致
         topFrame.rotation.x = Math.PI / 2;
         
         const topMat = new StandardMaterial("topFrameMat", scene);
@@ -410,7 +410,7 @@ export class PlasmaShield extends BaseSkill {
         }, scene);
         
         bottomFrame.parent = this.shieldRoot;
-        bottomFrame.position.y = 1.0 - 1.2 * 1.2;
+        bottomFrame.position.y = 0.9 - 1.2 * 1.2;  // 与护盾位置一致
         bottomFrame.rotation.x = Math.PI / 2;
         
         bottomFrame.material = topMat.clone("bottomFrameMat");
@@ -445,7 +445,7 @@ export class PlasmaShield extends BaseSkill {
             decor.parent = this.shieldRoot;
             decor.position = new Vector3(
                 Math.cos(angle) * radius,
-                1.0,
+                0.5,  // 与护盾位置一致
                 Math.sin(angle) * radius
             );
             decor.rotation.y = -angle;
