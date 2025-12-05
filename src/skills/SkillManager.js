@@ -1,5 +1,7 @@
 import { HalfMoonSlash } from "./HalfMoonSlash/HalfMoonSlash";
 import { ThunderSpear } from "./ThunderSpear/ThunderSpear";
+import { FlameShockwave } from "./FlameShockwave/FlameShockwave";
+import { EnergyShield } from "./EnergyShield/EnergyShield";
 
 /**
  * 技能管理器
@@ -33,6 +35,10 @@ export class SkillManager {
         this.skills[0] = new HalfMoonSlash(this.scene, this.player);
         // 第二个技能槽（按键F）：雷霆之矛
         this.skills[1] = new ThunderSpear(this.scene, this.player);
+        // 第三个技能槽（按键R）：烈焰震地
+        this.skills[2] = new FlameShockwave(this.scene, this.player);
+        // 第四个技能槽（按键E）：能量护盾
+        this.skills[3] = new EnergyShield(this.scene, this.player);
     }
     
     /**
@@ -53,6 +59,16 @@ export class SkillManager {
             // F键：释放第二个技能（雷霆之矛）
             if (key.toLowerCase() === 'f') {
                 this.activateSkill(1);
+            }
+            
+            // R键：释放第三个技能（烈焰震地）
+            if (key.toLowerCase() === 'r') {
+                this.activateSkill(2);
+            }
+            
+            // E键：切换第四个技能（能量护盾）
+            if (key.toLowerCase() === 'e') {
+                this.activateSkill(3);
             }
         });
     }
