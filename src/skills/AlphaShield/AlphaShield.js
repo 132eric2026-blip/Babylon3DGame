@@ -1,4 +1,4 @@
-import { MeshBuilder, StandardMaterial, Color3, Color4, ParticleSystem, Texture, Vector3, FresnelParameters, PointLight, Scalar } from "@babylonjs/core";
+import { MeshBuilder, StandardMaterial, Color3, Color4, ParticleSystem, Texture, Vector3, FresnelParameters, PointLight, Scalar, Engine } from "@babylonjs/core";
 import { BaseSkill } from "../BaseSkill";
 
 export class AlphaShield extends BaseSkill {
@@ -107,21 +107,22 @@ export class AlphaShield extends BaseSkill {
         fresnel.isEnabled = true;
         fresnel.bias = 0.1;
         fresnel.power = 2.0;
-        fresnel.leftColor = new Color3(1.0, 1.0, 0.6); // Very Bright Yellow Edge
-        fresnel.rightColor = new Color3(0.0, 0.0, 0.0); // Transparent/Black Center (No Emission)
+        fresnel.leftColor = new Color3(1.0, 1.0, 0.6);
+        fresnel.rightColor = new Color3(0.0, 0.0, 0.0);
         this.shieldMaterial.emissiveFresnelParameters = fresnel;
 
         // Fresnel for Opacity (Transparent Center)
         const opacityFresnel = new FresnelParameters();
         opacityFresnel.isEnabled = true;
         opacityFresnel.bias = 0.1;
-        opacityFresnel.power = 4.0; // Sharper falloff for clearer center
+        opacityFresnel.power = 6.0;
         opacityFresnel.leftColor = new Color3(1.0, 1.0, 1.0); // Opaque Edge
         opacityFresnel.rightColor = new Color3(0.0, 0.0, 0.0); // Fully Transparent Center
         this.shieldMaterial.opacityFresnelParameters = opacityFresnel;
 
-        this.shieldMaterial.disableLighting = true; // Self-illuminated
-        this.shieldMaterial.backFaceCulling = false; // Visible from inside
+        this.shieldMaterial.disableLighting = true;
+        this.shieldMaterial.backFaceCulling = false;
+        this.shieldMaterial.alphaMode = Engine.ALPHA_ADD;
 
         this.shieldMesh.material = this.shieldMaterial;
         this.shieldMesh.isVisible = false;
@@ -184,7 +185,7 @@ export class AlphaShield extends BaseSkill {
             this.shieldMesh.isVisible = true;
             this.particleSystem.start();
             this.targetScale = 1.0;
-            this.targetAlpha = 0.8;
+            this.targetAlpha = 0.35;
         } else {
             // Close
             this.targetScale = 0.0;
