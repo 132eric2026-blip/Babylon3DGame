@@ -43,34 +43,33 @@ export class Shield {
         const shieldMat = new StandardMaterial("shieldMat", this.scene);
 
         // 1. Basic Colors
-        shieldMat.diffuseColor = new Color3(0, 0, 0); // No diffuse
-        shieldMat.specularColor = new Color3(0, 0, 0); // No specular
-        // 基准颜色 * 亮度系数
-        shieldMat.emissiveColor = new Color3(1, 0.8, 0).scale(this.brightness);
+        shieldMat.diffuseColor = new Color3(0, 0, 0);
+        shieldMat.specularColor = new Color3(0, 0, 0);
+        shieldMat.emissiveColor = new Color3(1.0, 0.8, 0.2).scale(this.brightness);
 
         // 2. Fresnel for Emissive (Glowing Edges)
         // 边缘(Left)是高亮金色，中心(Right)是暗色
         const fresnel = new FresnelParameters();
         fresnel.isEnabled = true;
         fresnel.bias = 0.1;
-        fresnel.power = 1.0; // Controls how thin the rim is
-        // 边缘高亮也受亮度系数影响
+        fresnel.power = 1.2;
         fresnel.leftColor = new Color3(2.0, 1.8, 0.5).scale(this.brightness);
-        fresnel.rightColor = new Color3(0.2, 0.15, 0).scale(this.brightness); // Dark Center
+        fresnel.rightColor = new Color3(0.3, 0.24, 0.05).scale(this.brightness);
         shieldMat.emissiveFresnelParameters = fresnel;
 
         // 3. Fresnel for Opacity (Transparent Center)
         // 边缘(Left)不透明，中心(Right)透明
         const opacityFresnel = new FresnelParameters();
         opacityFresnel.isEnabled = true;
-        opacityFresnel.bias = 0.1;
-        opacityFresnel.power = 1.5;
-        opacityFresnel.leftColor = new Color3(1, 1, 1); // Opaque Edge
-        opacityFresnel.rightColor = new Color3(0.1, 0.1, 0.1); // Mostly Transparent Center
+        opacityFresnel.bias = 0.05;
+        opacityFresnel.power = 2.0;
+        opacityFresnel.leftColor = new Color3(1, 1, 1);
+        opacityFresnel.rightColor = new Color3(0.05, 0.05, 0.05);
         shieldMat.opacityFresnelParameters = opacityFresnel;
 
-        shieldMat.alpha = 0.5; // Base Alpha
-        shieldMat.disableLighting = true; // Self-illuminated
+        shieldMat.alpha = 0.26;
+        shieldMat.disableLighting = true;
+        shieldMat.backFaceCulling = false;
 
         this.mesh.material = shieldMat;
     }

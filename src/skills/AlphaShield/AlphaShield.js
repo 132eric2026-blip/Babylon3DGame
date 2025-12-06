@@ -37,7 +37,7 @@ export class AlphaShield extends BaseSkill {
         );
         alphaAnim.setKeys([
             { frame: 0, value: 0 },
-            { frame: 15, value: 0.5 }
+            { frame: 15, value: 0.5}
         ]);
         this.scene.beginDirectAnimation(this.shield.mesh, [alphaAnim], 0, 15, false);
     }
