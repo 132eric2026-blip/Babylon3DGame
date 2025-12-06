@@ -9,4 +9,5 @@ export { ThunderSpear } from "./ThunderSpear/ThunderSpear";
 export { FlameShockwave } from "./FlameShockwave/FlameShockwave";
 export { EnergyShield } from "./EnergyShield/EnergyShield";
 export { AlphaShield } from "./AlphaShield/AlphaShield";
+export { GoldenShield } from "./GoldenShield/GoldenShield";
 

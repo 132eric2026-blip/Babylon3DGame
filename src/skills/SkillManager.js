@@ -3,6 +3,7 @@ import { ThunderSpear } from "./ThunderSpear/ThunderSpear";
 import { FlameShockwave } from "./FlameShockwave/FlameShockwave";
 //import { EnergyShield } from "./EnergyShield/EnergyShield";
 import { AlphaShield } from "./AlphaShield/AlphaShield";
+//import { GoldenShield } from "./GoldenShield/GoldenShield";
 //import { FireRingShield } from "./FireRingShield/FireRingShield";
 // 已移除 FireShield
 
@@ -43,10 +44,12 @@ export class SkillManager {
         this.skills[2] = new FlameShockwave(this.scene, this.player);
         // 第四个技能槽（按键4）：能量护盾
         //this.skills[3] = new EnergyShield(this.scene, this.player);
-        // 第五个技能槽（按键E）：Alpha护盾（开关模式）
-        this.skills[4] = new AlphaShield(this.scene, this.player);
-        // 第六个技能槽（按键Z）：火焰防护盾
-        //this.skills[5] = new FireRingShield(this.scene, this.player);
+        // 第五个技能槽（按键E）：金黄色圆环护盾（开关模式）
+        //this.skills[4] = new GoldenShield(this.scene, this.player);
+        // 第六个技能槽（按键Z）：Alpha护盾（开关模式）
+        this.skills[5] = new AlphaShield(this.scene, this.player);
+        // 第七个技能槽：火焰防护盾
+        //this.skills[6] = new FireRingShield(this.scene, this.player);
     }
     
     /**
@@ -74,9 +77,14 @@ export class SkillManager {
                 this.activateSkill(2);
             }
 
-            // E键：释放第五个技能（Alpha护盾 - 开关模式）
+            // E键：释放第五个技能（金黄色圆环护盾 - 开关模式）
             if (key.toLowerCase() === 'e') {
-                this.activateSkill(4);
+                this.activateSkill(5);
+            }
+            
+            // Z键：释放第六个技能（Alpha护盾 - 开关模式）
+            if (key.toLowerCase() === 'z') {
+                
             }
             
         });
