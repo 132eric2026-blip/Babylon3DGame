@@ -54,9 +54,9 @@ export class AlphaShield extends BaseSkill {
         );
         alphaAnim.setKeys([
             { frame: 0, value: startAlpha },
-            { frame: 15, value: 0 }
+            { frame: 90, value: 0 }
         ]);
-        const anim = this.scene.beginDirectAnimation(this.shield.mesh, [alphaAnim], 0, 15, false);
+        const anim = this.scene.beginDirectAnimation(this.shield.mesh, [alphaAnim], 0, 90, false, 0.85);
         anim.onAnimationEnd = () => {
             this.shield.setActive(false);
             this.active = false;
