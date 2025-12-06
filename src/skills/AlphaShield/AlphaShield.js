@@ -108,16 +108,16 @@ export class AlphaShield extends BaseSkill {
         fresnel.bias = 0.1;
         fresnel.power = 2.0;
         fresnel.leftColor = new Color3(1.0, 1.0, 0.6); // Very Bright Yellow Edge
-        fresnel.rightColor = new Color3(0.2, 0.2, 0.0); // Darker Yellow Center
+        fresnel.rightColor = new Color3(0.0, 0.0, 0.0); // Transparent/Black Center (No Emission)
         this.shieldMaterial.emissiveFresnelParameters = fresnel;
 
         // Fresnel for Opacity (Transparent Center)
         const opacityFresnel = new FresnelParameters();
         opacityFresnel.isEnabled = true;
         opacityFresnel.bias = 0.1;
-        opacityFresnel.power = 2.0;
+        opacityFresnel.power = 4.0; // Sharper falloff for clearer center
         opacityFresnel.leftColor = new Color3(1.0, 1.0, 1.0); // Opaque Edge
-        opacityFresnel.rightColor = new Color3(0.05, 0.05, 0.05); // Transparent Center
+        opacityFresnel.rightColor = new Color3(0.0, 0.0, 0.0); // Fully Transparent Center
         this.shieldMaterial.opacityFresnelParameters = opacityFresnel;
 
         this.shieldMaterial.disableLighting = true; // Self-illuminated
