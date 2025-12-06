@@ -220,11 +220,11 @@ export class AlphaShield extends BaseSkill {
 
             // "Flowing" effect simulation: Pulse the Fresnel power or bias slightly
             this.time += deltaTime;
-            if (this.shieldMaterial.emissiveFresnelParameters) {
-                // Pulse bias between 0.1 and 0.2
-                const pulse = Math.sin(this.time * 3.0) * 0.05 + 0.15; 
-                this.shieldMaterial.emissiveFresnelParameters.bias = pulse;
-            }
+            // if (this.shieldMaterial.emissiveFresnelParameters) {
+            //     // Pulse bias between 0.1 and 0.2
+            //     const pulse = Math.sin(this.time * 3.0) * 0.05 + 0.15; 
+            //     this.shieldMaterial.emissiveFresnelParameters.bias = pulse;
+            // }
             
             // Hide if closed and fully transparent/small
             if (!this.active && this.currentAlpha < 0.05 && this.currentScale < 0.1) {
