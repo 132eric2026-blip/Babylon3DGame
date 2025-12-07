@@ -346,6 +346,15 @@ export class BoxMan {
         }
     }
 
+    syncPhysicsOrientation() {
+        const q = this.modelRoot.rotationQuaternion || Quaternion.FromEulerAngles(this.modelRoot.rotation.x, this.modelRoot.rotation.y, this.modelRoot.rotation.z);
+        if (!this.mesh.rotationQuaternion) {
+            this.mesh.rotationQuaternion = Quaternion.Identity();
+        }
+        this.mesh.rotationQuaternion = q.clone();
+        this.modelRoot.rotationQuaternion = Quaternion.Identity();
+    }
+
     updateAnimation(dt, state) {
         const { isMoving, isSprinting, isGrounded, isBoosterActive, velocity, yaw, walkTimeIncrement, swordSlashAnimating, halfMoonSlashAnimating, thunderSpearAnimating } = state;
         
@@ -362,6 +371,7 @@ export class BoxMan {
             } else {
                 this.animateBoosterHover(yaw, angle);
             }
+            this.syncPhysicsOrientation();
             return;
         }
 
@@ -379,6 +389,7 @@ export class BoxMan {
                     this.animateJumpStationary(velocity, yaw, angle);
                 }
             }
+            this.syncPhysicsOrientation();
         } else {
             // Grounded Logic
             this.modelRoot.position.y = -1.2;
@@ -389,6 +400,7 @@ export class BoxMan {
             } else {
                 this.animateIdle(yaw, isArmAnimating);
             }
+            this.syncPhysicsOrientation();
         }
     }
 

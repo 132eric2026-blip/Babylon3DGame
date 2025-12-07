@@ -52,6 +52,8 @@ export class Player2 {
         this.isSprinting = false;
         this.isBoosterActive = false;
 
+        this.currentYaw = 0;
+
         this._groundEpsilon = 0.06;
         // Z键按压状态
         this.isZPressed = false;
@@ -993,11 +995,11 @@ export class Player2 {
                 velocity.y,
                 moveDir.z * speed
             ));
-
             const targetRotation = Math.atan2(moveDir.x, moveDir.z);
-            const currentRotationQuaternion = this.modelRoot.rotationQuaternion || Quaternion.FromEulerVector(this.modelRoot.rotation);
-            const targetRotationQuaternion = Quaternion.FromEulerAngles(0, targetRotation, 0);
-            this.modelRoot.rotationQuaternion = Quaternion.Slerp(currentRotationQuaternion, targetRotationQuaternion, 0.1);
+            const curQ = Quaternion.FromEulerAngles(0, this.currentYaw, 0);
+            const targetQ = Quaternion.FromEulerAngles(0, targetRotation, 0);
+            const newQ = Quaternion.Slerp(curQ, targetQ, 0.1);
+            this.currentYaw = newQ.toEulerAngles().y;
         } else {
             this.aggregate.body.setLinearVelocity(new Vector3(0, velocity.y, 0));
         }
@@ -1079,13 +1081,7 @@ export class Player2 {
         const isGrounded = this.isGrounded();
         const dt = this.scene.getEngine().getDeltaTime();
 
-        // Get current yaw
-        let yaw = 0;
-        if (this.modelRoot.rotationQuaternion) {
-            yaw = this.modelRoot.rotationQuaternion.toEulerAngles().y;
-        } else {
-            yaw = this.modelRoot.rotation.y;
-        }
+        let yaw = this.currentYaw;
 
         // Check if moving
         let isMoving = this.inputMap["w"] || this.inputMap["s"] || this.inputMap["a"] || this.inputMap["d"];
