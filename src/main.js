@@ -5,6 +5,7 @@ import { SagittariusScene } from "./scenes/sagittarius/SagittariusScene";
 import { DefaultScene } from "./scenes/default/DefaultScene";
 import { HellFireScene } from "./scenes/HellFire/HellFireScene";
 import { NagrandScene } from "./scenes/Narang/NagrandScene";
+import { MarvelScene } from "./scenes/marvel/MarvelScene";
 //import { Player } from "./player";
 import { Player2 } from "./player";
 import { BoxMan } from "./characters/boxMan";
@@ -55,6 +56,9 @@ async function createScene(engine) {
     } else if (Config.scene.activeScene === "Nagrand") {
         const nagrandScene = new NagrandScene(scene);
         nagrandScene.create();
+    } else if (Config.scene.activeScene === "Marvel") {
+        const marvelScene = new MarvelScene(scene);
+        marvelScene.create();
     } else {
         const sagittariusScene = new SagittariusScene(scene);
         sagittariusScene.create();
