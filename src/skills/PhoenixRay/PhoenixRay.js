@@ -41,8 +41,8 @@ export class PhoenixRay extends BaseSkill {
         // 创建视觉效果
         this.createVisuals();
         
-        // 播放施法动画（如果有）
-        // this.playCastAnimation();
+        // 播放施法动画
+        this.playCastAnimation();
     }
 
     start() {
@@ -58,6 +58,9 @@ export class PhoenixRay extends BaseSkill {
         
         // 清理视觉效果
         this.cleanupVisuals();
+        
+        // 恢复姿势
+        this.restoreCastPose();
     }
 
     stop() {
@@ -149,6 +152,123 @@ export class PhoenixRay extends BaseSkill {
             this.rayMesh.scaling.x = scale;
             this.rayMesh.scaling.z = scale;
         }
+    }
+
+    /**
+     * 播放施法动画：双手前推并内收
+     */
+    playCastAnimation() {
+        const boxMan = this.player.boxMan;
+        if (!boxMan || !boxMan.leftShoulder || !boxMan.rightShoulder) return;
+
+        const scene = this.scene;
+        const fps = 60;
+
+        // 记录初始姿势，便于结束时恢复
+        this._leftStart = {
+            x: boxMan.leftShoulder.rotation.x,
+            y: boxMan.leftShoulder.rotation.y,
+            z: boxMan.leftShoulder.rotation.z
+        };
+        this._rightStart = {
+            x: boxMan.rightShoulder.rotation.x,
+            y: boxMan.rightShoulder.rotation.y,
+            z: boxMan.rightShoulder.rotation.z
+        };
+
+        this.player.phoenixRayAnimating = true;
+
+        // 左臂动画：前推 + 向右内收 (约45度)
+        const leftAnimX = new Animation("phoenixLeftX", "rotation.x", fps,
+            Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
+        leftAnimX.setKeys([
+            { frame: 0, value: this._leftStart.x },
+            { frame: 8, value: -1.6 },
+            { frame: 50, value: -1.6 }
+        ]);
+        const leftAnimY = new Animation("phoenixLeftY", "rotation.y", fps,
+            Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
+        leftAnimY.setKeys([
+            { frame: 0, value: this._leftStart.y },
+            { frame: 8, value: 0.45 },
+            { frame: 50, value: 0.45 }
+        ]);
+        const leftAnimZ = new Animation("phoenixLeftZ", "rotation.z", fps,
+            Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
+        leftAnimZ.setKeys([
+            { frame: 0, value: this._leftStart.z },
+            { frame: 8, value: 0.0 },
+            { frame: 50, value: 0.0 }
+        ]);
+
+        // 右臂动画：前推 + 向左内收 (约45度)
+        const rightAnimX = new Animation("phoenixRightX", "rotation.x", fps,
+            Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
+        rightAnimX.setKeys([
+            { frame: 0, value: this._rightStart.x },
+            { frame: 8, value: -1.6 },
+            { frame: 50, value: -1.6 }
+        ]);
+        const rightAnimY = new Animation("phoenixRightY", "rotation.y", fps,
+            Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
+        rightAnimY.setKeys([
+            { frame: 0, value: this._rightStart.y },
+            { frame: 8, value: -0.45 },
+            { frame: 50, value: -0.45 }
+        ]);
+        const rightAnimZ = new Animation("phoenixRightZ", "rotation.z", fps,
+            Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
+        rightAnimZ.setKeys([
+            { frame: 0, value: this._rightStart.z },
+            { frame: 8, value: 0.0 },
+            { frame: 50, value: 0.0 }
+        ]);
+
+        // 停止现有动画，开启新动画
+        scene.stopAnimation(boxMan.leftShoulder);
+        scene.stopAnimation(boxMan.rightShoulder);
+
+        this._leftAnimatable = scene.beginDirectAnimation(
+            boxMan.leftShoulder,
+            [leftAnimX, leftAnimY, leftAnimZ],
+            0, 50, false, 1.2
+        );
+        this._rightAnimatable = scene.beginDirectAnimation(
+            boxMan.rightShoulder,
+            [rightAnimX, rightAnimY, rightAnimZ],
+            0, 50, false, 1.2
+        );
+    }
+
+    /**
+     * 恢复施法前姿势
+     */
+    restoreCastPose() {
+        const boxMan = this.player.boxMan;
+        if (!boxMan || !boxMan.leftShoulder || !boxMan.rightShoulder) return;
+        
+        this.player.phoenixRayAnimating = false;
+        
+        // 如果没有记录初始姿势，直接重置为0
+        const lx = this._leftStart ? this._leftStart.x : 0;
+        const ly = this._leftStart ? this._leftStart.y : 0;
+        const lz = this._leftStart ? this._leftStart.z : 0;
+        
+        const rx = this._rightStart ? this._rightStart.x : 0;
+        const ry = this._rightStart ? this._rightStart.y : 0;
+        const rz = this._rightStart ? this._rightStart.z : 0;
+
+        const scene = this.scene;
+        const fps = 60;
+        
+        // 简单的过渡动画回位
+        Animation.CreateAndStartAnimation("restoreLeftX", boxMan.leftShoulder, "rotation.x", fps, 10, boxMan.leftShoulder.rotation.x, lx, 0);
+        Animation.CreateAndStartAnimation("restoreLeftY", boxMan.leftShoulder, "rotation.y", fps, 10, boxMan.leftShoulder.rotation.y, ly, 0);
+        Animation.CreateAndStartAnimation("restoreLeftZ", boxMan.leftShoulder, "rotation.z", fps, 10, boxMan.leftShoulder.rotation.z, lz, 0);
+        
+        Animation.CreateAndStartAnimation("restoreRightX", boxMan.rightShoulder, "rotation.x", fps, 10, boxMan.rightShoulder.rotation.x, rx, 0);
+        Animation.CreateAndStartAnimation("restoreRightY", boxMan.rightShoulder, "rotation.y", fps, 10, boxMan.rightShoulder.rotation.y, ry, 0);
+        Animation.CreateAndStartAnimation("restoreRightZ", boxMan.rightShoulder, "rotation.z", fps, 10, boxMan.rightShoulder.rotation.z, rz, 0);
     }
 
     /**

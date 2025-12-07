@@ -356,10 +356,10 @@ export class BoxMan {
     }
 
     updateAnimation(dt, state) {
-        const { isMoving, isSprinting, isGrounded, isBoosterActive, velocity, yaw, walkTimeIncrement, swordSlashAnimating, halfMoonSlashAnimating, thunderSpearAnimating } = state;
+        const { isMoving, isSprinting, isGrounded, isBoosterActive, velocity, yaw, walkTimeIncrement, swordSlashAnimating, halfMoonSlashAnimating, thunderSpearAnimating, phoenixRayAnimating } = state;
         
         // 合并所有手臂动画状态
-        const isArmAnimating = swordSlashAnimating || halfMoonSlashAnimating || thunderSpearAnimating;
+        const isArmAnimating = swordSlashAnimating || halfMoonSlashAnimating || thunderSpearAnimating || phoenixRayAnimating;
         
         this.walkTime += walkTimeIncrement;
         const angle = Math.sin(this.walkTime);

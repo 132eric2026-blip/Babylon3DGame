@@ -1130,11 +1130,16 @@ export class Player2 {
                 walkTimeIncrement,
                 swordSlashAnimating: this.swordSlashAnimating,
                 halfMoonSlashAnimating: this.halfMoonSlashAnimating,
-                thunderSpearAnimating: this.thunderSpearAnimating // 传递雷霆之矛动画状态
+                thunderSpearAnimating: this.thunderSpearAnimating, // 传递雷霆之矛动画状态
+                phoenixRayAnimating: this.phoenixRayAnimating
             });
 
             // Override arm rotation if holding gun
             if (this.isHoldingGun && this.boxMan && this.boxMan.rightShoulder) {
+                // 施放凤凰射线时不覆盖手臂旋转，让技能动画接管
+                if (this.phoenixRayAnimating) {
+                    // skip override while channeling phoenix ray
+                } else {
                 if (this.currentWeapon === "CrystalVoidWand") {
                     // 魔杖姿势：更自然的战斗法师姿态
                     // 手臂不完全平举，而是稍微向右打开 (Y轴旋转)，显得更自信/随意
@@ -1179,6 +1184,7 @@ export class Player2 {
                     this.boxMan.rightShoulder.rotation.x = -Math.PI / 2;
                     this.boxMan.rightShoulder.rotation.z = 0;
                     this.boxMan.rightShoulder.rotation.y = 0;
+                }
                 }
             }
         }
