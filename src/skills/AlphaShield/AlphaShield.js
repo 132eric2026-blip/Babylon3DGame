@@ -93,7 +93,7 @@ export class AlphaShield extends BaseSkill {
         // So we need the shield center to be 0.3 units above the player center.
         // So `this.shieldMesh.position.y = 0.3`.
         
-        this.shieldMesh.position.y = 0.3;
+        this.shieldMesh.position.y = 0.2;
 
         // 2. Material
         this.shieldMaterial = new StandardMaterial("alphaShieldMat", this.scene);
@@ -207,7 +207,7 @@ export class AlphaShield extends BaseSkill {
 
         if (this.shieldMesh && this.shieldMesh.isVisible) {
             // Apply scale (maintaining ellipsoid proportion)
-            this.shieldMesh.scaling.set(this.currentScale, this.currentScale * 1.3, this.currentScale);
+            this.shieldMesh.scaling.set(this.currentScale, this.currentScale * 1.2, this.currentScale);
             
             // Apply alpha
             if (this.shieldMaterial) {

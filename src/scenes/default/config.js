@@ -26,11 +26,21 @@ export const DefaultSceneConfig = {
         treeCount: 200,     // 树木生成数量
         treesShadowEnabled: true,
         treeShadowCount: 12,
-        treesPhysicsEnabled: false,
+        treesPhysicsEnabled: true,
         trunkHeightRange: { min: 3, max: 8 },
         trunkWidthRange: { min: 0.55, max: 1.1 },
         crownSizeRange: { min: 2.0, max: 3.2 },
         rocksEnabled: true,  // 是否生成岩石
-        streetLampsEnabled: false // 是否生成路灯
+        streetLampsEnabled: false, // 是否生成路灯
+        treeShadow: {
+            filter: "pcf",
+            quality: "high",
+            mapSize: 2048*1,
+            blurKernel: 16,
+            useKernelBlur: false,
+            darkness: 0.5,
+            bias: 0.0008,
+            normalBias: 0.8
+        }
     }
 };

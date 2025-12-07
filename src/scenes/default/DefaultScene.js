@@ -110,13 +110,46 @@ export class DefaultScene {
         // 阴影
         if (Config.scene.shadows && Config.scene.shadows.enabled) {
             const shadowConfig = Config.scene.shadows;
-            const shadowGenerator = new ShadowGenerator(shadowConfig.size, dirLight);
-            shadowGenerator.useBlurExponentialShadowMap = shadowConfig.useBlurExponentialShadowMap;
-            shadowGenerator.blurKernel = shadowConfig.blurKernel;
-            shadowGenerator.useKernelBlur = shadowConfig.useKernelBlur;
-            if (shadowConfig.darkness !== undefined) {
+            const treeShadow = DefaultSceneConfig.decorations && DefaultSceneConfig.decorations.treeShadow;
+            const size = treeShadow && treeShadow.mapSize ? treeShadow.mapSize : shadowConfig.size;
+            const shadowGenerator = new ShadowGenerator(size, dirLight);
+
+            const filter = treeShadow && treeShadow.filter ? treeShadow.filter : "pcf";
+            if (filter === "pcf") {
+                shadowGenerator.usePercentageCloserFiltering = true;
+                const q = treeShadow && treeShadow.quality ? treeShadow.quality : "high";
+                shadowGenerator.filteringQuality = q === "low" ? ShadowGenerator.QUALITY_LOW : (q === "medium" ? ShadowGenerator.QUALITY_MEDIUM : ShadowGenerator.QUALITY_HIGH);
+                shadowGenerator.useBlurExponentialShadowMap = false;
+                shadowGenerator.useKernelBlur = false;
+            } else {
+                const useESM = (treeShadow && treeShadow.useBlurExponentialShadowMap !== undefined)
+                    ? treeShadow.useBlurExponentialShadowMap
+                    : shadowConfig.useBlurExponentialShadowMap;
+                shadowGenerator.useBlurExponentialShadowMap = useESM;
+                const blurKernel = (treeShadow && treeShadow.blurKernel !== undefined)
+                    ? treeShadow.blurKernel
+                    : (treeShadow && treeShadow.quality
+                        ? (treeShadow.quality === "low" ? 8 : (treeShadow.quality === "high" ? 32 : 16))
+                        : shadowConfig.blurKernel);
+                shadowGenerator.blurKernel = blurKernel;
+                shadowGenerator.useKernelBlur = (treeShadow && treeShadow.useKernelBlur !== undefined)
+                    ? treeShadow.useKernelBlur
+                    : shadowConfig.useKernelBlur;
+            }
+
+            if (treeShadow && treeShadow.darkness !== undefined) {
+                shadowGenerator.setDarkness(treeShadow.darkness);
+            } else if (shadowConfig.darkness !== undefined) {
                 shadowGenerator.setDarkness(shadowConfig.darkness);
             }
+
+            if (treeShadow && treeShadow.bias !== undefined) {
+                shadowGenerator.bias = treeShadow.bias;
+            }
+            if (treeShadow && treeShadow.normalBias !== undefined) {
+                shadowGenerator.normalBias = treeShadow.normalBias;
+            }
+
             this.scene.shadowGenerator = shadowGenerator;
         }
     }

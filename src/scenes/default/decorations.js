@@ -112,6 +112,7 @@ export class DecorationManager {
         const sphereCrownMatrices = [];  // 球形树冠
         const coneCrownMatrices = [];    // 锥形树冠
         const octaCrownMatrices = [];    // 八面体树冠
+        const physicsInfos = [];
         
         positions.forEach(({ x, z }) => {
             const type = Math.random();
@@ -124,6 +125,7 @@ export class DecorationManager {
             const trunkPos = new Vector3(x, height * 0.25, z);
             const trunkRot = Quaternion.FromEulerAngles(0, rotY, 0);
             allTrunkMatrices.push(Matrix.Compose(trunkScale, trunkRot, trunkPos));
+            physicsInfos.push({ x, z, trunkHeight: height * 0.5 });
             
             // 树冠矩阵（按类型分配）
             const crownRot = Quaternion.FromEulerAngles(0, rotY, 0);
@@ -211,6 +213,15 @@ export class DecorationManager {
         
         console.log(`ThinInstance树: ${positions.length}棵 (球形:${sphereCrownMatrices.length}, 锥形:${coneCrownMatrices.length}, 八面体:${octaCrownMatrices.length})`);
         console.log(`Draw Calls: 4次 (1树干 + 3树冠类型)`);
+
+        if (cfg.treesPhysicsEnabled) {
+            physicsInfos.forEach(info => {
+                const trunkCollider = MeshBuilder.CreateCylinder("tree_trunk_phys", { height: info.trunkHeight, diameter: 0.7 }, scene);
+                trunkCollider.position = new Vector3(info.x, info.trunkHeight * 0.5, info.z);
+                trunkCollider.isVisible = false;
+                new PhysicsAggregate(trunkCollider, PhysicsShapeType.CYLINDER, { mass: 0, friction: 0.6, restitution: 0.1 }, scene);
+            });
+        }
     }
 
     /**
@@ -340,6 +351,18 @@ export class DecorationManager {
                 leafProxy.position = new Vector3(p.x, s.h + s.leafSize * 0.45, p.z);
                 leafProxy.material = this.mcLeavesBase.material;
                 list.push(leafProxy);
+            }
+        }
+
+        if (cfg.treesPhysicsEnabled) {
+            for (let i = 0; i < positions.length; i++) {
+                const p = positions[i];
+                const s = sizeInfo[i] || { h: 4, w: 0.7 };
+                const trunkCollider = MeshBuilder.CreateBox("mc_trunk_phys", { size: 1 }, this.scene);
+                trunkCollider.scaling = new Vector3(s.w, s.h, s.w);
+                trunkCollider.position = new Vector3(p.x, s.h * 0.5, p.z);
+                trunkCollider.isVisible = false;
+                new PhysicsAggregate(trunkCollider, PhysicsShapeType.BOX, { mass: 0, friction: 0.6, restitution: 0.1 }, this.scene);
             }
         }
     }
