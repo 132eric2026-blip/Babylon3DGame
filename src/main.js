@@ -4,6 +4,7 @@ import HavokPhysics from "@babylonjs/havok";
 import { SagittariusScene } from "./scenes/sagittarius/SagittariusScene";
 import { DefaultScene } from "./scenes/default/DefaultScene";
 import { HellFireScene } from "./scenes/HellFire/HellFireScene";
+import { NagrandScene } from "./scenes/Narang/NagrandScene";
 //import { Player } from "./player";
 import { Player2 } from "./player";
 import { BoxMan } from "./characters/boxMan";
@@ -48,10 +49,12 @@ async function createScene(engine) {
     if (Config.scene.activeScene === "default") {
         const defaultScene = new DefaultScene(scene);
         defaultScene.create();
-    }else if(Config.scene.activeScene === "HellFire"){
-
+    } else if (Config.scene.activeScene === "HellFire") {
         const hellFireScene = new HellFireScene(scene);
         hellFireScene.create();
+    } else if (Config.scene.activeScene === "Nagrand") {
+        const nagrandScene = new NagrandScene(scene);
+        nagrandScene.create();
     } else {
         const sagittariusScene = new SagittariusScene(scene);
         sagittariusScene.create();
