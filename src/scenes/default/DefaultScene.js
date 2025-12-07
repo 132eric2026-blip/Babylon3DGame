@@ -159,13 +159,13 @@ export class DefaultScene {
      * 创建夜空效果：天空球、渐变色与星星
      */
     createSky() {
-        // 创建天空盒（反向剔除在材质中设置）
-        // 使用 BACKSIDE 确保从内部可见
-        const skybox = MeshBuilder.CreateBox("skyBox", { size: 1000.0, sideOrientation: Mesh.BACKSIDE }, this.scene);
+        // 创建天空球（使用 Sphere 替代 Box 以获得更均匀的顶点分布，减少棱角感）
+        // 直径设为 1000
+        const skybox = MeshBuilder.CreateSphere("skyBox", { diameter: 1000.0, segments: 64, sideOrientation: Mesh.BACKSIDE }, this.scene);
         skybox.infiniteDistance = true;
-        // 防止视锥体剔除导致不可见
+        // 防止视锥体剔除
         skybox.alwaysSelectAsActiveMesh = true;
-        // 确保不受雾影响（虽然 ShaderMaterial 默认无雾，但加上更保险）
+        // 确保不受雾影响
         skybox.applyFog = false;
 
         // Shader 代码注册
@@ -187,7 +187,7 @@ export class DefaultScene {
             uniform vec3 bottomColor;
             uniform float time;
 
-            // 简单的哈希函数
+            // 3D 随机 (用于星星)
             float hash(vec3 p) {
                 p = fract(p * 0.3183099 + .1);
                 p *= 17.0;
@@ -196,16 +196,13 @@ export class DefaultScene {
 
             void main() {
                 vec3 dir = normalize(vPosition);
-                // 映射 y 从 0..1 (地平线到天顶)
-                // 压缩渐变区间，让它在 0.0 到 0.4 之间完成从红到蓝的过渡
-                // 这样在平视或低角度仰视时，就能看到明显的渐变带
+                
+                // 1. 背景渐变
                 float t = clamp(dir.y, 0.0, 1.0);
                 t = smoothstep(0.0, 0.4, t);
-                
-                // 渐变色混合
                 vec3 color = mix(bottomColor, topColor, t);
 
-                // 星星生成
+                // 2. 星星生成
                 float scale = 200.0;
                 vec3 u = dir * scale;
                 vec3 i = floor(u);
@@ -213,11 +210,10 @@ export class DefaultScene {
 
                 float h = hash(i);
                 
-                if (h > 0.98) { // 稍微增加星星密度
+                if (h > 0.98) { 
                     float d = length(f - 0.5);
                     if (d < 0.4) {
                         float star = 1.0 - smoothstep(0.1, 0.4, d);
-                        // 随机闪烁速度 (1.0 ~ 6.0) 和相位
                         float speed = 1.0 + 5.0 * h;
                         float twinkle = 0.5 + 0.5 * sin(time * speed + h * 100.0);
                         color += vec3(1.0) * star * twinkle;
@@ -241,8 +237,8 @@ export class DefaultScene {
 
         // 设置颜色：夜空蓝到深红
         // 调整颜色使其更柔和，减少压抑感
-        skyMaterial.setColor3("topColor", new Color3(0.1, 0.12, 0.35)); 
-        skyMaterial.setColor3("bottomColor", new Color3(0.25, 0.1, 0.2)); 
+        skyMaterial.setColor3("topColor", new Color3(0.25, 0.1, 0.2)); 
+        skyMaterial.setColor3("bottomColor",  new Color3(0.1, 0.12, 0.35)); 
         
         let time = 0;
         this.scene.registerBeforeRender(() => {

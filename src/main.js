@@ -65,7 +65,7 @@ async function createScene(engine) {
     }
 
     // 相机
-    const camera = new ArcRotateCamera("camera", -Math.PI / 2.5, Math.PI / 2.5, 20, Vector3.Zero(), scene);
+    const camera = new ArcRotateCamera("camera", -Math.PI / 2.5, Math.PI / 2, 10, Vector3.Zero(), scene);
     camera.wheelPrecision = 20;
     camera.inputs.attached.pointers.buttons = [0,2];
     camera.useCtrlForPanning = true;
