@@ -56,7 +56,7 @@ export const Config = {
         particlesEnabled: true // 是否开启护盾粒子效果
     },
     scene: {
-        activeScene: "default", // "sagittarius" or "default"
+        activeScene: "HellFire", // "sagittarius" or "default"
         gravity: -9.81,
         showAxes: false, // 是否显示世界坐标系
         showPhysicsColliders: true, // 是否显示所有物体的刚体轮廓（调试用）

@@ -9,7 +9,7 @@ import { HellfireSky } from "./HellFireSky";
  * 默认场景
  * 负责搭建地面、光照、环境与装饰，并生成可交互对象（如马）
  */
-export class DefaultScene {
+export class HellFireScene {
     /**
      * 构造默认场景
      * @param {Scene} scene Babylon 场景实例
