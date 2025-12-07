@@ -22,72 +22,7 @@ export class HalfMoonSlash extends BaseSkill {
     execute() {
         const playerPos = this.player.mesh.position.clone();
         const playerRotation = this.getPlayerRotation();
-        this.playSlashAnimation();
         this.createSweepingCrescent(playerPos, playerRotation);
-    }
-
-    playSlashAnimation() {
-        const boxMan = this.player.boxMan;
-        if (!boxMan || !boxMan.rightShoulder || !boxMan.leftShoulder) return;
-        const scene = this.scene;
-        const fps = 60;
-        const rightStartX = boxMan.rightShoulder.rotation.x;
-        const rightStartY = boxMan.rightShoulder.rotation.y;
-        const rightStartZ = boxMan.rightShoulder.rotation.z;
-        const leftStartX = boxMan.leftShoulder.rotation.x;
-        const leftStartY = boxMan.leftShoulder.rotation.y;
-        const leftStartZ = boxMan.leftShoulder.rotation.z;
-        this.player.halfMoonSlashAnimating = true;
-        const rightAnimX = new Animation("halfMoonRightX","rotation.x",fps,Animation.ANIMATIONTYPE_FLOAT,Animation.ANIMATIONLOOPMODE_CONSTANT);
-        rightAnimX.setKeys([
-            { frame: 0, value: rightStartX },
-            { frame: 4, value: -1.8 },
-            { frame: 10, value: -1.5 },
-            { frame: 18, value: -1.2 },
-            { frame: 25, value: rightStartX }
-        ]);
-        const rightAnimY = new Animation("halfMoonRightY","rotation.y",fps,Animation.ANIMATIONTYPE_FLOAT,Animation.ANIMATIONLOOPMODE_CONSTANT);
-        rightAnimY.setKeys([
-            { frame: 0, value: rightStartY },
-            { frame: 4, value: 1.0 },
-            { frame: 12, value: -1.2 },
-            { frame: 18, value: -1.4 },
-            { frame: 25, value: rightStartY }
-        ]);
-        const rightAnimZ = new Animation("halfMoonRightZ","rotation.z",fps,Animation.ANIMATIONTYPE_FLOAT,Animation.ANIMATIONLOOPMODE_CONSTANT);
-        rightAnimZ.setKeys([
-            { frame: 0, value: rightStartZ },
-            { frame: 4, value: -0.3 },
-            { frame: 12, value: 0.2 },
-            { frame: 25, value: rightStartZ }
-        ]);
-        const leftAnimX = new Animation("halfMoonLeftX","rotation.x",fps,Animation.ANIMATIONTYPE_FLOAT,Animation.ANIMATIONLOOPMODE_CONSTANT);
-        leftAnimX.setKeys([
-            { frame: 0, value: leftStartX },
-            { frame: 4, value: -0.8 },
-            { frame: 12, value: -0.5 },
-            { frame: 18, value: -0.3 },
-            { frame: 25, value: leftStartX }
-        ]);
-        const leftAnimY = new Animation("halfMoonLeftY","rotation.y",fps,Animation.ANIMATIONTYPE_FLOAT,Animation.ANIMATIONLOOPMODE_CONSTANT);
-        leftAnimY.setKeys([
-            { frame: 0, value: leftStartY },
-            { frame: 4, value: -0.5 },
-            { frame: 12, value: 0.3 },
-            { frame: 25, value: leftStartY }
-        ]);
-        const leftAnimZ = new Animation("halfMoonLeftZ","rotation.z",fps,Animation.ANIMATIONTYPE_FLOAT,Animation.ANIMATIONLOOPMODE_CONSTANT);
-        leftAnimZ.setKeys([
-            { frame: 0, value: leftStartZ },
-            { frame: 4, value: 0.4 },
-            { frame: 12, value: 0.2 },
-            { frame: 25, value: leftStartZ }
-        ]);
-        scene.stopAnimation(boxMan.rightShoulder);
-        scene.stopAnimation(boxMan.leftShoulder);
-        const rightAnimatable = scene.beginDirectAnimation(boxMan.rightShoulder,[rightAnimX, rightAnimY, rightAnimZ],0,25,false,1.2);
-        scene.beginDirectAnimation(boxMan.leftShoulder,[leftAnimX, leftAnimY, leftAnimZ],0,25,false,1.2);
-        rightAnimatable.onAnimationEnd = () => { this.player.halfMoonSlashAnimating = false; };
     }
 
     getPlayerRotation() {
