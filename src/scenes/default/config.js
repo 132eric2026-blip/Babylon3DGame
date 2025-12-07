@@ -18,11 +18,18 @@ export const DefaultSceneConfig = {
     },
     decorations: {
         count: 20, // 装饰物总数
-        areaSize: 80, // 分布范围（-40 到 40）
+        areaSize: 180, // 分布范围（-90 到 90）
         stoneColor: { r: 0.5, g: 0.5, b: 0.5 },
         treeTrunkColor: { r: 0.4, g: 0.2, b: 0.1 },
         treeLeavesColor: { r: 0.1, g: 0.6, b: 0.1 },
         treesEnabled: true, // 是否生成树木
+        treeCount: 200,     // 树木生成数量
+        treesShadowEnabled: true,
+        treeShadowCount: 12,
+        treesPhysicsEnabled: false,
+        trunkHeightRange: { min: 3, max: 8 },
+        trunkWidthRange: { min: 0.55, max: 1.1 },
+        crownSizeRange: { min: 2.0, max: 3.2 },
         rocksEnabled: true,  // 是否生成岩石
         streetLampsEnabled: false // 是否生成路灯
     }

@@ -101,8 +101,8 @@ export class HalfMoonSlash extends BaseSkill {
     createSweepingCrescent(position, rotation) {
         const scene = this.scene;
         const glowLayer = this.player.glowLayer;
-        const radius = 2.8;
-        const arcWidth = 0.35;
+        const radius = 1.8;
+        const arcWidth = 0.1;
         const sweepDuration = 0.22;
         const trailDuration = 0.5;
         const segments = 36;
