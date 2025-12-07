@@ -7,6 +7,7 @@ export { BaseSkill } from "./BaseSkill";
 export { HalfMoonSlash } from "./HalfMoonSlash/HalfMoonSlash";
 export { ThunderSpear } from "./ThunderSpear/ThunderSpear";
 export { FlameShockwave } from "./FlameShockwave/FlameShockwave";
+export { DragonBreath } from "./DragonBreath/DragonBreath";
 export { EnergyShield } from "./EnergyShield/EnergyShield";
 export { AlphaShield } from "./AlphaShield/AlphaShield";
 export { GoldenShield } from "./GoldenShield/GoldenShield";

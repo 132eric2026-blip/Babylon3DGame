@@ -1,6 +1,7 @@
 import { HalfMoonSlash } from "./HalfMoonSlash/HalfMoonSlash";
 import { ThunderSpear } from "./ThunderSpear/ThunderSpear";
 import { FlameShockwave } from "./FlameShockwave/FlameShockwave";
+import { DragonBreath } from "./DragonBreath/DragonBreath";
 //import { EnergyShield } from "./EnergyShield/EnergyShield";
 import { AlphaShield } from "./AlphaShield/AlphaShield";
 //import { GoldenShield } from "./GoldenShield/GoldenShield";
@@ -48,8 +49,10 @@ export class SkillManager {
         //this.skills[4] = new GoldenShield(this.scene, this.player);
         // 实际上 E 键绑定的是 index 5
         this.skills[5] = new AlphaShield(this.scene, this.player);
+        // 第六个技能槽（按键Z）：龙息术
+        this.skills[6] = new DragonBreath(this.scene, this.player);
         // 第七个技能槽：火焰防护盾
-        //this.skills[6] = new FireRingShield(this.scene, this.player);
+        //this.skills[7] = new FireRingShield(this.scene, this.player);
     }
     
     /**
@@ -82,9 +85,9 @@ export class SkillManager {
                 this.activateSkill(5);
             }
             
-            // Z键：预留
+            // Z键：释放龙息术
             if (key.toLowerCase() === 'z') {
-                
+                this.activateSkill(6);
             }
             
         });
