@@ -159,7 +159,7 @@ export class DefaultScene {
      */
     createGround() {
         // 标准地面
-        const ground = MeshBuilder.CreateGround("ground", { width: 200, height: 200, subdivisions: 2 }, this.scene);
+        const ground = MeshBuilder.CreateGround("ground", { width: 100, height: 100, subdivisions: 2 }, this.scene);
         
         const groundMat = new StandardMaterial("groundMat", this.scene);
         groundMat.diffuseColor = new Color3(

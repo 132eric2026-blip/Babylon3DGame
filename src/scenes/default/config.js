@@ -18,12 +18,12 @@ export const DefaultSceneConfig = {
     },
     decorations: {
         count: 20, // 装饰物总数
-        areaSize: 180, // 分布范围（-90 到 90）
+        areaSize:100, // 分布范围（-90 到 90）
         stoneColor: { r: 0.5, g: 0.5, b: 0.5 },
         treeTrunkColor: { r: 0.4, g: 0.2, b: 0.1 },
         treeLeavesColor: { r: 0.1, g: 0.6, b: 0.1 },
         treesEnabled: true, // 是否生成树木
-        treeCount: 200,     // 树木生成数量
+        treeCount: 30,     // 树木生成数量
         treesShadowEnabled: true,
         treeShadowCount: 12,
         treesPhysicsEnabled: true,
