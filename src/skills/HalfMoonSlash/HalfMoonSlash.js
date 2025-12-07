@@ -91,11 +91,8 @@ export class HalfMoonSlash extends BaseSkill {
     }
 
     getPlayerRotation() {
-        if (this.player.modelRoot.rotationQuaternion) {
-            return this.player.modelRoot.rotationQuaternion.toEulerAngles().y;
-        } else {
-            return this.player.modelRoot.rotation.y;
-        }
+        const f = this.player.mesh.getDirection(Vector3.Forward());
+        return Math.atan2(f.x, f.z);
     }
 
     createSweepingCrescent(position, rotation) {
@@ -375,4 +372,3 @@ export class HalfMoonSlash extends BaseSkill {
         return Texture.CreateFromBase64String(canvas.toDataURL(), "sparkParticle", this.scene);
     }
 }
-

@@ -137,10 +137,8 @@ export class FlameShockwave extends BaseSkill {
     }
 
     getPlayerRotation() {
-        if (this.player.modelRoot.rotationQuaternion) {
-            return this.player.modelRoot.rotationQuaternion.toEulerAngles().y;
-        }
-        return this.player.modelRoot.rotation.y;
+        const f = this.player.mesh.getDirection(Vector3.Forward());
+        return Math.atan2(f.x, f.z);
     }
 
     /**
