@@ -45,28 +45,15 @@ export class DecorationManager {
         const areaSize = config.areaSize;
         const half = areaSize / 2;
         const positions = [];
-        const minDist = 3;
-        const shadowEnabled = !!config.treesShadowEnabled;
-        const maxShadow = config.treeShadowCount || 0;
+        const minDist = 2; // 最小间距
 
         // 1. 生成树木
         if (config.treesEnabled) {
             const treeCount = config.treeCount || 20;
-            // 树干材质
-            const trunkMat = new StandardMaterial("treeTrunkMat", this.scene);
-            trunkMat.diffuseColor = new Color3(config.treeTrunkColor.r, config.treeTrunkColor.g, config.treeTrunkColor.b);
-            trunkMat.specularColor = Color3.Black();
-            trunkMat.freeze();
             
-            // 树叶材质
-            const leavesMat = new StandardMaterial("treeLeavesMat", this.scene);
-            leavesMat.diffuseColor = new Color3(config.treeLeavesColor.r, config.treeLeavesColor.g, config.treeLeavesColor.b);
-            leavesMat.specularColor = Color3.Black();
-            leavesMat.freeze();
-
             for (let i = 0; i < treeCount; i++) {
                 let tries = 0;
-                while (tries < 20) {
+                while (tries < 100) {
                     const x = (Math.random() * areaSize) - half;
                     const z = (Math.random() * areaSize) - half;
                     // 避开原点
@@ -80,13 +67,150 @@ export class DecorationManager {
                     tries++;
                 }
             }
-            this.createMinecraftTreesThinInstances(positions);
+            
+            console.log(`成功生成 ${positions.length} 棵树（配置: ${treeCount}）`);
+            this.createInstancedTrees(positions);
         }
 
         // 2. 生成石头（原有逻辑预留）
         if (config.rocksEnabled) {
             // ...
         }
+    }
+    
+    /**
+     * 使用ThinInstance实例化技术创建低多边形树 - 高性能
+     * 合并所有树干为一个mesh，各树冠类型分别一个mesh
+     */
+    createInstancedTrees(positions) {
+        const cfg = DefaultSceneConfig.decorations;
+        const scene = this.scene;
+        
+        // === 创建材质 ===
+        const trunkMat = new StandardMaterial("instTrunkMat", scene);
+        trunkMat.diffuseColor = new Color3(cfg.treeTrunkColor.r, cfg.treeTrunkColor.g, cfg.treeTrunkColor.b);
+        trunkMat.specularColor = Color3.Black();
+        trunkMat.freeze();
+        
+        const leafMat1 = new StandardMaterial("instLeafMat1", scene);
+        leafMat1.diffuseColor = new Color3(0.1, 0.55, 0.15);
+        leafMat1.specularColor = Color3.Black();
+        leafMat1.freeze();
+        
+        const leafMat2 = new StandardMaterial("instLeafMat2", scene);
+        leafMat2.diffuseColor = new Color3(0.15, 0.65, 0.2);
+        leafMat2.specularColor = Color3.Black();
+        leafMat2.freeze();
+        
+        const leafMat3 = new StandardMaterial("instLeafMat3", scene);
+        leafMat3.diffuseColor = new Color3(0.2, 0.7, 0.25);
+        leafMat3.specularColor = Color3.Black();
+        leafMat3.freeze();
+        
+        // === 分配树木类型并收集矩阵 ===
+        const allTrunkMatrices = [];     // 所有树干
+        const sphereCrownMatrices = [];  // 球形树冠
+        const coneCrownMatrices = [];    // 锥形树冠
+        const octaCrownMatrices = [];    // 八面体树冠
+        
+        positions.forEach(({ x, z }) => {
+            const type = Math.random();
+            const height = 3 + Math.random() * 5;
+            const crownSize = 2 + Math.random() * 2;
+            const rotY = Math.random() * Math.PI * 2;
+            
+            // 树干矩阵（所有树共用）
+            const trunkScale = new Vector3(1, height * 0.5, 1);
+            const trunkPos = new Vector3(x, height * 0.25, z);
+            const trunkRot = Quaternion.FromEulerAngles(0, rotY, 0);
+            allTrunkMatrices.push(Matrix.Compose(trunkScale, trunkRot, trunkPos));
+            
+            // 树冠矩阵（按类型分配）
+            const crownRot = Quaternion.FromEulerAngles(0, rotY, 0);
+            if (type < 0.5) {
+                // 球形
+                const crownScale = new Vector3(crownSize, crownSize * 0.8, crownSize);
+                const crownPos = new Vector3(x, height * 0.5 + crownSize * 0.35, z);
+                sphereCrownMatrices.push(Matrix.Compose(crownScale, crownRot, crownPos));
+            } else if (type < 0.8) {
+                // 锥形
+                const crownScale = new Vector3(crownSize, height * 0.6, crownSize);
+                const crownPos = new Vector3(x, height * 0.7, z);
+                coneCrownMatrices.push(Matrix.Compose(crownScale, crownRot, crownPos));
+            } else {
+                // 八面体
+                const crownScale = new Vector3(crownSize, crownSize * 0.8, crownSize);
+                const crownPos = new Vector3(x, height * 0.5 + crownSize * 0.4, z);
+                octaCrownMatrices.push(Matrix.Compose(crownScale, crownRot, crownPos));
+            }
+        });
+        
+        // 获取阴影生成器
+        const shadowGen = scene.shadowGenerator;
+        const shadowList = shadowGen ? shadowGen.getShadowMap().renderList : null;
+        
+        // === 创建树干mesh（所有树共用一个）===
+        const trunkMesh = MeshBuilder.CreateCylinder("allTrunks", {
+            height: 1,
+            diameterTop: 0.4,
+            diameterBottom: 0.7,
+            tessellation: 6
+        }, scene);
+        trunkMesh.material = trunkMat;
+        trunkMesh.receiveShadows = true;
+        if (shadowList) shadowList.push(trunkMesh);
+        if (allTrunkMatrices.length > 0) {
+            const data = new Float32Array(allTrunkMatrices.length * 16);
+            allTrunkMatrices.forEach((m, i) => m.toArray(data, i * 16));
+            trunkMesh.thinInstanceSetBuffer("matrix", data, 16);
+        }
+        
+        // === 创建球形树冠mesh ===
+        if (sphereCrownMatrices.length > 0) {
+            const sphereMesh = MeshBuilder.CreateSphere("sphereCrowns", {
+                diameter: 1,
+                segments: 6
+            }, scene);
+            sphereMesh.material = leafMat1;
+            sphereMesh.receiveShadows = true;
+            if (shadowList) shadowList.push(sphereMesh);
+            const data = new Float32Array(sphereCrownMatrices.length * 16);
+            sphereCrownMatrices.forEach((m, i) => m.toArray(data, i * 16));
+            sphereMesh.thinInstanceSetBuffer("matrix", data, 16);
+        }
+        
+        // === 创建锥形树冠mesh ===
+        if (coneCrownMatrices.length > 0) {
+            const coneMesh = MeshBuilder.CreateCylinder("coneCrowns", {
+                height: 1,
+                diameterTop: 0,
+                diameterBottom: 1,
+                tessellation: 6
+            }, scene);
+            coneMesh.material = leafMat2;
+            coneMesh.receiveShadows = true;
+            if (shadowList) shadowList.push(coneMesh);
+            const data = new Float32Array(coneCrownMatrices.length * 16);
+            coneCrownMatrices.forEach((m, i) => m.toArray(data, i * 16));
+            coneMesh.thinInstanceSetBuffer("matrix", data, 16);
+        }
+        
+        // === 创建八面体树冠mesh ===
+        if (octaCrownMatrices.length > 0) {
+            const octaMesh = MeshBuilder.CreatePolyhedron("octaCrowns", {
+                type: 1,
+                size: 0.5
+            }, scene);
+            octaMesh.material = leafMat3;
+            octaMesh.receiveShadows = true;
+            if (shadowList) shadowList.push(octaMesh);
+            const data = new Float32Array(octaCrownMatrices.length * 16);
+            octaCrownMatrices.forEach((m, i) => m.toArray(data, i * 16));
+            octaMesh.thinInstanceSetBuffer("matrix", data, 16);
+        }
+        
+        console.log(`ThinInstance树: ${positions.length}棵 (球形:${sphereCrownMatrices.length}, 锥形:${coneCrownMatrices.length}, 八面体:${octaCrownMatrices.length})`);
+        console.log(`Draw Calls: 4次 (1树干 + 3树冠类型)`);
     }
 
     /**
