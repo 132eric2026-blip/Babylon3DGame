@@ -96,8 +96,6 @@ export class SkillManager {
         });
         
         // 鼠标中键：凤凰射线（按住持续释放）
-        // 注意：这部分逻辑已移动到 Player.js 中处理，以便支持 UI 遮挡检测
-        /*
         window.addEventListener("mousedown", (evt) => {
             if (evt.button === 1) { // 鼠标中键
                 evt.preventDefault();
@@ -116,7 +114,6 @@ export class SkillManager {
                 }
             }
         });
-        */
         
         // 防止中键点击时的默认滚动行为
         window.addEventListener("auxclick", (evt) => {

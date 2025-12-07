@@ -10,7 +10,8 @@ import {
     Mesh, 
     PointLight,
     Animation,
-    Ray
+    Ray,
+    Quaternion
 } from "@babylonjs/core";
 import { BaseSkill } from "../BaseSkill";
 
@@ -44,6 +45,10 @@ export class PhoenixRay extends BaseSkill {
         // this.playCastAnimation();
     }
 
+    start() {
+        this.startChanneling();
+    }
+
     /**
      * 停止引导技能（松开按键）
      */
@@ -53,6 +58,10 @@ export class PhoenixRay extends BaseSkill {
         
         // 清理视觉效果
         this.cleanupVisuals();
+    }
+
+    stop() {
+        this.stopChanneling();
     }
 
     /**
@@ -77,9 +86,7 @@ export class PhoenixRay extends BaseSkill {
         
         // 创建射线根节点，方便统一管理位置
         this.rootNode = new TransformNode("phoenixRayRoot", scene);
-        // 直接挂到玩家主体上，自动跟随朝向
-        this.rootNode.parent = this.player.mesh;
-        this.rootNode.position = new Vector3(0, 1.2, 0);
+        this.updateRootTransform(); // 初始化位置
 
         // 1. 核心射线模型 (发光的圆柱体)
         this.rayMesh = MeshBuilder.CreateCylinder("phoenixRayCore", {
@@ -148,19 +155,51 @@ export class PhoenixRay extends BaseSkill {
      * 更新根节点的位置和旋转，使其始终跟随着玩家并朝向前方
      */
     updateRootTransform() {
-        if (!this.rootNode) return;
-        if (this.rootNode.parent) {
-            this.rootNode.position.set(0, 1.2, 0);
-            this.rootNode.rotation.set(0, 0, 0);
-            return;
+        if (!this.player.mesh || !this.rootNode) return;
+
+        // 确保获取最新的世界变换
+        const bm = this.player.boxMan;
+        let rotationQuat = null;
+
+        if (bm && bm.modelRoot) {
+            // 强制计算最新的世界矩阵，确保 absoluteRotationQuaternion 是最新的
+            bm.modelRoot.computeWorldMatrix(true);
+            if (bm.modelRoot.absoluteRotationQuaternion) {
+                rotationQuat = bm.modelRoot.absoluteRotationQuaternion.clone();
+            }
         }
-        if (!this.player.mesh) return;
-        const playerPos = this.player.mesh.position;
-        const emitPos = playerPos.clone().add(new Vector3(0, 1.2, 0));
+
+        // 如果获取不到绝对旋转，回退到使用 currentYaw
+        if (!rotationQuat) {
+            const yaw = this.player.currentYaw || 0;
+            rotationQuat = Quaternion.FromEulerAngles(0, yaw, 0);
+        }
+
+        // 应用旋转到射线根节点
+        if (!this.rootNode.rotationQuaternion) {
+            this.rootNode.rotationQuaternion = rotationQuat;
+        } else {
+            this.rootNode.rotationQuaternion.copyFrom(rotationQuat);
+        }
+
+        // 计算前方向 (从旋转四元数提取)
+        const forward = new Vector3(0, 0, 1);
+        forward.rotateByQuaternionToRef(rotationQuat, forward);
+
+        // 计算发射点
+        let emitPos;
+        if (bm && bm.leftShoulder && bm.rightShoulder) {
+            const lp = bm.leftShoulder.getAbsolutePosition();
+            const rp = bm.rightShoulder.getAbsolutePosition();
+            const mid = lp.add(rp).scale(0.5);
+            // 沿朝向偏移
+            emitPos = mid.add(forward.scale(0.5)).add(new Vector3(0, 0.08, 0));
+        } else {
+            // 回退：胸口位置
+            const playerPos = this.player.mesh.position;
+            emitPos = playerPos.clone().add(new Vector3(0, 1.2, 0));
+        }
         this.rootNode.position = emitPos;
-        const f = this.player.mesh.getDirection(Vector3.Forward());
-        const rotationY = Math.atan2(f.x, f.z);
-        this.rootNode.rotation = new Vector3(0, rotationY, 0);
     }
 
     /**

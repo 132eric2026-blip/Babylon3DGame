@@ -97,7 +97,7 @@ export class Player2 {
         this.skillManager = new SkillManager(scene, this);
         
         // 凤凰射线技能（独立管理，绑定鼠标中键）
-        // this.phoenixRay = new PhoenixRay(scene, this); // 已移至 SkillManager 管理
+        this.phoenixRay = new PhoenixRay(scene, this);
 
         this.setupInputs();
         this.setupGun(); // 初始化武器系统
@@ -921,8 +921,8 @@ export class Player2 {
                     this.fireWeapon();
                 } else if (pointerInfo.event.button === 1) {
                     // 鼠标中键：释放凤凰射线
-                    if (this.skillManager && this.skillManager.skills[8]) {
-                        this.skillManager.skills[8].startChanneling();
+                    if (this.phoenixRay) {
+                        this.phoenixRay.start();
                     }
                 }
             } else if (pointerInfo.type === PointerEventTypes.POINTERUP) {
@@ -930,8 +930,8 @@ export class Player2 {
                     this.fireInputPressed = false;
                 } else if (pointerInfo.event.button === 1) {
                     // 鼠标中键抬起：停止凤凰射线
-                    if (this.skillManager && this.skillManager.skills[8]) {
-                        this.skillManager.skills[8].stopChanneling();
+                    if (this.phoenixRay) {
+                        this.phoenixRay.stop();
                     }
                 }
             }
@@ -947,12 +947,8 @@ export class Player2 {
             if (this.skillManager) {
                 this.skillManager.update(dt);
             }
-            
-            // 更新凤凰射线 (已由 SkillManager 统一更新)
-            // if (this.phoenixRay) {
-            //     this.phoenixRay.update(dt);
-            // }
 
+            // 先更新移动/朝向
             this.updateMovement();
 
             // Check if moving (horizontal or vertical)
@@ -962,7 +958,13 @@ export class Player2 {
                 this.boxMan.updateBoosterEffect(this.isBoosterActive, isMoving);
             }
 
+            // 更新角色动画（同步 mesh 朝向）
             this.animate();
+
+            // 最后更新凤凰射线，使用最新朝向
+            if (this.phoenixRay) {
+                this.phoenixRay.update(dt);
+            }
         });
     }
 
