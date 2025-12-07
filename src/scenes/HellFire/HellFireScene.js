@@ -71,46 +71,22 @@ export class HellFireScene {
 
         // 阴影
         if (Config.scene.shadows && Config.scene.shadows.enabled) {
-            const shadowConfig = Config.scene.shadows;
-            const treeShadow = DefaultSceneConfig.decorations && DefaultSceneConfig.decorations.treeShadow;
-            const size = treeShadow && treeShadow.mapSize ? treeShadow.mapSize : shadowConfig.size;
-            const shadowGenerator = new ShadowGenerator(size, dirLight);
+            // 强制使用高分辨率 Shadow Map
+            const shadowGenerator = new ShadowGenerator(4096, dirLight);
 
-            const filter = treeShadow && treeShadow.filter ? treeShadow.filter : "pcf";
-            if (filter === "pcf") {
-                shadowGenerator.usePercentageCloserFiltering = true;
-                const q = treeShadow && treeShadow.quality ? treeShadow.quality : "high";
-                shadowGenerator.filteringQuality = q === "low" ? ShadowGenerator.QUALITY_LOW : (q === "medium" ? ShadowGenerator.QUALITY_MEDIUM : ShadowGenerator.QUALITY_HIGH);
-                shadowGenerator.useBlurExponentialShadowMap = false;
-                shadowGenerator.useKernelBlur = false;
-            } else {
-                const useESM = (treeShadow && treeShadow.useBlurExponentialShadowMap !== undefined)
-                    ? treeShadow.useBlurExponentialShadowMap
-                    : shadowConfig.useBlurExponentialShadowMap;
-                shadowGenerator.useBlurExponentialShadowMap = useESM;
-                const blurKernel = (treeShadow && treeShadow.blurKernel !== undefined)
-                    ? treeShadow.blurKernel
-                    : (treeShadow && treeShadow.quality
-                        ? (treeShadow.quality === "low" ? 8 : (treeShadow.quality === "high" ? 32 : 16))
-                        : shadowConfig.blurKernel);
-                shadowGenerator.blurKernel = blurKernel;
-                shadowGenerator.useKernelBlur = (treeShadow && treeShadow.useKernelBlur !== undefined)
-                    ? treeShadow.useKernelBlur
-                    : shadowConfig.useKernelBlur;
-            }
+            // 启用模糊指数阴影贴图 (Blur Exponential Shadow Map) 以彻底消除锯齿
+            shadowGenerator.useBlurExponentialShadowMap = true;
+            shadowGenerator.blurKernel = 32; // 高模糊内核，使边缘非常柔和
+            shadowGenerator.depthScale = 60.0; // 调整深度比例以减少伪影
 
-            if (treeShadow && treeShadow.darkness !== undefined) {
-                shadowGenerator.setDarkness(treeShadow.darkness);
-            } else if (shadowConfig.darkness !== undefined) {
-                shadowGenerator.setDarkness(shadowConfig.darkness);
-            }
+            // 也可以尝试 Close ESM，但在大场景下 Blur ESM 效果最平滑
+            // shadowGenerator.useBlurCloseExponentialShadowMap = true;
 
-            if (treeShadow && treeShadow.bias !== undefined) {
-                shadowGenerator.bias = treeShadow.bias;
-            }
-            if (treeShadow && treeShadow.normalBias !== undefined) {
-                shadowGenerator.normalBias = treeShadow.normalBias;
-            }
+            shadowGenerator.setDarkness(0.5);
+            
+            // 调整 Bias 防止波纹
+            shadowGenerator.bias = 0.00005;
+            shadowGenerator.normalBias = 0.01;
 
             this.scene.shadowGenerator = shadowGenerator;
         }
@@ -125,26 +101,33 @@ export class HellFireScene {
         
         const groundMat = new StandardMaterial("groundMat", this.scene);
         
-        // 地狱火半岛红褐色焦土风格
-        groundMat.diffuseColor = new Color3(0.3, 0.1, 0.05); 
-        groundMat.specularColor = new Color3(0.05, 0.02, 0.02); // 降低高光强度，减少闪烁
-        groundMat.specularPower = 32; // 更柔和的高光
-
-        // 使用噪点纹理增加地面细节（模拟龟裂/粗糙感）
-        const noiseTexture = new NoiseProceduralTexture("perlin", 512, this.scene);
-        noiseTexture.animationSpeedFactor = 0;
-        noiseTexture.octaves = 3; // 降低细节频率，减少锯齿
-        noiseTexture.persistence = 0.6; // 降低持续度，使表面更平滑
-        noiseTexture.brightness = 0.5;
+        // 地狱火半岛：静谧红土荒原
+        // 1. 漫反射：经典的红褐色干燥土壤
+        groundMat.diffuseColor = new Color3(0.4, 0.15, 0.1); 
         
-        // 尝试开启各向异性过滤以改善倾斜视角下的效果
+        // 2. 高光：几乎没有光泽，模拟干燥的尘土
+        groundMat.specularColor = new Color3(0.1, 0.1, 0.1);
+        groundMat.specularPower = 64;
+
+        // 3. 移除自发光与动态效果，回归纯粹的物理质感
+        groundMat.emissiveColor = new Color3(0, 0, 0);
+        groundMat.emissiveTexture = null;
+
+        // 4. 表面纹理 (Bump)
+        // 使用多层噪点叠加模拟自然的地面起伏与龟裂
+        const soilNoise = new NoiseProceduralTexture("soilNoise", 1024, this.scene);
+        soilNoise.animationSpeedFactor = 0; // 静态
+        soilNoise.octaves = 6; // 丰富的细节
+        soilNoise.persistence = 0.8; // 较高的粗糙度
+        soilNoise.brightness = 0.5;
+        
+        // 开启各向异性过滤保证远处清晰
         if (this.scene.getEngine().getCaps().maxAnisotropy > 1) {
-             noiseTexture.anisotropicFilteringLevel = 4;
+             soilNoise.anisotropicFilteringLevel = 4;
         }
 
-        // 将噪点应用为法线贴图(Bump)
-        groundMat.bumpTexture = noiseTexture;
-        groundMat.bumpTexture.level = 0.4; // 降低法线强度，减少噪点感
+        groundMat.bumpTexture = soilNoise;
+        groundMat.bumpTexture.level = 0.5; // 适中的凹凸感
 
         ground.material = groundMat;
         ground.receiveShadows = true;
