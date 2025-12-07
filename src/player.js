@@ -10,6 +10,7 @@ import { createForestStaffMesh, getForestStaffIcon } from "./equipment/weapons/r
 import { createThunderStormBladeMesh, getThunderStormBladeIcon } from "./equipment/weapons/melee/ThunderStormBlade";
 import { BackpackUI } from "./ui/BackpackUI";
 import { SkillManager } from "./skills/SkillManager";
+import { PhoenixRay } from "./skills/PhoenixRay/PhoenixRay";
 
 export class Player2 {
     constructor(scene, camera, glowLayer = null) {
@@ -94,6 +95,9 @@ export class Player2 {
 
         // 初始化技能管理器
         this.skillManager = new SkillManager(scene, this);
+        
+        // 凤凰射线技能（独立管理，绑定鼠标中键）
+        this.phoenixRay = new PhoenixRay(scene, this);
 
         this.setupInputs();
         this.setupGun(); // 初始化武器系统
@@ -915,10 +919,20 @@ export class Player2 {
                     // 同时也触发槍器（如果持有武器）
                     this.fireInputPressed = true;
                     this.fireWeapon();
+                } else if (pointerInfo.event.button === 1) {
+                    // 鼠标中键：释放凤凰射线
+                    if (this.phoenixRay) {
+                        this.phoenixRay.start();
+                    }
                 }
             } else if (pointerInfo.type === PointerEventTypes.POINTERUP) {
                 if (pointerInfo.event.button === 0) {
                     this.fireInputPressed = false;
+                } else if (pointerInfo.event.button === 1) {
+                    // 鼠标中键抬起：停止凤凰射线
+                    if (this.phoenixRay) {
+                        this.phoenixRay.stop();
+                    }
                 }
             }
         });
@@ -932,6 +946,11 @@ export class Player2 {
             // 更新技能管理器
             if (this.skillManager) {
                 this.skillManager.update(dt);
+            }
+            
+            // 更新凤凰射线
+            if (this.phoenixRay) {
+                this.phoenixRay.update(dt);
             }
 
             this.updateMovement();

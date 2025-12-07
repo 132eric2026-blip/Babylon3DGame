@@ -11,4 +11,5 @@ export { DragonBreath } from "./DragonBreath/DragonBreath";
 export { EnergyShield } from "./EnergyShield/EnergyShield";
 export { AlphaShield } from "./AlphaShield/AlphaShield";
 export { GoldenShield } from "./GoldenShield/GoldenShield";
+export { PhoenixRay } from "./PhoenixRay/PhoenixRay";
 

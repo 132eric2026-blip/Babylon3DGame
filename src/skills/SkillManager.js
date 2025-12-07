@@ -6,6 +6,7 @@ import { DragonBreath } from "./DragonBreath/DragonBreath";
 import { AlphaShield } from "./AlphaShield/AlphaShield";
 //import { GoldenShield } from "./GoldenShield/GoldenShield";
 //import { FireRingShield } from "./FireRingShield/FireRingShield";
+import { PhoenixRay } from "./PhoenixRay/PhoenixRay";
 // 已移除 FireShield
 
 
@@ -53,6 +54,8 @@ export class SkillManager {
         this.skills[6] = new DragonBreath(this.scene, this.player);
         // 第七个技能槽：火焰防护盾
         //this.skills[7] = new FireRingShield(this.scene, this.player);
+        // 第八个技能槽（鼠标中键）：凤凰射线（持续释放）
+        this.skills[8] = new PhoenixRay(this.scene, this.player);
     }
     
     /**
@@ -90,6 +93,33 @@ export class SkillManager {
                 this.activateSkill(6);
             }
             
+        });
+        
+        // 鼠标中键：凤凰射线（按住持续释放）
+        window.addEventListener("mousedown", (evt) => {
+            if (evt.button === 1) { // 鼠标中键
+                evt.preventDefault();
+                const phoenixRay = this.skills[8];
+                if (phoenixRay && phoenixRay.startChanneling) {
+                    phoenixRay.startChanneling();
+                }
+            }
+        });
+        
+        window.addEventListener("mouseup", (evt) => {
+            if (evt.button === 1) { // 鼠标中键
+                const phoenixRay = this.skills[8];
+                if (phoenixRay && phoenixRay.stopChanneling) {
+                    phoenixRay.stopChanneling();
+                }
+            }
+        });
+        
+        // 防止中键点击时的默认滚动行为
+        window.addEventListener("auxclick", (evt) => {
+            if (evt.button === 1) {
+                evt.preventDefault();
+            }
         });
     }
     
