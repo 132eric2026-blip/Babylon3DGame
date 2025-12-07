@@ -176,8 +176,6 @@ export class PhoenixRay extends BaseSkill {
             z: boxMan.rightShoulder.rotation.z
         };
 
-        this.player.phoenixRayAnimating = true;
-
         // 左臂动画：前推 + 向右内收 (约45度)
         const leftAnimX = new Animation("phoenixLeftX", "rotation.x", fps,
             Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
@@ -228,6 +226,8 @@ export class PhoenixRay extends BaseSkill {
         scene.stopAnimation(boxMan.leftShoulder);
         scene.stopAnimation(boxMan.rightShoulder);
 
+        this.player.phoenixRayAnimating = true;
+
         this._leftAnimatable = scene.beginDirectAnimation(
             boxMan.leftShoulder,
             [leftAnimX, leftAnimY, leftAnimZ],
@@ -247,28 +247,76 @@ export class PhoenixRay extends BaseSkill {
         const boxMan = this.player.boxMan;
         if (!boxMan || !boxMan.leftShoulder || !boxMan.rightShoulder) return;
         
-        this.player.phoenixRayAnimating = false;
-        
-        // 如果没有记录初始姿势，直接重置为0
-        const lx = this._leftStart ? this._leftStart.x : 0;
-        const ly = this._leftStart ? this._leftStart.y : 0;
-        const lz = this._leftStart ? this._leftStart.z : 0;
-        
-        const rx = this._rightStart ? this._rightStart.x : 0;
-        const ry = this._rightStart ? this._rightStart.y : 0;
-        const rz = this._rightStart ? this._rightStart.z : 0;
-
         const scene = this.scene;
+
+        // 1. 立即停止之前的施法动画
+        if (this._leftAnimatable) {
+            this._leftAnimatable.stop();
+            this._leftAnimatable = null;
+        }
+        if (this._rightAnimatable) {
+            this._rightAnimatable.stop();
+            this._rightAnimatable = null;
+        }
+        
+        // 确保所有关联动画都停止
+        scene.stopAnimation(boxMan.leftShoulder);
+        scene.stopAnimation(boxMan.rightShoulder);
+
+        // 2. 目标值：X恢复初始，Y/Z强制归零（修复45度残留问题）
+        const lx = this._leftStart ? this._leftStart.x : 0;
+        const rx = this._rightStart ? this._rightStart.x : 0;
+
         const fps = 60;
+        const duration = 15; // frames
         
-        // 简单的过渡动画回位
-        Animation.CreateAndStartAnimation("restoreLeftX", boxMan.leftShoulder, "rotation.x", fps, 10, boxMan.leftShoulder.rotation.x, lx, 0);
-        Animation.CreateAndStartAnimation("restoreLeftY", boxMan.leftShoulder, "rotation.y", fps, 10, boxMan.leftShoulder.rotation.y, ly, 0);
-        Animation.CreateAndStartAnimation("restoreLeftZ", boxMan.leftShoulder, "rotation.z", fps, 10, boxMan.leftShoulder.rotation.z, lz, 0);
+        // Helper to create and stop animation
+        const animateTo = (target, prop, endVal, onEnd) => {
+            let startVal = 0;
+            // 获取当前实际值
+            if (prop === "rotation.x") startVal = target.rotation.x;
+            else if (prop === "rotation.y") startVal = target.rotation.y;
+            else if (prop === "rotation.z") startVal = target.rotation.z;
+            
+            // 使用 CreateAndStartAnimation 会自动处理动画循环和停止
+            Animation.CreateAndStartAnimation(
+                "restore_" + target.name + "_" + prop,
+                target,
+                prop,
+                fps,
+                duration,
+                startVal,
+                endVal,
+                Animation.ANIMATIONLOOPMODE_CONSTANT,
+                null,
+                () => {
+                    // 动画结束后再次强制赋值，确保数值精确
+                    if (prop === "rotation.x") target.rotation.x = endVal;
+                    else if (prop === "rotation.y") target.rotation.y = endVal;
+                    else if (prop === "rotation.z") target.rotation.z = endVal;
+                    
+                    if (onEnd) onEnd();
+                }
+            );
+        };
+
+        // 并行执行恢复动画
+        animateTo(boxMan.leftShoulder, "rotation.x", lx);
+        animateTo(boxMan.leftShoulder, "rotation.y", 0); 
+        animateTo(boxMan.leftShoulder, "rotation.z", 0);
         
-        Animation.CreateAndStartAnimation("restoreRightX", boxMan.rightShoulder, "rotation.x", fps, 10, boxMan.rightShoulder.rotation.x, rx, 0);
-        Animation.CreateAndStartAnimation("restoreRightY", boxMan.rightShoulder, "rotation.y", fps, 10, boxMan.rightShoulder.rotation.y, ry, 0);
-        Animation.CreateAndStartAnimation("restoreRightZ", boxMan.rightShoulder, "rotation.z", fps, 10, boxMan.rightShoulder.rotation.z, rz, 0);
+        animateTo(boxMan.rightShoulder, "rotation.x", rx);
+        animateTo(boxMan.rightShoulder, "rotation.y", 0);
+        
+        // 最后的回调用于解锁状态
+        animateTo(boxMan.rightShoulder, "rotation.z", 0, () => {
+             if (this.player) {
+                 this.player.phoenixRayAnimating = false;
+                 // 再次确保没有任何动画锁定
+                 scene.stopAnimation(boxMan.leftShoulder);
+                 scene.stopAnimation(boxMan.rightShoulder);
+             }
+        });
     }
 
     /**
