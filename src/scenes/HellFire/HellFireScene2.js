@@ -1,4 +1,4 @@
-import { HemisphericLight, DirectionalLight, Vector3, MeshBuilder, StandardMaterial, Color3, ShadowGenerator, PhysicsAggregate, PhysicsShapeType, Color4, NoiseProceduralTexture } from "@babylonjs/core";
+import { HemisphericLight, DirectionalLight, Vector3, MeshBuilder, StandardMaterial, Color3, ShadowGenerator, PhysicsAggregate, PhysicsShapeType, Color4 } from "@babylonjs/core";
 import { Config } from "../../config";
 import { DefaultSceneConfig } from "./config";
 import { DecorationManager } from "./decorations";
@@ -120,37 +120,24 @@ export class HellFireScene {
      * 创建地面并启用物理与坐标轴（可选）
      */
     createGround() {
-        // 地狱火半岛风格地面 - 增加细分以配合光照
-        const ground = MeshBuilder.CreateGround("ground", { width: 200, height: 200, subdivisions: 32 }, this.scene);
+        // 标准地面
+        const ground = MeshBuilder.CreateGround("ground", { width: 100, height: 100, subdivisions: 2 }, this.scene);
         
         const groundMat = new StandardMaterial("groundMat", this.scene);
+        groundMat.diffuseColor = new Color3(
+            DefaultSceneConfig.groundColor.r,
+            DefaultSceneConfig.groundColor.g,
+            DefaultSceneConfig.groundColor.b
+        ); // 灰色地面
+        groundMat.specularColor = new Color3(0, 0, 0); // 去掉高光
         
-        // 地狱火半岛红褐色焦土风格
-        groundMat.diffuseColor = new Color3(0.3, 0.1, 0.05); 
-        groundMat.specularColor = new Color3(0.05, 0.02, 0.02); // 降低高光强度，减少闪烁
-        groundMat.specularPower = 32; // 更柔和的高光
-
-        // 使用噪点纹理增加地面细节（模拟龟裂/粗糙感）
-        const noiseTexture = new NoiseProceduralTexture("perlin", 512, this.scene);
-        noiseTexture.animationSpeedFactor = 0;
-        noiseTexture.octaves = 3; // 降低细节频率，减少锯齿
-        noiseTexture.persistence = 0.6; // 降低持续度，使表面更平滑
-        noiseTexture.brightness = 0.5;
+        // 可选：网格纹理，默认场景使用纯色即可
         
-        // 尝试开启各向异性过滤以改善倾斜视角下的效果
-        if (this.scene.getEngine().getCaps().maxAnisotropy > 1) {
-             noiseTexture.anisotropicFilteringLevel = 4;
-        }
-
-        // 将噪点应用为法线贴图(Bump)
-        groundMat.bumpTexture = noiseTexture;
-        groundMat.bumpTexture.level = 0.4; // 降低法线强度，减少噪点感
-
         ground.material = groundMat;
         ground.receiveShadows = true;
 
         // 物理
-        new PhysicsAggregate(ground, PhysicsShapeType.BOX, { mass: 0, friction: 0.6, restitution: 0.1 }, this.scene);
+        new PhysicsAggregate(ground, PhysicsShapeType.BOX, { mass: 0, friction: 0.5, restitution: 0.1 }, this.scene);
 
         // 坐标轴
         if (Config.scene.showAxes) {
