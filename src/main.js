@@ -1,4 +1,5 @@
 import { WebGPUEngine, Scene, Vector3, ArcRotateCamera, HavokPlugin, GlowLayer } from "@babylonjs/core";
+import { VolumetricLightScatteringPostProcess } from "@babylonjs/core/PostProcesses/volumetricLightScatteringPostProcess";
 import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline";
 import HavokPhysics from "@babylonjs/havok";
 import { SagittariusScene } from "./scenes/sagittarius/SagittariusScene";
@@ -146,10 +147,13 @@ async function createScene(engine) {
     pipeline.fxaaEnabled = true;
     pipeline.samples = 4;
     pipeline.bloomEnabled = true;
-    pipeline.bloomThreshold = 0.65;
-    pipeline.bloomWeight = 1.1;
-    pipeline.bloomKernel = 96;
-    pipeline.bloomScale = 0.5;
+    pipeline.bloomThreshold = 0.5;
+    pipeline.bloomWeight = 1.3;
+    pipeline.bloomKernel = 128;
+    pipeline.bloomScale = 0.6;
+
+    scene.imageProcessingConfiguration.exposure = 1.08;
+    scene.imageProcessingConfiguration.contrast = 1.06;
 
     // 发光层（可选）：用于对特定网格增强泛光
     const glowLayer = new GlowLayer("glowLayer", scene);
@@ -163,6 +167,15 @@ async function createScene(engine) {
     // 相机跟随玩家
     // 注意：player.mesh 是物理胶囊体
     camera.lockedTarget = player.mesh;
+
+    const moonMesh = scene.getMeshByName("moon");
+    if (moonMesh) {
+        const vls = new VolumetricLightScatteringPostProcess("godrays", 1.0, camera, moonMesh);
+        vls.exposure = 0.38;
+        vls.decay = 0.95;
+        vls.weight = 0.92;
+        vls.density = 0.9;
+    }
 
     // 关键修复：
     // BoxMan 会自动将自己添加到 glowLayer (IncludedOnly模式)，从而屏蔽场景其他元素(如路灯)的泛光。

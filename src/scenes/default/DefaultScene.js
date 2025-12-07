@@ -1,4 +1,4 @@
-import { HemisphericLight, DirectionalLight, Vector3, MeshBuilder, StandardMaterial, Color3, ShadowGenerator, PhysicsAggregate, PhysicsShapeType, Color4 } from "@babylonjs/core";
+import { HemisphericLight, DirectionalLight, Vector3, MeshBuilder, StandardMaterial, Color3, ShadowGenerator, PhysicsAggregate, PhysicsShapeType, Color4, ShaderMaterial, Effect, Engine } from "@babylonjs/core";
 import { Config } from "../../config";
 import { DefaultSceneConfig } from "./config";
 import { DecorationManager } from "./decorations";
@@ -23,6 +23,7 @@ export class DefaultScene {
     create() {
         this.setupEnvironment();
         this.setupLights();
+        this.createNightSky();
         this.createGround();
         this.createDecorations();
     }
@@ -82,14 +83,120 @@ export class DefaultScene {
         }
     }
 
+    createNightSky() {
+        Effect.ShadersStore["nightSkyVertexShader"] = `
+            precision highp float;
+            attribute vec3 position;
+            uniform mat4 worldViewProjection;
+            varying vec3 vPos;
+            void main() {
+                vPos = position;
+                gl_Position = worldViewProjection * vec4(position, 1.0);
+            }
+        `;
+        Effect.ShadersStore["nightSkyFragmentShader"] = `
+            precision highp float;
+            varying vec3 vPos;
+            uniform float time;
+            float hash(vec3 p){
+                p = fract(p*0.3183099 + vec3(0.1,0.2,0.3));
+                p *= 17.0;
+                return fract(p.x*p.y*p.z*(p.x+p.y+p.z));
+            }
+            float noise(vec3 p){
+                vec3 i = floor(p);
+                vec3 f = fract(p);
+                f = f*f*(3.0-2.0*f);
+                float n = mix(mix(mix(hash(i+vec3(0,0,0)), hash(i+vec3(1,0,0)), f.x),
+                                  mix(hash(i+vec3(0,1,0)), hash(i+vec3(1,1,0)), f.x), f.y),
+                               mix(mix(hash(i+vec3(0,0,1)), hash(i+vec3(1,0,1)), f.x),
+                                   mix(hash(i+vec3(0,1,1)), hash(i+vec3(1,1,1)), f.x), f.y), f.z);
+                return n;
+            }
+            float fbm(vec3 p){
+                float a = 0.0;
+                float w = 0.5;
+                for(int i=0;i<5;i++){
+                    a += w*noise(p);
+                    p *= 2.0;
+                    w *= 0.5;
+                }
+                return a;
+            }
+            void main(){
+                vec3 dir = normalize(vPos);
+                float alt = clamp(dir.y*0.5 + 0.5, 0.0, 1.0);
+                vec3 base = mix(vec3(0.02,0.02,0.06), vec3(0.02,0.0,0.08), alt);
+                vec3 dusk1 = vec3(0.75,0.22,0.10);
+                vec3 dusk2 = vec3(0.40,0.06,0.26);
+                float h = smoothstep(0.0,0.35, 1.0-alt);
+                vec3 horizon = mix(dusk2, dusk1, 0.6);
+                vec3 col = base + horizon*h*0.8;
+                float stars = smoothstep(0.995,1.0, noise(dir*80.0+time*0.05));
+                float twinkle = 0.6 + 0.4*sin(time*2.5 + noise(dir*10.0)*6.2831);
+                vec3 starCol = vec3(1.0,0.95,0.9) * stars * twinkle;
+                float band = 1.0 - abs(dot(dir, normalize(vec3(0.0,0.3,1.0))));
+                float mw = smoothstep(0.65,0.85, band);
+                vec3 neb = vec3(0.05,0.08,0.12) * fbm(dir*6.0 + vec3(0.0,time*0.02,0.0));
+                col += neb + vec3(0.2,0.22,0.35)*mw*0.6;
+                float u = dot(normalize(vec2(dir.x, dir.z)), vec2(1.0,0.0));
+                float warp = fbm(dir*8.0 + vec3(0.0,time*0.1,0.0));
+                float wave = sin(u*12.0 + warp*4.0 + time*0.7);
+                float stripe = smoothstep(0.70,0.98, 1.0-abs(wave));
+                float spread = smoothstep(0.15,0.65, alt) * (1.0 - smoothstep(0.75,0.95, alt));
+                float aur = stripe * spread;
+                vec3 aurCol = mix(vec3(0.55,0.85,0.20), vec3(0.95,0.95,0.35), 0.5 + 0.5*sin(time*0.5));
+                col += aurCol * aur * 1.2;
+                float u2 = dot(normalize(vec2(dir.x, dir.z)), vec2(0.6,0.8));
+                float warp2 = fbm(dir*10.0 + vec3(0.0,time*0.06,0.0));
+                float wave2 = sin(u2*10.0 + warp2*5.0 + time*0.9);
+                float stripe2 = smoothstep(0.65,0.95, 1.0-abs(wave2));
+                float spread2 = smoothstep(0.20,0.70, alt) * (1.0 - smoothstep(0.60,0.90, alt));
+                float aur2 = stripe2 * spread2;
+                vec3 aurCol2 = vec3(0.35,0.85,0.65);
+                col += aurCol2 * aur2 * 0.9;
+                col += starCol;
+                gl_FragColor = vec4(col,1.0);
+            }
+        `;
+        const mat = new ShaderMaterial("nightSkyMat", this.scene, { vertex: "nightSky", fragment: "nightSky" }, {
+            attributes: ["position"],
+            uniforms: ["worldViewProjection", "time"]
+        });
+        mat.backFaceCulling = false;
+        mat.disableLighting = true;
+        const sky = MeshBuilder.CreateSphere("nightSky", { diameter: 1000, segments: 64 }, this.scene);
+        sky.material = mat;
+        sky.infiniteDistance = true;
+        this._skyTime = 0;
+        this.scene.onBeforeRenderObservable.add(() => {
+            this._skyTime += this.scene.getEngine().getDeltaTime() * 0.001;
+            mat.setFloat("time", this._skyTime);
+        });
+        const moon = MeshBuilder.CreateSphere("moon", { diameter: 12, segments: 32 }, this.scene);
+        moon.position = new Vector3(-80, 85, 60);
+        const moonMat = new StandardMaterial("moonMat", this.scene);
+        moonMat.emissiveColor = new Color3(1.2,1.2,1.1);
+        moonMat.disableLighting = true;
+        moon.material = moonMat;
+        const halo = MeshBuilder.CreatePlane("moonHalo", { size: 40 }, this.scene);
+        halo.position = moon.position.clone();
+        halo.billboardMode = 7;
+        const haloMat = new StandardMaterial("moonHaloMat", this.scene);
+        haloMat.emissiveColor = new Color3(0.35,0.35,0.5);
+        haloMat.alpha = 0.35;
+        halo.material = haloMat;
+        halo.alphaMode = Engine.ALPHA_ADD;
+    }
+
     /**
      * 光照设置：半球光与方向光以及阴影
      */
     setupLights() {
         // 半球光（天空光）
         const hemiLight = new HemisphericLight("hemiLight", new Vector3(0, 1, 0), this.scene);
-        hemiLight.diffuse = new Color3(0.8, 0.8, 0.9); // 略带蓝色
-        hemiLight.groundColor = new Color3(0.4, 0.4, 0.4);
+        hemiLight.diffuse = new Color3(0.12, 0.12, 0.28);
+        hemiLight.groundColor = new Color3(0.06, 0.06, 0.12);
         hemiLight.intensity = DefaultSceneConfig.hemiLightIntensity;
 
         // 方向光（太阳）
@@ -103,7 +210,7 @@ export class DefaultScene {
         } else {
             dirLight.position = new Vector3(20, 40, 20);
         }
-        dirLight.diffuse = new Color3(1.0, 0.9, 0.8); // 温暖的太阳色
+        dirLight.diffuse = new Color3(0.6, 0.7, 1.0);
         dirLight.specular = new Color3(0, 0, 0);
         dirLight.intensity = DefaultSceneConfig.dirLightIntensity;
 

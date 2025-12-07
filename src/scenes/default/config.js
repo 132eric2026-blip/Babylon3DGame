@@ -3,18 +3,17 @@
  * 控制马生成、地面颜色、光照强度与装饰开关等
  */
 export const DefaultSceneConfig = {
-    horseEnabled: false, // 是否生成马
-    groundColor: { r: 0.2, g: 0.2, b: 0.2 },
-    hemiLightIntensity: .6,
-    dirLightIntensity: 0.4,
-    dirLightPosition: { x: 20, y: 40, z: -20 },
-    // 环境设置
-    ambientColor: { r: 0.3, g: 0.3, b: 0.3 }, // 环境光颜色
-    clearColor: { r: 0.5, g: 0.8, b: 1.0, a: 1.0 }, // 背景色 (天空)
+    horseEnabled: false,
+    groundColor: { r: 0.06, g: 0.06, b: 0.08 },
+    hemiLightIntensity: 0.18,
+    dirLightIntensity: 0.22,
+    dirLightPosition: { x: -60, y: 80, z: 40 },
+    ambientColor: { r: 0.05, g: 0.05, b: 0.10 },
+    clearColor: { r: 0.02, g: 0.02, b: 0.06, a: 1.0 },
     fog: {
-        enabled: false, // 是否开启雾效
-        density: 10.3, // 雾的浓度（数值越大能见度越低，0.002为淡雾，0.1为浓雾）
-        color: { r: 0.5, g: 0.8, b: 1.0 } // 雾的颜色
+        enabled: true,
+        density: 0.002,
+        color: { r: 0.02, g: 0.02, b: 0.06 }
     },
     decorations: {
         count: 20, // 装饰物总数
@@ -32,7 +31,7 @@ export const DefaultSceneConfig = {
         trunkWidthRange: { min: 0.55, max: 1.1 },
         crownSizeRange: { min: 2.0, max: 3.2 },
         rocksEnabled: true,  // 是否生成岩石
-        streetLampsEnabled: false, // 是否生成路灯
+        streetLampsEnabled: true,
         treeShadow: {
             filter: "pcf",
             quality: "high", //"low"|"medium"|"high"
