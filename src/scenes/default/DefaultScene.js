@@ -1,4 +1,4 @@
-import { HemisphericLight, DirectionalLight, Vector3, MeshBuilder, StandardMaterial, Color3, ShadowGenerator, PhysicsAggregate, PhysicsShapeType, Color4 } from "@babylonjs/core";
+import { HemisphericLight, DirectionalLight, Vector3, MeshBuilder, StandardMaterial, Color3, ShadowGenerator, PhysicsAggregate, PhysicsShapeType, Color4, ShaderMaterial, Effect, Mesh } from "@babylonjs/core";
 import { Config } from "../../config";
 import { DefaultSceneConfig } from "./config";
 import { DecorationManager } from "./decorations";
@@ -22,6 +22,7 @@ export class DefaultScene {
      */
     create() {
         this.setupEnvironment();
+        this.createSky();
         this.setupLights();
         this.createGround();
         this.createDecorations();
@@ -152,6 +153,104 @@ export class DefaultScene {
 
             this.scene.shadowGenerator = shadowGenerator;
         }
+    }
+
+    /**
+     * 创建夜空效果：天空球、渐变色与星星
+     */
+    createSky() {
+        // 创建天空盒（反向剔除在材质中设置）
+        // 使用 BACKSIDE 确保从内部可见
+        const skybox = MeshBuilder.CreateBox("skyBox", { size: 1000.0, sideOrientation: Mesh.BACKSIDE }, this.scene);
+        skybox.infiniteDistance = true;
+        // 防止视锥体剔除导致不可见
+        skybox.alwaysSelectAsActiveMesh = true;
+        // 确保不受雾影响（虽然 ShaderMaterial 默认无雾，但加上更保险）
+        skybox.applyFog = false;
+
+        // Shader 代码注册
+        Effect.ShadersStore["customSkyVertexShader"] = `
+            precision highp float;
+            attribute vec3 position;
+            uniform mat4 worldViewProjection;
+            varying vec3 vPosition;
+            void main() {
+                gl_Position = worldViewProjection * vec4(position, 1.0);
+                vPosition = position;
+            }
+        `;
+
+        Effect.ShadersStore["customSkyFragmentShader"] = `
+            precision highp float;
+            varying vec3 vPosition;
+            uniform vec3 topColor;
+            uniform vec3 bottomColor;
+            uniform float time;
+
+            // 简单的哈希函数
+            float hash(vec3 p) {
+                p = fract(p * 0.3183099 + .1);
+                p *= 17.0;
+                return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+            }
+
+            void main() {
+                vec3 dir = normalize(vPosition);
+                // 映射 y 从 0..1 (地平线到天顶)
+                // 压缩渐变区间，让它在 0.0 到 0.4 之间完成从红到蓝的过渡
+                // 这样在平视或低角度仰视时，就能看到明显的渐变带
+                float t = clamp(dir.y, 0.0, 1.0);
+                t = smoothstep(0.0, 0.4, t);
+                
+                // 渐变色混合
+                vec3 color = mix(bottomColor, topColor, t);
+
+                // 星星生成
+                float scale = 200.0;
+                vec3 u = dir * scale;
+                vec3 i = floor(u);
+                vec3 f = fract(u);
+
+                float h = hash(i);
+                
+                if (h > 0.98) { // 稍微增加星星密度
+                    float d = length(f - 0.5);
+                    if (d < 0.4) {
+                        float star = 1.0 - smoothstep(0.1, 0.4, d);
+                        // 随机闪烁速度 (1.0 ~ 6.0) 和相位
+                        float speed = 1.0 + 5.0 * h;
+                        float twinkle = 0.5 + 0.5 * sin(time * speed + h * 100.0);
+                        color += vec3(1.0) * star * twinkle;
+                    }
+                }
+
+                gl_FragColor = vec4(color, 1.0);
+            }
+        `;
+
+        const skyMaterial = new ShaderMaterial("skyMaterial", this.scene, {
+            vertex: "customSky",
+            fragment: "customSky",
+        },
+        {
+            attributes: ["position"],
+            uniforms: ["worldViewProjection", "topColor", "bottomColor", "time"],
+            needAlphaBlending: false,
+            backFaceCulling: false
+        });
+
+        // 设置颜色：夜空蓝到深红
+        // 调整颜色使其更柔和，减少压抑感
+        skyMaterial.setColor3("topColor", new Color3(0.1, 0.12, 0.35)); 
+        skyMaterial.setColor3("bottomColor", new Color3(0.25, 0.1, 0.2)); 
+        
+        let time = 0;
+        this.scene.registerBeforeRender(() => {
+            time += this.scene.getEngine().getDeltaTime() * 0.001;
+            skyMaterial.setFloat("time", time);
+        });
+
+        skybox.material = skyMaterial;
     }
 
     /**
