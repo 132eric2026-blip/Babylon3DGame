@@ -128,22 +128,23 @@ export class DecorationManager {
             allTrunkMatrices.push(Matrix.Compose(trunkScale, trunkRot, trunkPos));
             
             // 保存完整的树信息用于创建刚体（包含树干和树冠）
-            // 正确计算树冠顶部高度 = 树冠中心Y + 树冠Y方向半径
-            let totalHeight, crownRadius;
+            // 确定树冠类型
+            let crownType;
             if (type < 0.5) {
-                // 球形树冠: 中心Y = height*0.5 + crownSize*0.35, Y半径 = crownSize*0.8*0.5
-                totalHeight = height * 0.5 + crownSize * 0.35 + crownSize * 0.4;
-                crownRadius = crownSize;
+                crownType = 'sphere';
             } else if (type < 0.8) {
-                // 锥形树冠: 中心Y = height*0.7, Y半高 = height*0.6*0.5
-                totalHeight = height * 0.7 + height * 0.3;
-                crownRadius = crownSize;
+                crownType = 'cone';
             } else {
-                // 八面体树冠: 中心Y = height*0.5 + crownSize*0.4, Y半径 = crownSize*0.8*0.5
-                totalHeight = height * 0.5 + crownSize * 0.4 + crownSize * 0.4;
-                crownRadius = crownSize;
+                crownType = 'octa';
             }
-            physicsInfos.push({ x, z, totalHeight, crownRadius, trunkHeight: height * 0.5 });
+
+            physicsInfos.push({
+                x, z,
+                height,          // 原始树高
+                crownSize,       // 树冠尺寸
+                rotY,            // 旋转角度
+                crownType        // 树冠类型
+            });
             
             // 树冠矩阵（按类型分配）
             const crownRot = Quaternion.FromEulerAngles(0, rotY, 0);
@@ -235,33 +236,80 @@ export class DecorationManager {
         if (cfg.treesPhysicsEnabled) {
             // 是否显示刚体轮廓（调试用）- 检查全局配置或本地配置
             const showColliders = Config.scene.showPhysicsColliders || cfg.showPhysicsColliders || false;
-            
-            physicsInfos.forEach(info => {
-                // 创建包围整棵树的刚体（树干+树冠）
-                // 使用胶囊形状或圆柱体，高度覆盖整棵树
-                const colliderHeight = info.totalHeight;
-                const colliderRadius = Math.max(info.crownRadius * 0.5, 0.5); // 取树冠半径的50%或最小0.5
-                
-                const treeCollider = MeshBuilder.CreateCylinder("tree_phys", { 
-                    height: colliderHeight, 
-                    diameter: colliderRadius * 2 
+
+            // 调试材质
+            let colliderMat;
+            if (showColliders) {
+                colliderMat = new StandardMaterial("treeColliderMat", scene);
+                colliderMat.diffuseColor = new Color3(0, 1, 0);
+                colliderMat.alpha = 0.3;
+                colliderMat.wireframe = true;
+            }
+
+            // 为每棵树创建精确匹配的刚体（树干 + 树冠）
+            physicsInfos.forEach((info, idx) => {
+                const { x, z, height, crownSize, rotY, crownType } = info;
+
+                // === 创建树干刚体 - 与渲染mesh完全相同的参数 ===
+                const trunkCollider = MeshBuilder.CreateCylinder("tree_trunk_phys_" + idx, {
+                    height: 1,              // 基础高度1，通过缩放调整
+                    diameterTop: 0.4,
+                    diameterBottom: 0.7,
+                    tessellation: 6         // 与渲染mesh相同
                 }, scene);
-                treeCollider.position = new Vector3(info.x, colliderHeight * 0.5, info.z);
-                
+                // 应用与渲染相同的变换
+                trunkCollider.scaling = new Vector3(1, height * 0.5, 1);
+                trunkCollider.position = new Vector3(x, height * 0.25, z);
+                trunkCollider.rotation.y = rotY;
+
+                // === 创建树冠刚体 - 根据类型精确匹配 ===
+                let crownCollider;
+                if (crownType === 'sphere') {
+                    // 球形树冠 - 与渲染mesh完全相同
+                    crownCollider = MeshBuilder.CreateSphere("tree_crown_phys_" + idx, {
+                        diameter: 1,
+                        segments: 6
+                    }, scene);
+                    crownCollider.scaling = new Vector3(crownSize, crownSize * 0.8, crownSize);
+                    crownCollider.position = new Vector3(x, height * 0.5 + crownSize * 0.35, z);
+                } else if (crownType === 'cone') {
+                    // 锥形树冠 - 与渲染mesh完全相同
+                    crownCollider = MeshBuilder.CreateCylinder("tree_crown_phys_" + idx, {
+                        height: 1,
+                        diameterTop: 0,
+                        diameterBottom: 1,
+                        tessellation: 6
+                    }, scene);
+                    crownCollider.scaling = new Vector3(crownSize, height * 0.6, crownSize);
+                    crownCollider.position = new Vector3(x, height * 0.7, z);
+                } else {
+                    // 八面体树冠 - 与渲染mesh完全相同
+                    crownCollider = MeshBuilder.CreatePolyhedron("tree_crown_phys_" + idx, {
+                        type: 1,
+                        size: 0.5
+                    }, scene);
+                    crownCollider.scaling = new Vector3(crownSize, crownSize * 0.8, crownSize);
+                    crownCollider.position = new Vector3(x, height * 0.5 + crownSize * 0.4, z);
+                }
+                crownCollider.rotation.y = rotY;
+
                 // 刚体可视化调试
                 if (showColliders) {
-                    treeCollider.isVisible = true;
-                    const colliderMat = new StandardMaterial("treeColliderMat", scene);
-                    colliderMat.diffuseColor = new Color3(0, 1, 0);
-                    colliderMat.alpha = 0.3;
-                    colliderMat.wireframe = true;
-                    treeCollider.material = colliderMat;
+                    trunkCollider.isVisible = true;
+                    crownCollider.isVisible = true;
+                    trunkCollider.material = colliderMat;
+                    crownCollider.material = colliderMat;
                 } else {
-                    treeCollider.isVisible = false;
+                    trunkCollider.isVisible = false;
+                    crownCollider.isVisible = false;
                 }
-                
-                new PhysicsAggregate(treeCollider, PhysicsShapeType.CYLINDER, { mass: 0, friction: 0.6, restitution: 0.1 }, scene);
+
+                // 使用 MESH 类型创建精确匹配网格形状的刚体
+                new PhysicsAggregate(trunkCollider, PhysicsShapeType.MESH, { mass: 0, friction: 0.6, restitution: 0.1 }, scene);
+                new PhysicsAggregate(crownCollider, PhysicsShapeType.MESH, { mass: 0, friction: 0.6, restitution: 0.1 }, scene);
             });
+
+            console.log(`树物理刚体: ${physicsInfos.length * 2}个 (精确MESH匹配: 树干+树冠)`);
         }
     }
 
