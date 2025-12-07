@@ -218,6 +218,75 @@ export class NagrandSky {
                 return nebulaColor * totalNebula * uNebulaIntensity;
             }
             
+            // 黄色极光/能量带生成 - 条状效果
+            vec3 aurora(vec3 dir, float time) {
+                // 极光颜色 - 金黄/橙色
+                vec3 auroraColor1 = vec3(1.0, 0.9, 0.35);
+                vec3 auroraColor2 = vec3(1.0, 0.7, 0.25);
+                vec3 auroraColor3 = vec3(0.95, 1.0, 0.5);
+                
+                vec3 totalAurora = vec3(0.0);
+                
+                // 第一条极光带
+                {
+                    vec3 auroraAxis = normalize(vec3(0.95, 0.1, -0.2));
+                    float distToAxis = length(cross(dir, auroraAxis));
+                    
+                    // 窄的条状带
+                    float bandWidth = 0.08;
+                    float band = exp(-distToAxis * distToAxis / (bandWidth * bandWidth));
+                    
+                    // 沿轴向的波动 - 创建条纹效果
+                    float axisPos = dot(dir, auroraAxis);
+                    float stripe = sin(axisPos * 15.0 + time * 0.5) * 0.5 + 0.5;
+                    stripe *= sin(axisPos * 25.0 - time * 0.3) * 0.3 + 0.7;
+                    
+                    // 流动效果
+                    float flow = noise2D(vec2(axisPos * 8.0 + time * 0.2, distToAxis * 10.0));
+                    
+                    float aurora1 = band * stripe * (0.7 + flow * 0.3);
+                    totalAurora += auroraColor1 * aurora1 * 2.5;
+                }
+                
+                // 第二条极光带
+                {
+                    vec3 auroraAxis = normalize(vec3(-0.8, 0.2, 0.5));
+                    float distToAxis = length(cross(dir, auroraAxis));
+                    
+                    float bandWidth = 0.1;
+                    float band = exp(-distToAxis * distToAxis / (bandWidth * bandWidth));
+                    
+                    float axisPos = dot(dir, auroraAxis);
+                    float stripe = sin(axisPos * 12.0 + time * 0.4) * 0.5 + 0.5;
+                    stripe *= sin(axisPos * 20.0 - time * 0.25) * 0.3 + 0.7;
+                    
+                    float flow = noise2D(vec2(axisPos * 6.0 + time * 0.15, distToAxis * 8.0));
+                    
+                    float aurora2 = band * stripe * (0.7 + flow * 0.3);
+                    totalAurora += auroraColor2 * aurora2 * 2.0;
+                }
+                
+                // 第三条细极光带
+                {
+                    vec3 auroraAxis = normalize(vec3(0.6, 0.25, 0.7));
+                    float distToAxis = length(cross(dir, auroraAxis));
+                    
+                    float bandWidth = 0.06;
+                    float band = exp(-distToAxis * distToAxis / (bandWidth * bandWidth));
+                    
+                    float axisPos = dot(dir, auroraAxis);
+                    float stripe = sin(axisPos * 18.0 + time * 0.6) * 0.5 + 0.5;
+                    
+                    float aurora3 = band * stripe;
+                    totalAurora += auroraColor3 * aurora3 * 1.5;
+                }
+                
+                // 只在天空上半部分显示
+                float skyMask = smoothstep(-0.05, 0.15, dir.y);
+                
+                return totalAurora * skyMask;
+            }
+            
             void main() {
                 vec3 dir = normalize(vPosition);
                 
@@ -233,15 +302,19 @@ export class NagrandSky {
                 vec3 nebulaColor = nebula(dir, uTime);
                 skyColor += nebulaColor;
                 
-                // 4. 添加云层
+                // 4. 添加黄色极光
+                vec3 auroraColor = aurora(dir, uTime);
+                skyColor += auroraColor;
+                
+                // 5. 添加云层
                 float cloudVal = clouds(dir, uTime);
                 skyColor = mix(skyColor, uCloudColor, cloudVal * 0.6);
                 
-                // 5. 地平线发光效果
+                // 6. 地平线发光效果
                 float horizonGlow = exp(-abs(dir.y) * 3.0) * 0.2;
                 skyColor += uHorizonColor * horizonGlow;
                 
-                // 6. 整体色调调整
+                // 7. 整体色调调整
                 skyColor = pow(skyColor, vec3(0.9));
                 
                 gl_FragColor = vec4(skyColor, 1.0);
