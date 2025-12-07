@@ -77,7 +77,9 @@ export class PhoenixRay extends BaseSkill {
         
         // 创建射线根节点，方便统一管理位置
         this.rootNode = new TransformNode("phoenixRayRoot", scene);
-        this.updateRootTransform(); // 初始化位置
+        // 直接挂到玩家主体上，自动跟随朝向
+        this.rootNode.parent = this.player.mesh;
+        this.rootNode.position = new Vector3(0, 1.2, 0);
 
         // 1. 核心射线模型 (发光的圆柱体)
         this.rayMesh = MeshBuilder.CreateCylinder("phoenixRayCore", {
@@ -146,21 +148,18 @@ export class PhoenixRay extends BaseSkill {
      * 更新根节点的位置和旋转，使其始终跟随着玩家并朝向前方
      */
     updateRootTransform() {
-        if (!this.player.mesh || !this.rootNode) return;
-
-        // 获取玩家位置
+        if (!this.rootNode) return;
+        if (this.rootNode.parent) {
+            this.rootNode.position.set(0, 1.2, 0);
+            this.rootNode.rotation.set(0, 0, 0);
+            return;
+        }
+        if (!this.player.mesh) return;
         const playerPos = this.player.mesh.position;
-        // 假设玩家模型中心在脚底，稍微抬高一点作为发射点（如胸口或手部）
         const emitPos = playerPos.clone().add(new Vector3(0, 1.2, 0));
-        
         this.rootNode.position = emitPos;
-        
-        // 计算玩家朝向
         const f = this.player.mesh.getDirection(Vector3.Forward());
-        // 计算水平旋转角 (Y轴旋转)
         const rotationY = Math.atan2(f.x, f.z);
-        
-        // 设置根节点旋转
         this.rootNode.rotation = new Vector3(0, rotationY, 0);
     }
 
