@@ -189,100 +189,338 @@ export class DragonBreath extends BaseSkill {
     }
 
     /**
-     * 创建龙头模型
+     * 创建龙头模型 - 更真实的东方龙头
      */
     createDragonHead(scene, glowLayer) {
         const dragonHead = new TransformNode("dragonHead", scene);
+        const allMeshes = [];
         
-        // 龙头主体（椭球形）
-        const headMain = MeshBuilder.CreateSphere("dragonHeadMain", {
-            diameterX: 0.8,
-            diameterY: 0.6,
-            diameterZ: 1.2,
-            segments: 16
+        // === 龙头主体材质 - 炽热的岩浆龙 ===
+        const createDragonMaterial = (name, baseColor, emissiveIntensity = 1.0) => {
+            const mat = new StandardMaterial(name, scene);
+            mat.diffuseColor = baseColor.scale(0.6);
+            mat.emissiveColor = baseColor.scale(emissiveIntensity);
+            mat.specularColor = new Color3(1.0, 0.6, 0.3);
+            mat.specularPower = 32;
+            mat.alpha = 0.95;
+            mat.backFaceCulling = false;
+            return mat;
+        };
+        
+        // === 龙头主体 - 使用多个部分组合 ===
+        // 头颅主体
+        const skull = MeshBuilder.CreateSphere("dragonSkull", {
+            diameterX: 1.0,
+            diameterY: 0.75,
+            diameterZ: 1.3,
+            segments: 24
         }, scene);
-        headMain.parent = dragonHead;
-        headMain.position.z = -0.3;
+        skull.parent = dragonHead;
+        skull.position.z = -0.2;
+        skull.material = createDragonMaterial("skullMat", new Color3(0.9, 0.35, 0.05), 0.8);
+        allMeshes.push(skull);
         
-        const headMat = new StandardMaterial("dragonHeadMat", scene);
-        headMat.emissiveColor = new Color3(0.8, 0.3, 0.0);
-        headMat.diffuseColor = new Color3(0.6, 0.2, 0.0);
-        headMat.specularColor = new Color3(1.0, 0.5, 0.2);
-        headMat.alpha = 0.9;
-        headMat.disableLighting = true;
-        headMain.material = headMat;
-        
-        // 龙嘴（锥形）
-        const snout = MeshBuilder.CreateCylinder("dragonSnout", {
-            diameterTop: 0.2,
-            diameterBottom: 0.5,
-            height: 0.8,
-            tessellation: 8
+        // 上颚
+        const upperJaw = MeshBuilder.CreateCapsule("upperJaw", {
+            height: 1.0,
+            radius: 0.25,
+            tessellation: 16,
+            subdivisions: 4
         }, scene);
-        snout.parent = dragonHead;
-        snout.rotation.x = Math.PI / 2;
-        snout.position.z = 0.4;
+        upperJaw.parent = dragonHead;
+        upperJaw.rotation.x = Math.PI / 2;
+        upperJaw.position = new Vector3(0, 0.05, 0.5);
+        upperJaw.scaling = new Vector3(1.2, 1, 0.8);
+        upperJaw.material = createDragonMaterial("upperJawMat", new Color3(0.95, 0.4, 0.08), 0.85);
+        allMeshes.push(upperJaw);
         
-        const snoutMat = new StandardMaterial("snoutMat", scene);
-        snoutMat.emissiveColor = new Color3(0.9, 0.4, 0.1);
-        snoutMat.diffuseColor = new Color3(0.7, 0.3, 0.0);
-        snoutMat.alpha = 0.9;
-        snoutMat.disableLighting = true;
-        snout.material = snoutMat;
-        
-        // 龙角（左）
-        const hornLeft = MeshBuilder.CreateCylinder("hornLeft", {
-            diameterTop: 0,
-            diameterBottom: 0.15,
-            height: 0.5,
-            tessellation: 6
+        // 下颚
+        const lowerJaw = MeshBuilder.CreateCapsule("lowerJaw", {
+            height: 0.9,
+            radius: 0.2,
+            tessellation: 16,
+            subdivisions: 4
         }, scene);
-        hornLeft.parent = dragonHead;
-        hornLeft.position = new Vector3(-0.3, 0.35, -0.4);
-        hornLeft.rotation.z = 0.4;
-        hornLeft.rotation.x = -0.3;
+        lowerJaw.parent = dragonHead;
+        lowerJaw.rotation.x = Math.PI / 2 + 0.15; // 微微张嘴
+        lowerJaw.position = new Vector3(0, -0.15, 0.45);
+        lowerJaw.scaling = new Vector3(1.0, 1, 0.7);
+        lowerJaw.material = createDragonMaterial("lowerJawMat", new Color3(0.85, 0.3, 0.05), 0.75);
+        allMeshes.push(lowerJaw);
         
-        const hornMat = new StandardMaterial("hornMat", scene);
-        hornMat.emissiveColor = new Color3(1.0, 0.6, 0.2);
-        hornMat.diffuseColor = new Color3(0.8, 0.4, 0.1);
-        hornMat.disableLighting = true;
-        hornLeft.material = hornMat;
+        // 鼻梁隆起
+        const noseBridge = MeshBuilder.CreateSphere("noseBridge", {
+            diameterX: 0.5,
+            diameterY: 0.25,
+            diameterZ: 0.6,
+            segments: 12
+        }, scene);
+        noseBridge.parent = dragonHead;
+        noseBridge.position = new Vector3(0, 0.2, 0.3);
+        noseBridge.material = createDragonMaterial("noseBridgeMat", new Color3(1.0, 0.45, 0.1), 0.9);
+        allMeshes.push(noseBridge);
         
-        // 龙角（右）
-        const hornRight = hornLeft.clone("hornRight");
-        hornRight.parent = dragonHead;
-        hornRight.position.x = 0.3;
-        hornRight.rotation.z = -0.4;
+        // === 眉骨/眼眶 ===
+        const createBrow = (name, posX) => {
+            const brow = MeshBuilder.CreateCapsule(name, {
+                height: 0.4,
+                radius: 0.08,
+                tessellation: 8
+            }, scene);
+            brow.parent = dragonHead;
+            brow.position = new Vector3(posX, 0.25, 0.1);
+            brow.rotation.z = posX > 0 ? -0.6 : 0.6;
+            brow.rotation.x = 0.2;
+            brow.material = createDragonMaterial("browMat", new Color3(0.8, 0.25, 0.02), 0.7);
+            return brow;
+        };
+        const browLeft = createBrow("browLeft", -0.28);
+        const browRight = createBrow("browRight", 0.28);
+        allMeshes.push(browLeft, browRight);
         
-        // 龙眼（左）
-        const eyeLeft = MeshBuilder.CreateSphere("eyeLeft", { diameter: 0.12 }, scene);
-        eyeLeft.parent = dragonHead;
-        eyeLeft.position = new Vector3(-0.25, 0.1, 0.1);
+        // === 龙角 - 更复杂的弯曲角 ===
+        const createHorn = (name, posX, rotZ) => {
+            const hornGroup = new TransformNode(name + "Group", scene);
+            hornGroup.parent = dragonHead;
+            hornGroup.position = new Vector3(posX, 0.35, -0.35);
+            hornGroup.rotation.z = rotZ;
+            hornGroup.rotation.x = -0.4;
+            
+            // 角的基部
+            const hornBase = MeshBuilder.CreateCylinder(name + "Base", {
+                diameterTop: 0.12,
+                diameterBottom: 0.2,
+                height: 0.25,
+                tessellation: 8
+            }, scene);
+            hornBase.parent = hornGroup;
+            hornBase.material = createDragonMaterial("hornBaseMat", new Color3(1.0, 0.5, 0.15), 0.9);
+            allMeshes.push(hornBase);
+            
+            // 角的中段
+            const hornMid = MeshBuilder.CreateCylinder(name + "Mid", {
+                diameterTop: 0.08,
+                diameterBottom: 0.12,
+                height: 0.3,
+                tessellation: 8
+            }, scene);
+            hornMid.parent = hornGroup;
+            hornMid.position.y = 0.25;
+            hornMid.rotation.x = 0.3; // 向后弯曲
+            hornMid.material = createDragonMaterial("hornMidMat", new Color3(1.0, 0.6, 0.2), 1.0);
+            allMeshes.push(hornMid);
+            
+            // 角尖
+            const hornTip = MeshBuilder.CreateCylinder(name + "Tip", {
+                diameterTop: 0,
+                diameterBottom: 0.08,
+                height: 0.25,
+                tessellation: 6
+            }, scene);
+            hornTip.parent = hornMid;
+            hornTip.position.y = 0.25;
+            hornTip.rotation.x = 0.4;
+            hornTip.material = createDragonMaterial("hornTipMat", new Color3(1.0, 0.8, 0.4), 1.2);
+            allMeshes.push(hornTip);
+            
+            return hornGroup;
+        };
+        createHorn("hornLeft", -0.35, 0.3);
+        createHorn("hornRight", 0.35, -0.3);
         
-        const eyeMat = new StandardMaterial("eyeMat", scene);
-        eyeMat.emissiveColor = new Color3(1.0, 1.0, 0.3);
-        eyeMat.diffuseColor = new Color3(1.0, 0.8, 0.0);
-        eyeMat.disableLighting = true;
-        eyeLeft.material = eyeMat;
+        // === 龙须 - 东方龙特征 ===
+        const createWhisker = (name, posX, posY, rotZ, length) => {
+            const whisker = MeshBuilder.CreateCylinder(name, {
+                diameterTop: 0,
+                diameterBottom: 0.04,
+                height: length,
+                tessellation: 6
+            }, scene);
+            whisker.parent = dragonHead;
+            whisker.position = new Vector3(posX, posY, 0.6);
+            whisker.rotation.z = rotZ;
+            whisker.rotation.x = 0.5;
+            whisker.material = createDragonMaterial("whiskerMat", new Color3(1.0, 0.7, 0.3), 1.1);
+            return whisker;
+        };
+        // 长须
+        const whiskerL1 = createWhisker("whiskerL1", -0.2, 0, 0.8, 0.6);
+        const whiskerR1 = createWhisker("whiskerR1", 0.2, 0, -0.8, 0.6);
+        const whiskerL2 = createWhisker("whiskerL2", -0.18, 0.08, 0.5, 0.4);
+        const whiskerR2 = createWhisker("whiskerR2", 0.18, 0.08, -0.5, 0.4);
+        allMeshes.push(whiskerL1, whiskerR1, whiskerL2, whiskerR2);
         
-        // 龙眼（右）
-        const eyeRight = eyeLeft.clone("eyeRight");
-        eyeRight.parent = dragonHead;
-        eyeRight.position.x = 0.25;
-        eyeRight.material = eyeMat;
+        // === 獠牙 ===
+        const createFang = (name, posX) => {
+            const fang = MeshBuilder.CreateCylinder(name, {
+                diameterTop: 0,
+                diameterBottom: 0.06,
+                height: 0.2,
+                tessellation: 6
+            }, scene);
+            fang.parent = dragonHead;
+            fang.position = new Vector3(posX, -0.1, 0.7);
+            fang.rotation.x = 0.3;
+            const fangMat = new StandardMaterial(name + "Mat", scene);
+            fangMat.emissiveColor = new Color3(1.0, 0.95, 0.8);
+            fangMat.diffuseColor = new Color3(1.0, 0.9, 0.7);
+            fangMat.disableLighting = true;
+            fang.material = fangMat;
+            return fang;
+        };
+        const fangLeft = createFang("fangLeft", -0.12);
+        const fangRight = createFang("fangRight", 0.12);
+        allMeshes.push(fangLeft, fangRight);
         
-        // 添加到发光层
-        if (glowLayer) {
-            glowLayer.addIncludedOnlyMesh(headMain);
-            glowLayer.addIncludedOnlyMesh(snout);
-            glowLayer.addIncludedOnlyMesh(hornLeft);
-            glowLayer.addIncludedOnlyMesh(hornRight);
-            glowLayer.addIncludedOnlyMesh(eyeLeft);
-            glowLayer.addIncludedOnlyMesh(eyeRight);
+        // === 龙眼 - 更有神的眼睛 ===
+        const createEye = (name, posX) => {
+            const eyeGroup = new TransformNode(name + "Group", scene);
+            eyeGroup.parent = dragonHead;
+            eyeGroup.position = new Vector3(posX, 0.12, 0.15);
+            
+            // 眼眶
+            const eyeSocket = MeshBuilder.CreateSphere(name + "Socket", {
+                diameter: 0.18,
+                segments: 12
+            }, scene);
+            eyeSocket.parent = eyeGroup;
+            const socketMat = new StandardMaterial(name + "SocketMat", scene);
+            socketMat.emissiveColor = new Color3(0.3, 0.1, 0.0);
+            socketMat.diffuseColor = new Color3(0.2, 0.05, 0.0);
+            eyeSocket.material = socketMat;
+            allMeshes.push(eyeSocket);
+            
+            // 眼球
+            const eyeball = MeshBuilder.CreateSphere(name + "Ball", {
+                diameter: 0.14,
+                segments: 12
+            }, scene);
+            eyeball.parent = eyeGroup;
+            eyeball.position.z = 0.02;
+            const eyeMat = new StandardMaterial(name + "Mat", scene);
+            eyeMat.emissiveColor = new Color3(1.0, 0.9, 0.2);
+            eyeMat.diffuseColor = new Color3(1.0, 0.7, 0.0);
+            eyeMat.specularColor = new Color3(1, 1, 1);
+            eyeMat.specularPower = 64;
+            eyeMat.disableLighting = true;
+            eyeball.material = eyeMat;
+            allMeshes.push(eyeball);
+            
+            // 瞳孔（竖直的龙瞳）
+            const pupil = MeshBuilder.CreateCylinder(name + "Pupil", {
+                diameterTop: 0.02,
+                diameterBottom: 0.02,
+                height: 0.1,
+                tessellation: 6
+            }, scene);
+            pupil.parent = eyeGroup;
+            pupil.position.z = 0.06;
+            pupil.rotation.x = Math.PI / 2;
+            const pupilMat = new StandardMaterial(name + "PupilMat", scene);
+            pupilMat.emissiveColor = new Color3(0.1, 0.0, 0.0);
+            pupilMat.diffuseColor = new Color3(0, 0, 0);
+            pupil.material = pupilMat;
+            allMeshes.push(pupil);
+            
+            return { eyeGroup, eyeball, eyeMat };
+        };
+        const eyeLeft = createEye("eyeLeft", -0.28);
+        const eyeRight = createEye("eyeRight", 0.28);
+        
+        // === 鼻孔 ===
+        const createNostril = (name, posX) => {
+            const nostril = MeshBuilder.CreateTorus(name, {
+                diameter: 0.08,
+                thickness: 0.02,
+                tessellation: 12
+            }, scene);
+            nostril.parent = dragonHead;
+            nostril.position = new Vector3(posX, 0.1, 0.85);
+            nostril.rotation.x = Math.PI / 2;
+            nostril.material = createDragonMaterial("nostrilMat", new Color3(0.7, 0.2, 0.0), 0.6);
+            return nostril;
+        };
+        const nostrilLeft = createNostril("nostrilLeft", -0.1);
+        const nostrilRight = createNostril("nostrilRight", 0.1);
+        allMeshes.push(nostrilLeft, nostrilRight);
+        
+        // === 头顶鳞片/脊 ===
+        for (let i = 0; i < 5; i++) {
+            const spine = MeshBuilder.CreateCylinder("spine" + i, {
+                diameterTop: 0,
+                diameterBottom: 0.08 - i * 0.01,
+                height: 0.15 - i * 0.02,
+                tessellation: 4
+            }, scene);
+            spine.parent = dragonHead;
+            spine.position = new Vector3(0, 0.4, -0.3 - i * 0.15);
+            spine.rotation.x = -0.3;
+            spine.material = createDragonMaterial("spineMat", new Color3(1.0, 0.5, 0.1), 1.0);
+            allMeshes.push(spine);
         }
+        
+        // === 添加到发光层 ===
+        if (glowLayer) {
+            allMeshes.forEach(mesh => {
+                glowLayer.addIncludedOnlyMesh(mesh);
+            });
+        }
+        
+        // === 眼睛发光闪烁动画 ===
+        let eyeFlickerFrame = 0;
+        const eyeFlickerObserver = scene.onBeforeRenderObservable.add(() => {
+            eyeFlickerFrame++;
+            const flicker = 0.8 + Math.sin(eyeFlickerFrame * 0.15) * 0.2 + Math.random() * 0.1;
+            const eyeColor = new Color3(1.0 * flicker, 0.9 * flicker, 0.2 * flicker);
+            eyeLeft.eyeMat.emissiveColor = eyeColor;
+            eyeRight.eyeMat.emissiveColor = eyeColor;
+        });
+        dragonHead._eyeFlickerObserver = eyeFlickerObserver;
+        
+        // === 鼻孔喷烟粒子 ===
+        const createNostrilSmoke = (nostril) => {
+            const ps = new ParticleSystem("nostrilSmoke", 50, scene);
+            ps.particleTexture = this.createSmokeTexture();
+            ps.emitter = nostril;
+            ps.minEmitBox = new Vector3(-0.02, -0.02, 0);
+            ps.maxEmitBox = new Vector3(0.02, 0.02, 0);
+            ps.color1 = new Color4(0.4, 0.4, 0.4, 0.3);
+            ps.color2 = new Color4(0.3, 0.2, 0.1, 0.2);
+            ps.colorDead = new Color4(0.1, 0.1, 0.1, 0);
+            ps.minSize = 0.05;
+            ps.maxSize = 0.15;
+            ps.minLifeTime = 0.3;
+            ps.maxLifeTime = 0.6;
+            ps.emitRate = 20;
+            ps.blendMode = ParticleSystem.BLENDMODE_STANDARD;
+            ps.direction1 = new Vector3(-0.1, 0.3, 0.5);
+            ps.direction2 = new Vector3(0.1, 0.5, 0.8);
+            ps.minEmitPower = 0.5;
+            ps.maxEmitPower = 1;
+            ps.gravity = new Vector3(0, 0.3, 0);
+            ps.start();
+            return ps;
+        };
+        dragonHead._nostrilSmokeLeft = createNostrilSmoke(nostrilLeft);
+        dragonHead._nostrilSmokeRight = createNostrilSmoke(nostrilRight);
         
         // 初始缩放为0（用于出现动画）
         dragonHead.scaling = new Vector3(0, 0, 0);
+        
+        // 清理方法
+        const originalDispose = dragonHead.dispose.bind(dragonHead);
+        dragonHead.dispose = () => {
+            if (dragonHead._eyeFlickerObserver) {
+                scene.onBeforeRenderObservable.remove(dragonHead._eyeFlickerObserver);
+            }
+            if (dragonHead._nostrilSmokeLeft) {
+                dragonHead._nostrilSmokeLeft.dispose();
+            }
+            if (dragonHead._nostrilSmokeRight) {
+                dragonHead._nostrilSmokeRight.dispose();
+            }
+            originalDispose();
+        };
         
         return dragonHead;
     }
