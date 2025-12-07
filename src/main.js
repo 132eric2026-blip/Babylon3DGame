@@ -173,10 +173,15 @@ async function createScene(engine) {
         glowLayer.addIncludedOnlyMesh(player.mesh);
     }
 
-    // 将玩家网格添加到阴影生成器
+    // 将玩家网格添加到阴影生成器（投射阴影）并接收阴影
     if (scene.shadowGenerator && player.mesh) {
-        player.mesh.getChildMeshes().forEach(m => {
+        // 获取所有子网格（包括嵌套的）
+        const allChildMeshes = player.mesh.getChildMeshes(false);
+        allChildMeshes.forEach(m => {
+            // 添加为阴影投射者
             scene.shadowGenerator.addShadowCaster(m);
+            // 设置接收阴影
+            m.receiveShadows = true;
         });
     }
 

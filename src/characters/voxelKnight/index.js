@@ -1,4 +1,5 @@
 import { MeshBuilder, Vector3, StandardMaterial, Color3, PhysicsAggregate, PhysicsShapeType, TransformNode, Texture, Engine, Scalar, Quaternion, PointLight } from "@babylonjs/core";
+import { Config } from "../../config";
 
 export class VoxelKnight {
     constructor(scene, position = new Vector3(5, 5, 5), glowLayer = null) {
@@ -288,6 +289,16 @@ export class VoxelKnight {
         this.aggregate.body.setMassProperties({
             inertia: new Vector3(0, 0, 0)
         });
+        
+        // 刚体可视化调试
+        if (Config.scene.showPhysicsColliders || Config.player.showCollider) {
+            this.mesh.visibility = 0.3;
+            const colliderMat = new StandardMaterial("playerColliderMat", this.scene);
+            colliderMat.diffuseColor = new Color3(0, 0.5, 1);
+            colliderMat.alpha = 0.3;
+            colliderMat.wireframe = true;
+            this.mesh.material = colliderMat;
+        }
     }
 
     createFlameEffects() {

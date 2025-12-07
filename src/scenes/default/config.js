@@ -5,8 +5,8 @@
 export const DefaultSceneConfig = {
     horseEnabled: false, // 是否生成马
     groundColor: { r: 0.2, g: 0.2, b: 0.2 },
-    hemiLightIntensity: 1,
-    dirLightIntensity: 0.2,
+    hemiLightIntensity: .6,
+    dirLightIntensity: 0.4,
     dirLightPosition: { x: 20, y: 40, z: -20 },
     // 环境设置
     ambientColor: { r: 0.3, g: 0.3, b: 0.3 }, // 环境光颜色
@@ -27,6 +27,7 @@ export const DefaultSceneConfig = {
         treesShadowEnabled: true,
         treeShadowCount: 12,
         treesPhysicsEnabled: true,
+        showPhysicsColliders: false, // 是否显示刚体轮廓（调试用）
         trunkHeightRange: { min: 3, max: 8 },
         trunkWidthRange: { min: 0.55, max: 1.1 },
         crownSizeRange: { min: 2.0, max: 3.2 },
@@ -34,13 +35,13 @@ export const DefaultSceneConfig = {
         streetLampsEnabled: false, // 是否生成路灯
         treeShadow: {
             filter: "pcf",
-            quality: "high",
-            mapSize: 2048*1,
-            blurKernel: 16,
+            quality: "high", //"low"|"medium"|"high"
+            mapSize: 4096,        // 增大阴影贴图尺寸提高清晰度
+            blurKernel: 8,
             useKernelBlur: false,
-            darkness: 0.5,
-            bias: 0.0008,
-            normalBias: 0.8
+            darkness: 0.4,        // 降低阴影透明度使其更清晰
+            bias: 0.00005,        // 减小bias避免阴影痤疮和提高边缘清晰度
+            normalBias: 0.02      // 减小normalBias提高阴影精度
         }
     }
 };

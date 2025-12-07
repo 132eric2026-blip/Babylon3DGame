@@ -59,6 +59,7 @@ export const Config = {
         activeScene: "default", // "sagittarius" or "default"
         gravity: -9.81,
         showAxes: false, // 是否显示世界坐标系
+        showPhysicsColliders: true, // 是否显示所有物体的刚体轮廓（调试用）
         // 阴影配置
         shadows: {
             enabled: true,
