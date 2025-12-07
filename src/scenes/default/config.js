@@ -43,5 +43,29 @@ export const DefaultSceneConfig = {
             bias: 0.00005,        // 减小bias避免阴影痤疮和提高边缘清晰度
             normalBias: 0.02      // 减小normalBias提高阴影精度
         }
+    },
+    nightSky: {
+        enabled: true,
+        skybox: {
+            inclination: -0.5, // 0 is day, -0.5 is night
+            azimuth: 0.25,
+            luminance: 0.8,
+            turbidity: 10,
+            rayleigh: 2
+        },
+        aurora: {
+            enabled: true,
+            speed: 0.05,
+            height: 50,
+            scale: 200,
+            intensity: 1.5
+        },
+        bloom: {
+            enabled: true,
+            weight: 0.5,
+            kernel: 64,
+            threshold: 0.2,
+            scale: 0.5
+        }
     }
 };
