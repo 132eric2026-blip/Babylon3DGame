@@ -3,6 +3,7 @@ import { Config } from "../../config";
 import { DefaultSceneConfig } from "./config";
 import { DecorationManager } from "./decorations";
 import { Horse } from "./horse";
+import { HellFireSky } from "./HellFireSky";
 
 /**
  * 默认场景
@@ -23,25 +24,24 @@ export class DefaultScene {
     create() {
         this.setupEnvironment();
         this.setupLights();
+        this.createHellFireSky();
         this.createGround();
         this.createDecorations();
+    }
+
+    /**
+     * 创建地狱火半岛天空效果
+     */
+    createHellFireSky() {
+        this.hellFireSky = new HellFireSky(this.scene);
     }
 
     /**
      * 环境设置：天空色、环境光、雾效
      */
     setupEnvironment() {
-        // 背景色
-        if (DefaultSceneConfig.clearColor) {
-            this.scene.clearColor = new Color4(
-                DefaultSceneConfig.clearColor.r, 
-                DefaultSceneConfig.clearColor.g, 
-                DefaultSceneConfig.clearColor.b, 
-                DefaultSceneConfig.clearColor.a
-            );
-        } else {
-            this.scene.clearColor = new Color4(0.5, 0.8, 1.0, 1.0); // 默认天空蓝
-        }
+        // 背景色 - 使用深紫色配合地狱火天空盒
+        this.scene.clearColor = new Color4(0.08, 0.05, 0.15, 1.0);
 
         // 环境光颜色
         if (DefaultSceneConfig.ambientColor) {
