@@ -10,9 +10,104 @@ import {
     TransformNode,
     Quaternion,
     GlowLayer,
-    PointLight
+    PointLight,
+    ShaderMaterial,
+    Effect
 } from "@babylonjs/core";
 import { BaseSkill } from "../BaseSkill";
+
+// 注册 Shader
+Effect.ShadersStore["halfMoonEnergyVertexShader"] = `
+    precision highp float;
+    attribute vec3 position;
+    attribute vec3 normal;
+    attribute vec2 uv;
+
+    uniform mat4 worldViewProjection;
+    uniform float time;
+    uniform float segmentIndex;
+    uniform float totalSegments;
+
+    varying vec2 vUV;
+    varying float vGlobalU;
+
+    void main() {
+        vec3 p = position;
+        // 简单的呼吸膨胀
+        float pulse = sin(time * 15.0 + p.x) * 0.03;
+        p += normal * pulse;
+        
+        gl_Position = worldViewProjection * vec4(p, 1.0);
+        vUV = uv;
+        // 计算全局 U 坐标，用于连续的纹理流动
+        vGlobalU = (uv.x + segmentIndex) / totalSegments;
+    }
+`;
+
+Effect.ShadersStore["halfMoonEnergyFragmentShader"] = `
+    precision highp float;
+    varying vec2 vUV;
+    varying float vGlobalU;
+    
+    uniform float time;
+    uniform vec3 colorCore;
+    uniform vec3 colorEdge;
+    uniform float alphaMultiplier;
+
+    // 伪随机
+    float hash(vec2 p) {
+        return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+    }
+
+    // 噪声
+    float noise(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
+                   mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+    }
+
+    // FBM
+    float fbm(vec2 p) {
+        float v = 0.0;
+        float a = 0.5;
+        for (int i = 0; i < 3; i++) {
+            v += a * noise(p);
+            p *= 2.0;
+            a *= 0.5;
+        }
+        return v;
+    }
+
+    void main() {
+        // 能量流动 - 使用全局 U 坐标
+        vec2 flowUV = vec2(vGlobalU * 10.0 - time * 3.0, vUV.y);
+        
+        float energy = fbm(flowUV * 2.0);
+        
+        // 边缘光 (纵向)
+        float distFromCenter = abs(vUV.y - 0.5) * 2.0;
+        float core = 1.0 - distFromCenter;
+        core = pow(core, 2.0); 
+        
+        // 动态闪电纹路
+        float lightning = 1.0 - smoothstep(0.02, 0.05, abs(vUV.y - 0.5 + (energy - 0.5) * 0.5));
+        
+        // 混合颜色
+        vec3 finalColor = mix(colorEdge, colorCore, core);
+        finalColor += vec3(0.8, 0.9, 1.0) * lightning * 2.0; // 亮白闪电
+        finalColor += colorCore * energy; // 能量底色
+
+        // 透明度
+        float alpha = (core * 0.8 + lightning + energy * 0.2) * alphaMultiplier;
+        
+        // 边缘硬切避免锯齿
+        if (alpha < 0.01) discard;
+        
+        gl_FragColor = vec4(finalColor, alpha);
+    }
+`;
 
 export class HalfMoonSlash extends BaseSkill {
     constructor(scene, player) {
@@ -55,18 +150,31 @@ export class HalfMoonSlash extends BaseSkill {
         const trailSegments = [];
         const energyLayers = [];
         
-        // 主能量材质 - 紫蓝渐变
+        // 主能量材质 - 使用 ShaderMaterial
         const createEnergyMaterial = (index, total) => {
-            const mat = new StandardMaterial("energyMat_" + index, scene);
+            const mat = new ShaderMaterial("energyMat_" + index, scene, {
+                vertex: "halfMoonEnergy",
+                fragment: "halfMoonEnergy",
+            },
+            {
+                attributes: ["position", "normal", "uv"],
+                uniforms: ["worldViewProjection", "time", "colorCore", "colorEdge", "alphaMultiplier", "segmentIndex", "totalSegments"],
+                needAlphaBlending: true
+            });
+            
             const t = index / total;
-            // 紫色到蓝色到青色渐变
-            const r = 0.6 + 0.4 * Math.sin(t * Math.PI);
-            const g = 0.1 + 0.6 * t;
+            // 紫色(0.8, 0.2, 1.0) 到 青色(0.2, 0.8, 1.0) 渐变
+            const r = 0.8 - 0.6 * t;
+            const g = 0.2 + 0.6 * t;
             const b = 1.0;
-            mat.emissiveColor = new Color3(r, g, b);
-            mat.diffuseColor = new Color3(r * 0.5, g * 0.5, b * 0.8);
-            mat.alpha = 0.95;
-            mat.disableLighting = true;
+
+            mat.setColor3("colorCore", new Color3(r, g, b));
+            mat.setColor3("colorEdge", new Color3(r * 0.4, g * 0.4, b * 0.8));
+            mat.setFloat("alphaMultiplier", 1.0);
+            mat.setFloat("segmentIndex", index);
+            mat.setFloat("totalSegments", total);
+            mat.setFloat("time", 0);
+            
             mat.backFaceCulling = false;
             return mat;
         };
@@ -87,7 +195,7 @@ export class HalfMoonSlash extends BaseSkill {
         emitter.parent = rootNode;
         
         // 核心能量粒子 - 明亮的核心
-        const corePS = new ParticleSystem("coreParticles", 400, scene);
+        const corePS = new ParticleSystem("coreParticles", 600, scene);
         corePS.particleTexture = coreTexture;
         corePS.emitter = emitter;
         corePS.minEmitBox = new Vector3(-0.1, -0.1, -0.1);
@@ -95,55 +203,55 @@ export class HalfMoonSlash extends BaseSkill {
         corePS.color1 = new Color4(1.0, 0.9, 1.0, 1.0);
         corePS.color2 = new Color4(0.8, 0.5, 1.0, 1.0);
         corePS.colorDead = new Color4(0.4, 0.1, 0.8, 0.0);
-        corePS.minSize = 0.2;
-        corePS.maxSize = 0.5;
-        corePS.minLifeTime = 0.15;
-        corePS.maxLifeTime = 0.35;
-        corePS.emitRate = 600;
+        corePS.minSize = 0.3;
+        corePS.maxSize = 0.6;
+        corePS.minLifeTime = 0.2;
+        corePS.maxLifeTime = 0.4;
+        corePS.emitRate = 800;
         corePS.blendMode = ParticleSystem.BLENDMODE_ADD;
-        corePS.minEmitPower = 0.5;
-        corePS.maxEmitPower = 1.5;
+        corePS.minEmitPower = 1.0;
+        corePS.maxEmitPower = 2.0;
         corePS.start();
         
         // 火花粒子 - 飞溅效果
-        const sparkPS = new ParticleSystem("sparkParticles", 300, scene);
+        const sparkPS = new ParticleSystem("sparkParticles", 500, scene);
         sparkPS.particleTexture = sparkTexture;
         sparkPS.emitter = emitter;
         sparkPS.minEmitBox = new Vector3(-0.05, -0.05, -0.05);
         sparkPS.maxEmitBox = new Vector3(0.05, 0.05, 0.05);
-        sparkPS.color1 = new Color4(1.0, 0.8, 0.3, 1.0);
-        sparkPS.color2 = new Color4(1.0, 0.4, 0.8, 1.0);
-        sparkPS.colorDead = new Color4(0.5, 0.1, 0.3, 0.0);
-        sparkPS.minSize = 0.05;
-        sparkPS.maxSize = 0.15;
-        sparkPS.minLifeTime = 0.3;
-        sparkPS.maxLifeTime = 0.6;
-        sparkPS.emitRate = 400;
+        sparkPS.color1 = new Color4(0.8, 0.6, 1.0, 1.0); // 亮紫色
+        sparkPS.color2 = new Color4(0.4, 0.2, 1.0, 1.0); // 深紫色
+        sparkPS.colorDead = new Color4(0.1, 0.0, 0.3, 0.0); // 消失时的暗紫色
+        sparkPS.minSize = 0.08;
+        sparkPS.maxSize = 0.2;
+        sparkPS.minLifeTime = 0.4;
+        sparkPS.maxLifeTime = 0.8;
+        sparkPS.emitRate = 600;
         sparkPS.blendMode = ParticleSystem.BLENDMODE_ADD;
-        sparkPS.minEmitPower = 2;
-        sparkPS.maxEmitPower = 5;
-        sparkPS.gravity = new Vector3(0, -3, 0);
-        sparkPS.direction1 = new Vector3(-1, 1, -1);
+        sparkPS.minEmitPower = 3;
+        sparkPS.maxEmitPower = 7;
+        sparkPS.gravity = new Vector3(0, -5, 0);
+        sparkPS.direction1 = new Vector3(-1, 0.5, -1);
         sparkPS.direction2 = new Vector3(1, 2, 1);
         sparkPS.start();
         
         // 尾迹能量流
-        const trailPS = new ParticleSystem("trailEnergy", 800, scene);
+        const trailPS = new ParticleSystem("trailEnergy", 1000, scene);
         trailPS.particleTexture = coreTexture;
         trailPS.emitter = emitter;
         trailPS.minEmitBox = new Vector3(-0.2, -0.15, -0.2);
         trailPS.maxEmitBox = new Vector3(0.2, 0.15, 0.2);
-        trailPS.color1 = new Color4(0.7, 0.3, 1.0, 0.9);
-        trailPS.color2 = new Color4(0.3, 0.6, 1.0, 0.9);
-        trailPS.colorDead = new Color4(0.2, 0.1, 0.5, 0.0);
-        trailPS.minSize = 0.1;
-        trailPS.maxSize = 0.3;
-        trailPS.minLifeTime = 0.25;
-        trailPS.maxLifeTime = 0.5;
-        trailPS.emitRate = 500;
+        trailPS.color1 = new Color4(0.6, 0.2, 1.0, 0.8);
+        trailPS.color2 = new Color4(0.2, 0.5, 1.0, 0.8);
+        trailPS.colorDead = new Color4(0.1, 0.0, 0.3, 0.0);
+        trailPS.minSize = 0.15;
+        trailPS.maxSize = 0.4;
+        trailPS.minLifeTime = 0.3;
+        trailPS.maxLifeTime = 0.6;
+        trailPS.emitRate = 800;
         trailPS.blendMode = ParticleSystem.BLENDMODE_ADD;
-        trailPS.minEmitPower = 0.2;
-        trailPS.maxEmitPower = 0.8;
+        trailPS.minEmitPower = 0.5;
+        trailPS.maxEmitPower = 1.5;
         trailPS.start();
         
         let currentSegment = 0;
@@ -199,9 +307,17 @@ export class HalfMoonSlash extends BaseSkill {
             
             // 更新主拖尾淡出
             const trailFrames = trailDuration * fps;
+            const currentTime = frameCount * 0.02;
+            
             for (let i = trailSegments.length - 1; i >= 0; i--) {
                 const seg = trailSegments[i];
                 const age = frameCount - seg.createdAt;
+                
+                // 更新 Shader 时间
+                if (seg.material instanceof ShaderMaterial) {
+                    seg.material.setFloat("time", currentTime);
+                }
+
                 if (age > trailFrames) {
                     seg.mesh.dispose();
                     seg.material.dispose();
@@ -209,14 +325,24 @@ export class HalfMoonSlash extends BaseSkill {
                 } else {
                     const fadeProgress = age / trailFrames;
                     const pulse = 1 + Math.sin(age * 0.8) * 0.1;
-                    seg.material.alpha = 0.95 * (1 - fadeProgress * fadeProgress) * pulse;
-                    // 颜色渐变到更深的紫色
-                    const colorShift = fadeProgress * 0.5;
-                    seg.material.emissiveColor = new Color3(
-                        0.6 - colorShift * 0.3,
-                        0.3 - colorShift * 0.2,
-                        1.0 - colorShift * 0.2
-                    );
+                    
+                    if (seg.material instanceof ShaderMaterial) {
+                        // ShaderMaterial 使用 alphaMultiplier
+                        const alphaVal = 1.0 * (1 - fadeProgress * fadeProgress) * pulse;
+                        seg.material.setFloat("alphaMultiplier", alphaVal);
+                    } else {
+                        // 兼容其他材质 (如果有)
+                        seg.material.alpha = 0.95 * (1 - fadeProgress * fadeProgress) * pulse;
+                        // 颜色渐变到更深的紫色
+                        const colorShift = fadeProgress * 0.5;
+                        if (seg.material.emissiveColor) {
+                            seg.material.emissiveColor = new Color3(
+                                0.6 - colorShift * 0.3,
+                                0.3 - colorShift * 0.2,
+                                1.0 - colorShift * 0.2
+                            );
+                        }
+                    }
                 }
             }
             
@@ -296,9 +422,9 @@ export class HalfMoonSlash extends BaseSkill {
         canvas.width = 32; canvas.height = 32;
         const ctx = canvas.getContext("2d");
         const grad = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-        grad.addColorStop(0, "rgba(255, 255, 200, 1)");
-        grad.addColorStop(0.3, "rgba(255, 200, 100, 0.8)");
-        grad.addColorStop(0.6, "rgba(255, 100, 150, 0.4)");
+        grad.addColorStop(0, "rgba(220, 220, 255, 1)"); // 亮白偏蓝
+        grad.addColorStop(0.3, "rgba(180, 100, 255, 0.8)"); // 亮紫色
+        grad.addColorStop(0.6, "rgba(100, 50, 200, 0.4)"); // 深紫色
         grad.addColorStop(1, "rgba(0, 0, 0, 0)");
         ctx.fillStyle = grad;
         ctx.beginPath();
