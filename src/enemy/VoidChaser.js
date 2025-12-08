@@ -73,16 +73,22 @@ export class VoidChaser {
         this.modelRoot = new TransformNode("modelRoot", this.scene);
         this.modelRoot.parent = this.root;
         
-        // 材质
-        const coreMat = new StandardMaterial("coreMat", this.scene);
-        coreMat.diffuseColor = new Color3(0.1, 0.1, 0.1);
-        coreMat.emissiveColor = new Color3(0.2, 0.0, 0.4); // 深紫发光
-        coreMat.specularColor = new Color3(1, 1, 1);
+        // 材质 - 尝试复用
+        let coreMat = this.scene.getMaterialByName("void_coreMat");
+        if (!coreMat) {
+            coreMat = new StandardMaterial("void_coreMat", this.scene);
+            coreMat.diffuseColor = new Color3(0.1, 0.1, 0.1);
+            coreMat.emissiveColor = new Color3(0.2, 0.0, 0.4); // 深紫发光
+            coreMat.specularColor = new Color3(1, 1, 1);
+        }
         
-        const edgeMat = new StandardMaterial("edgeMat", this.scene);
-        edgeMat.diffuseColor = new Color3(0, 0, 0);
-        edgeMat.emissiveColor = new Color3(0.0, 0.8, 1.0); // 青色能量
-        edgeMat.alpha = 0.8;
+        let edgeMat = this.scene.getMaterialByName("void_edgeMat");
+        if (!edgeMat) {
+            edgeMat = new StandardMaterial("void_edgeMat", this.scene);
+            edgeMat.diffuseColor = new Color3(0, 0, 0);
+            edgeMat.emissiveColor = new Color3(0.0, 0.8, 1.0); // 青色能量
+            edgeMat.alpha = 0.8;
+        }
 
         // --- 构建几何体 ---
         
@@ -172,14 +178,18 @@ export class VoidChaser {
     enableShadows() {
         const shadowGenerator = this.scene.shadowGenerator;
         if (shadowGenerator) {
-            const addShadows = (node) => {
-                if (node.getClassName() === "Mesh") {
-                    shadowGenerator.addShadowCaster(node);
-                    node.receiveShadows = true;
-                }
-                node.getChildren().forEach(child => addShadows(child));
+            // 优化：仅核心部分投射阴影，忽略透明环和细小尖刺
+            shadowGenerator.addShadowCaster(this.core);
+            this.core.receiveShadows = true;
+            
+            // 其他部分只接收阴影
+            const enableReceive = (node) => {
+                 if (node.getClassName() === "Mesh") {
+                     node.receiveShadows = true;
+                 }
+                 node.getChildren().forEach(child => enableReceive(child));
             };
-            addShadows(this.modelRoot);
+            enableReceive(this.modelRoot);
         }
     }
 
@@ -205,9 +215,13 @@ export class VoidChaser {
     createTrail() {
         if (this.isDead) return;
         this.trail = new TrailMesh("voidTrail", this.trailSource, this.scene, 0.4, 30, true);
-        const trailMat = new StandardMaterial("trailMat", this.scene);
-        trailMat.emissiveColor = new Color3(0.5, 0.0, 1.0);
-        trailMat.disableLighting = true;
+        
+        let trailMat = this.scene.getMaterialByName("void_trailMat");
+        if (!trailMat) {
+            trailMat = new StandardMaterial("void_trailMat", this.scene);
+            trailMat.emissiveColor = new Color3(0.5, 0.0, 1.0);
+            trailMat.disableLighting = true;
+        }
         this.trail.material = trailMat;
     }
 

@@ -35,8 +35,8 @@ export const DefaultSceneConfig = {
         streetLampsEnabled: false, // 是否生成路灯
         treeShadow: {
             filter: "pcf",
-            quality: "high", //"low"|"medium"|"high"
-            mapSize: 4096,        // 增大阴影贴图尺寸提高清晰度
+            quality: "medium", //"low"|"medium"|"high"
+            mapSize: 2048,        // 优化：从4096降至2048以提高性能
             blurKernel: 8,
             useKernelBlur: false,
             darkness: 0.4,        // 降低阴影透明度使其更清晰
