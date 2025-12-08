@@ -175,12 +175,53 @@ export class PhoenixRay extends BaseSkill {
 
         // 手部粒子脉冲 (更新)
         if (this.leftHandSystems) {
-            this.leftHandSystems.core.emitRate = 5000 * pulse;
-            this.leftHandSystems.sparks.emitRate = 1000 * pulse;
+            this.leftHandSystems.core.emitRate = 2000 * pulse;
+            this.leftHandSystems.sparks.emitRate = 400 * pulse;
+            this.updateHandParticleDirection(this.leftHandSystems);
         }
         if (this.rightHandSystems) {
-            this.rightHandSystems.core.emitRate = 5000 * pulse;
-            this.rightHandSystems.sparks.emitRate = 1000 * pulse;
+            this.rightHandSystems.core.emitRate = 2000 * pulse;
+            this.rightHandSystems.sparks.emitRate = 400 * pulse;
+            this.updateHandParticleDirection(this.rightHandSystems);
+        }
+    }
+
+    /**
+     * 更新手部粒子方向，使其始终朝向玩家前方
+     */
+    updateHandParticleDirection(systems) {
+        if (!this.rootNode || !this.rootNode.rotationQuaternion) return;
+        
+        // 计算前方向
+        const forward = new Vector3(0, 0, 1);
+        forward.rotateByQuaternionToRef(this.rootNode.rotationQuaternion, forward);
+        
+        // 强制水平化，防止向下喷射
+        forward.y = 0;
+        forward.normalize();
+        
+        // 使用 DirectedSphereEmitter 的 direction1 和 direction2 定义发射方向的包围盒
+        // 我们希望粒子向"前方半球"随机运动
+        // 核心粒子比较集中
+        if (systems.core) {
+            const spread = 0.5; 
+            // Y轴扩散稍小一点，保持水平感
+            const spreadVector = new Vector3(spread, 0.3, spread);
+            const dir1 = forward.subtract(spreadVector);
+            const dir2 = forward.add(spreadVector);
+            systems.core.direction1 = dir1;
+            systems.core.direction2 = dir2;
+        }
+        
+        // 火星粒子范围更广，覆盖整个前方半球
+        if (systems.sparks) {
+            const spread = 1.0; 
+            // Y轴扩散稍小，避免过于垂直发散
+            const spreadVector = new Vector3(spread, 0.6, spread);
+            const dir1 = forward.subtract(spreadVector);
+            const dir2 = forward.add(spreadVector);
+            systems.sparks.direction1 = dir1;
+            systems.sparks.direction2 = dir2;
         }
     }
 
@@ -522,8 +563,9 @@ export class PhoenixRay extends BaseSkill {
             core.particleTexture = this.createFlameTexture();
             core.emitter = emitter;
             
-            // 球形发射器，模拟手中能量球
-            core.createSphereEmitter(0.05);
+            // 球形发射器，模拟手中能量球，使用 DirectedSphereEmitter 以便控制方向
+            // 参数：radius, direction1, direction2
+            core.createDirectedSphereEmitter(0.05, new Vector3(0, 0, 1), new Vector3(0, 0, 1));
             
             // 颜色渐变：白热 -> 金黄 -> 橙红 -> 暗红 -> 透明
             core.addColorGradient(0.0, new Color4(1, 1, 1, 1));
@@ -537,14 +579,14 @@ export class PhoenixRay extends BaseSkill {
             core.addSizeGradient(0.4, 0.12);
             core.addSizeGradient(1.0, 0.02);
 
-            core.minLifeTime = 0.2;
-            core.maxLifeTime = 0.5;
-            core.emitRate = 5000; // GPU模式下使用超高发射率
+            core.minLifeTime = 0.1;
+            core.maxLifeTime = 0.3; // 缩短生命周期，避免飞太远
+            core.emitRate = 2000; // GPU模式下使用超高发射率
             
             // 物理动力学
-            core.minEmitPower = 0.5;
-            core.maxEmitPower = 2.0;
-            core.gravity = new Vector3(0, 1.5, 0); // 火焰升腾
+            core.minEmitPower = 1.0;
+            core.maxEmitPower = 3.0;
+            core.gravity = new Vector3(0, 0, 0); // 移除重力，改为随风飘散
             core.blendMode = ParticleSystem.BLENDMODE_ADD;
 
             core.start();
@@ -557,7 +599,8 @@ export class PhoenixRay extends BaseSkill {
             sparks.particleTexture = this.createFlameTexture();
             sparks.emitter = emitter;
             
-            sparks.createSphereEmitter(0.1);
+            // 使用定向发射器，向前方喷射
+            sparks.createDirectedSphereEmitter(0.1, new Vector3(0, 0, 1), new Vector3(0, 0, 1));
             
             sparks.addColorGradient(0.0, new Color4(1, 1, 0.8, 1));
             sparks.addColorGradient(0.5, new Color4(1, 0.8, 0.5, 1));
@@ -565,14 +608,14 @@ export class PhoenixRay extends BaseSkill {
             
             sparks.minSize = 0.05;
             sparks.maxSize = 0.15;
-            sparks.minLifeTime = 0.4;
-            sparks.maxLifeTime = 0.8;
-            sparks.emitRate = 1000;
+            sparks.minLifeTime = 0.2;
+            sparks.maxLifeTime = 0.5;
+            sparks.emitRate = 400;
             
             // 强力的四散飞溅
-            sparks.minEmitPower = 3;
-            sparks.maxEmitPower = 2;
-            sparks.gravity = new Vector3(0, -6, 0); // 火星受重力下落
+            sparks.minEmitPower = 2;
+            sparks.maxEmitPower = 5;
+            sparks.gravity = new Vector3(0, 0, 0); // 移除重力
             
             sparks.blendMode = ParticleSystem.BLENDMODE_ADD;
             sparks.start();
