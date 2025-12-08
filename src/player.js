@@ -47,6 +47,11 @@ export class Player2 {
             this.mesh = this.boxMan.mesh;
             this.aggregate = this.boxMan.aggregate;
             this.modelRoot = this.boxMan.modelRoot;
+            
+            // 标记为玩家，供敌人AI检测
+            if (!this.mesh.metadata) this.mesh.metadata = {};
+            this.mesh.metadata.type = "player";
+            this.mesh.metadata.instance = this;
         }
 
         this.inputMap = {};

@@ -3,6 +3,7 @@ import { Config } from "../../config";
 import { DefaultSceneConfig } from "./config";
 import { DecorationManager } from "./decorations";
 import { Horse } from "./horse";
+import { VoidChaser } from "../../enemy/VoidChaser";
 
 /**
  * 默认场景
@@ -26,6 +27,16 @@ export class DefaultScene {
         this.setupLights();
         this.createGround();
         this.createDecorations();
+        this.createEnemies();
+    }
+
+    createEnemies() {
+        // 随机生成几只虚空追猎者
+        for (let i = 0; i < 5; i++) {
+            const x = (Math.random() - 0.5) * 40;
+            const z = (Math.random() - 0.5) * 40;
+            new VoidChaser(this.scene, new Vector3(x, 2, z));
+        }
     }
 
     /**

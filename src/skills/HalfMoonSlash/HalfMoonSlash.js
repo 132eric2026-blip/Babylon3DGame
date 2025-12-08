@@ -118,6 +118,39 @@ export class HalfMoonSlash extends BaseSkill {
         const playerPos = this.player.mesh.position.clone();
         const playerRotation = this.getPlayerRotation();
         this.createSweepingCrescent(playerPos, playerRotation);
+        this.checkHits(playerPos, playerRotation);
+    }
+
+    checkHits(origin, rotation) {
+        const radius = 3.0; // 攻击半径
+        const angleLimit = Math.PI * 0.8; // 攻击扇形角度
+        
+        const forward = new Vector3(Math.sin(rotation), 0, Math.cos(rotation));
+        
+        // 查找场景中所有的敌人
+        // 也可以优化为使用 octree 或者专门的 enemy manager
+        this.scene.meshes.forEach(mesh => {
+            if (mesh.metadata && mesh.metadata.type === "enemy" && mesh.metadata.instance && !mesh.metadata.instance.isDead) {
+                const enemyPos = mesh.absolutePosition ? mesh.absolutePosition.clone() : mesh.position.clone();
+                // 忽略高度差，只计算水平距离
+                enemyPos.y = origin.y;
+                
+                const diff = enemyPos.subtract(origin);
+                const dist = diff.length();
+                
+                if (dist < radius) {
+                    diff.normalize();
+                    const dot = Vector3.Dot(forward, diff);
+                    // 防止精度问题导致 acos NaN
+                    const clampedDot = Math.max(-1, Math.min(1, dot));
+                    const angle = Math.acos(clampedDot);
+                    
+                    if (angle < angleLimit / 2) {
+                        mesh.metadata.instance.die();
+                    }
+                }
+            }
+        });
     }
 
     getPlayerRotation() {
