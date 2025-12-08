@@ -130,7 +130,13 @@ export class PhoenixRay extends BaseSkill {
         // 3. 沿射线的火焰粒子
         this.createFlameParticles();
 
-        // 4. 光源
+        // 4. 射线出口散射粒子
+        this.createExitScatterParticles();
+
+        // 5. 手部环绕粒子
+        this.createHandFlameParticles();
+
+        // 6. 光源
         this.rayLight = new PointLight("phoenixRayLight", new Vector3(0, 0, 0), scene);
         this.rayLight.parent = this.rootNode;
         this.rayLight.diffuse = new Color3(1.0, 0.4, 0.0);
@@ -151,6 +157,27 @@ export class PhoenixRay extends BaseSkill {
             const scale = 1 + Math.sin(time) * 0.1;
             this.rayMesh.scaling.x = scale;
             this.rayMesh.scaling.z = scale;
+        }
+
+        // 粒子发射率脉冲
+        const pulse = 1 + Math.sin(time * 5) * 0.5; // 0.5 ~ 1.5
+        
+        if (this.exitBurstPS) {
+            this.exitBurstPS.emitRate = 600 * pulse;
+        }
+        if (this.exitSparksPS) {
+            this.exitSparksPS.emitRate = 600 * pulse;
+        }
+        if (this.exitEmbersPS) {
+            this.exitEmbersPS.emitRate = 500 * pulse;
+        }
+
+        // 手部粒子脉冲
+        if (this.leftHandPS) {
+            this.leftHandPS.emitRate = 400 * pulse;
+        }
+        if (this.rightHandPS) {
+            this.rightHandPS.emitRate = 400 * pulse;
         }
     }
 
@@ -371,6 +398,156 @@ export class PhoenixRay extends BaseSkill {
     }
 
     /**
+     * 创建射线出口的散射粒子
+     */
+    createExitScatterParticles() {
+        const scene = this.scene;
+
+        // 创建出口节点
+        this.tipNode = new TransformNode("phoenixRayTip", scene);
+        this.tipNode.parent = this.rootNode;
+        this.tipNode.position = new Vector3(0, 0, this.rayLength);
+
+        // 1. 主爆发 (Burst) - 像火焰喷射
+        const burst = new ParticleSystem("phoenixExitBurst", 800, scene);
+        burst.particleTexture = this.createFlameTexture();
+        burst.emitter = this.tipNode;
+        burst.createConeEmitter(0.4, Math.PI / 3); // 较大的角度
+        burst.isLocal = true; // 跟随移动
+
+        burst.color1 = new Color4(1.0, 0.9, 0.5, 1.0);
+        burst.color2 = new Color4(1.0, 0.5, 0.0, 1.0);
+        burst.colorDead = new Color4(0.6, 0.1, 0.0, 0.0);
+
+        burst.minSize = 0.2;
+        burst.maxSize = 0.6;
+        burst.minLifeTime = 0.15;
+        burst.maxLifeTime = 0.35;
+        
+        burst.emitRate = 600;
+        burst.blendMode = ParticleSystem.BLENDMODE_ADD;
+        
+        burst.minEmitPower = 6;
+        burst.maxEmitPower = 12;
+        burst.updateSpeed = 0.02;
+
+        burst.start();
+        this.particleSystems.push(burst);
+        this.exitBurstPS = burst;
+
+        // 2. 飞溅火花 (Sparks) - 高速、随机方向
+        const sparks = new ParticleSystem("phoenixExitSparks", 900, scene);
+        sparks.particleTexture = this.createFlameTexture(); // 复用纹理，或者可以用更细的
+        sparks.emitter = this.tipNode;
+        // 几乎全向喷射
+        sparks.createConeEmitter(0.1, Math.PI * 0.8);
+        
+        sparks.color1 = new Color4(1.0, 1.0, 0.8, 1.0);
+        sparks.color2 = new Color4(1.0, 0.8, 0.4, 1.0);
+        sparks.colorDead = new Color4(0.8, 0.4, 0.0, 0.0);
+
+        sparks.minSize = 0.05;
+        sparks.maxSize = 0.15;
+        sparks.minLifeTime = 0.2;
+        sparks.maxLifeTime = 0.5;
+        
+        sparks.emitRate = 600;
+        sparks.blendMode = ParticleSystem.BLENDMODE_ADD;
+        
+        sparks.minEmitPower = 3;
+        sparks.maxEmitPower = 9;
+        sparks.gravity = new Vector3(0, -5, 0); // 火花受重力下落
+
+        sparks.start();
+        this.particleSystems.push(sparks);
+        this.exitSparksPS = sparks;
+
+        // 3. 飘散余烬 (Embers) - 缓慢、大范围
+        const embers = new ParticleSystem("phoenixExitEmbers", 700, scene);
+        embers.particleTexture = this.createFlameTexture();
+        embers.emitter = this.tipNode;
+        embers.createSphereEmitter(0.5); // 球形发射器
+        
+        embers.color1 = new Color4(1.0, 0.4, 0.0, 1.0);
+        embers.color2 = new Color4(0.8, 0.2, 0.0, 0.8);
+        embers.colorDead = new Color4(0.2, 0.0, 0.0, 0.0);
+
+        embers.minSize = 0.1;
+        embers.maxSize = 0.3;
+        embers.minLifeTime = 0.5;
+        embers.maxLifeTime = 1.0;
+        
+        embers.emitRate = 500;
+        embers.blendMode = ParticleSystem.BLENDMODE_ADD;
+        
+        embers.minEmitPower = 6;
+        embers.maxEmitPower = 14;
+        // 随机方向
+        embers.direction1 = new Vector3(-1, -1, -1);
+        embers.direction2 = new Vector3(1, 1, 1);
+
+        embers.start();
+        this.particleSystems.push(embers);
+        this.exitEmbersPS = embers;
+    }
+
+    /**
+     * 创建手部环绕粒子
+     */
+    createHandFlameParticles() {
+        const scene = this.scene;
+        const boxMan = this.player.boxMan;
+        
+        if (!boxMan || !boxMan.leftShoulder || !boxMan.rightShoulder) return;
+
+        // 创建手部节点
+        this.leftHandNode = new TransformNode("phoenixLeftHand", scene);
+        this.leftHandNode.parent = boxMan.leftShoulder;
+        this.leftHandNode.position = new Vector3(0, -0.6, 0); // 手臂末端
+
+        this.rightHandNode = new TransformNode("phoenixRightHand", scene);
+        this.rightHandNode.parent = boxMan.rightShoulder;
+        this.rightHandNode.position = new Vector3(0, -0.6, 0);
+
+        // 通用配置函数
+        const createHandPS = (emitter, name) => {
+            const ps = new ParticleSystem(name, 500, scene);
+            ps.particleTexture = this.createFlameTexture();
+            ps.emitter = emitter;
+            
+            // 球形发射，模拟手中能量溢出
+            ps.createSphereEmitter(0.3);
+            
+            ps.color1 = new Color4(1.0, 0.6, 0.2, 1.0);
+            ps.color2 = new Color4(1.0, 0.3, 0.0, 1.0);
+            ps.colorDead = new Color4(0.5, 0.1, 0.0, 0.0);
+            
+            ps.minSize = 0.1;
+            ps.maxSize = 0.3;
+            ps.minLifeTime = 0.2;
+            ps.maxLifeTime = 0.4;
+            
+            ps.emitRate = 400;
+            ps.blendMode = ParticleSystem.BLENDMODE_ADD;
+            
+            ps.minEmitPower = 1;
+            ps.maxEmitPower = 3;
+            
+            // 四处飞溅的效果：增加一些随机速度和重力
+            ps.gravity = new Vector3(0, 1, 0); // 能量向上升腾
+            ps.direction1 = new Vector3(-1, -1, -1);
+            ps.direction2 = new Vector3(1, 1, 1);
+
+            ps.start();
+            this.particleSystems.push(ps);
+            return ps;
+        };
+
+        this.leftHandPS = createHandPS(this.leftHandNode, "phoenixLeftHandPS");
+        this.rightHandPS = createHandPS(this.rightHandNode, "phoenixRightHandPS");
+    }
+
+    /**
      * 清理视觉效果
      */
     cleanupVisuals() {
@@ -394,6 +571,24 @@ export class PhoenixRay extends BaseSkill {
             setTimeout(() => ps.dispose(), 1000);
         });
         this.particleSystems = [];
+        this.exitBurstPS = null;
+        this.exitSparksPS = null;
+        this.exitEmbersPS = null;
+        this.leftHandPS = null;
+        this.rightHandPS = null;
+
+        if (this.tipNode) {
+            this.tipNode.dispose();
+            this.tipNode = null;
+        }
+        if (this.leftHandNode) {
+            this.leftHandNode.dispose();
+            this.leftHandNode = null;
+        }
+        if (this.rightHandNode) {
+            this.rightHandNode.dispose();
+            this.rightHandNode = null;
+        }
 
         if (this.rootNode) {
             this.rootNode.dispose();
