@@ -523,7 +523,7 @@ export class PhoenixRay extends BaseSkill {
             core.emitter = emitter;
             
             // 球形发射器，模拟手中能量球
-            core.createSphereEmitter(0.25);
+            core.createSphereEmitter(0.05);
             
             // 颜色渐变：白热 -> 金黄 -> 橙红 -> 暗红 -> 透明
             core.addColorGradient(0.0, new Color4(1, 1, 1, 1));
@@ -533,9 +533,9 @@ export class PhoenixRay extends BaseSkill {
             core.addColorGradient(1.0, new Color4(0.2, 0.0, 0.0, 0.0));
 
             // 大小渐变：从小变大再消失
-            core.addSizeGradient(0.0, 0.2);
-            core.addSizeGradient(0.4, 0.5);
-            core.addSizeGradient(1.0, 0.1);
+            core.addSizeGradient(0.0, 0.05);
+            core.addSizeGradient(0.4, 0.12);
+            core.addSizeGradient(1.0, 0.02);
 
             core.minLifeTime = 0.2;
             core.maxLifeTime = 0.5;
@@ -557,7 +557,7 @@ export class PhoenixRay extends BaseSkill {
             sparks.particleTexture = this.createFlameTexture();
             sparks.emitter = emitter;
             
-            sparks.createSphereEmitter(0.35);
+            sparks.createSphereEmitter(0.1);
             
             sparks.addColorGradient(0.0, new Color4(1, 1, 0.8, 1));
             sparks.addColorGradient(0.5, new Color4(1, 0.8, 0.5, 1));
