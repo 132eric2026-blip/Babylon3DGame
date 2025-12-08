@@ -5,6 +5,7 @@ import {
     Color3, 
     Color4, 
     ParticleSystem, 
+    GPUParticleSystem,
     Texture, 
     TransformNode, 
     Mesh, 
@@ -174,12 +175,12 @@ export class PhoenixRay extends BaseSkill {
 
         // 手部粒子脉冲 (更新)
         if (this.leftHandSystems) {
-            this.leftHandSystems.core.emitRate = 2000 * pulse;
-            this.leftHandSystems.sparks.emitRate = 400 * pulse;
+            this.leftHandSystems.core.emitRate = 5000 * pulse;
+            this.leftHandSystems.sparks.emitRate = 1000 * pulse;
         }
         if (this.rightHandSystems) {
-            this.rightHandSystems.core.emitRate = 2000 * pulse;
-            this.rightHandSystems.sparks.emitRate = 400 * pulse;
+            this.rightHandSystems.core.emitRate = 5000 * pulse;
+            this.rightHandSystems.sparks.emitRate = 1000 * pulse;
         }
     }
 
@@ -515,10 +516,9 @@ export class PhoenixRay extends BaseSkill {
         const createAdvancedHandPS = (emitter, name) => {
             const systems = {};
 
-            // 1. 核心烈焰 (Core Flame)
-            // 回退到 CPU ParticleSystem 以解决 WebGPU 纹理格式兼容性问题
-            // 保持渐变效果，调整粒子数量适应 CPU
-            const core = new ParticleSystem(name + "_Core", 2000, scene);
+            // 1. 核心烈焰 (Core Flame) - GPU版本
+            // 使用 GPUParticleSystem 获得极高的粒子密度和性能
+            const core = new GPUParticleSystem(name + "_Core", { capacity: 10000 }, scene);
             core.particleTexture = this.createFlameTexture();
             core.emitter = emitter;
             
@@ -539,7 +539,7 @@ export class PhoenixRay extends BaseSkill {
 
             core.minLifeTime = 0.2;
             core.maxLifeTime = 0.5;
-            core.emitRate = 1500; // CPU模式下适当降低发射率，但依然保持高密度
+            core.emitRate = 5000; // GPU模式下使用超高发射率
             
             // 物理动力学
             core.minEmitPower = 0.5;
@@ -552,25 +552,26 @@ export class PhoenixRay extends BaseSkill {
             systems.core = core;
 
             // 2. 溅射火星 (Sparks) - 模拟火苗四处飞溅
-            const sparks = new ParticleSystem(name + "_Sparks", 1000, scene);
+            // 火星也可以使用 GPU 粒子
+            const sparks = new GPUParticleSystem(name + "_Sparks", { capacity: 5000 }, scene);
             sparks.particleTexture = this.createFlameTexture();
             sparks.emitter = emitter;
             
             sparks.createSphereEmitter(0.35);
             
-            sparks.color1 = new Color4(1, 1, 0.8, 1);
-            sparks.color2 = new Color4(1, 0.8, 0.5, 1);
-            sparks.colorDead = new Color4(1, 0.4, 0, 0);
+            sparks.addColorGradient(0.0, new Color4(1, 1, 0.8, 1));
+            sparks.addColorGradient(0.5, new Color4(1, 0.8, 0.5, 1));
+            sparks.addColorGradient(1.0, new Color4(1, 0.4, 0, 0));
             
             sparks.minSize = 0.05;
             sparks.maxSize = 0.15;
             sparks.minLifeTime = 0.4;
             sparks.maxLifeTime = 0.8;
-            sparks.emitRate = 400;
+            sparks.emitRate = 1000;
             
             // 强力的四散飞溅
             sparks.minEmitPower = 3;
-            sparks.maxEmitPower = 8;
+            sparks.maxEmitPower = 2;
             sparks.gravity = new Vector3(0, -6, 0); // 火星受重力下落
             
             sparks.blendMode = ParticleSystem.BLENDMODE_ADD;

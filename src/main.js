@@ -21,7 +21,13 @@ import { spawnWeapons } from "./weaponManager";
  */
 async function createEngine() {
     const canvas = document.getElementById("renderCanvas");
-    const engine = new WebGPUEngine(canvas, { antialiasingEnabled: true });
+    // 尝试开启 float32-filterable 特性以支持 GPU 粒子系统的高级渐变效果
+    const engine = new WebGPUEngine(canvas, { 
+        antialiasingEnabled: true,
+        deviceDescriptor: {
+            requiredFeatures: ["float32-filterable"]
+        }
+    });
     await engine.initAsync();
     return engine;
 }
