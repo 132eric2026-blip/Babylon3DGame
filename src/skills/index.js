@@ -12,4 +12,5 @@ export { EnergyShield } from "./EnergyShield/EnergyShield";
 export { AlphaShield } from "./AlphaShield/AlphaShield";
 export { GoldenShield } from "./GoldenShield/GoldenShield";
 export { PhoenixRay } from "./PhoenixRay/PhoenixRay";
+export { ShadowSlash } from "./ShadowSlash/ShadowSlash";
 

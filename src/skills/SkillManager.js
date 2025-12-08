@@ -7,6 +7,8 @@ import { AlphaShield } from "./AlphaShield/AlphaShield";
 //import { GoldenShield } from "./GoldenShield/GoldenShield";
 //import { FireRingShield } from "./FireRingShield/FireRingShield";
 import { PhoenixRay } from "./PhoenixRay/PhoenixRay";
+import { ShadowSlash } from "./ShadowSlash/ShadowSlash";
+
 // 已移除 FireShield
 
 
@@ -52,8 +54,10 @@ export class SkillManager {
         this.skills[5] = new AlphaShield(this.scene, this.player);
         // 第六个技能槽（按键Z）：龙息术
         this.skills[6] = new DragonBreath(this.scene, this.player);
-        // 第七个技能槽：火焰防护盾
-        //this.skills[7] = new FireRingShield(this.scene, this.player);
+        // 第七个技能槽（按键K）：影斩
+        this.skills[7] = new ShadowSlash(this.scene, this.player);
+        
+        
         // 第八个技能槽（鼠标中键）：凤凰射线（持续释放）
         this.skills[8] = new PhoenixRay(this.scene, this.player);
     }
@@ -91,6 +95,16 @@ export class SkillManager {
             // Z键：释放龙息术
             if (key.toLowerCase() === 'z') {
                 this.activateSkill(6);
+            }
+
+            // K键：释放影斩
+            if (key.toLowerCase() === 'k') {
+                this.activateSkill(7);
+            }
+
+            // J键：释放环形斩
+            if (key.toLowerCase() === 'j') {
+                this.activateSkill(4);
             }
             
         });
