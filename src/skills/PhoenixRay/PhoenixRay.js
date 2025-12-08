@@ -659,23 +659,31 @@ export class PhoenixRay extends BaseSkill {
         this.leftHandSystems = null;
         this.rightHandSystems = null;
 
+        // 保存节点引用以便延迟销毁，防止粒子系统位置异常
+        const nodesToDispose = [];
         if (this.tipNode) {
-            this.tipNode.dispose();
+            nodesToDispose.push(this.tipNode);
             this.tipNode = null;
         }
         if (this.leftHandNode) {
-            this.leftHandNode.dispose();
+            nodesToDispose.push(this.leftHandNode);
             this.leftHandNode = null;
         }
         if (this.rightHandNode) {
-            this.rightHandNode.dispose();
+            nodesToDispose.push(this.rightHandNode);
             this.rightHandNode = null;
         }
-
         if (this.rootNode) {
-            this.rootNode.dispose();
+            nodesToDispose.push(this.rootNode);
             this.rootNode = null;
         }
+
+        // 延迟销毁节点，确保粒子系统在完全消失前有依赖的发射源位置
+        setTimeout(() => {
+            nodesToDispose.forEach(node => {
+                if (node) node.dispose();
+            });
+        }, 1000);
     }
 
     /**
